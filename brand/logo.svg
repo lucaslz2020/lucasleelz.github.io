@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 330 72" role="img" aria-labelledby="title description">
+  <title id="title">lucaslz</title>
+  <desc id="description">lucaslz engineering notes</desc>
+  <style>
+    .wordmark { fill: #17191d; }
+    .tagline { fill: #62666e; }
+    @media (prefers-color-scheme: dark) {
+      .wordmark { fill: #f1efe8; }
+      .tagline { fill: #a8adb6; }
+    }
+  </style>
+  <g transform="translate(0 8)">
+    <rect width="56" height="56" rx="13" fill="#2855ec"/>
+    <path d="M15 13v30h19v-7H23V13z" fill="#fff"/>
+    <path d="M34 20h7v23h-7z" fill="#caee47"/>
+  </g>
+  <text class="wordmark" x="76" y="35" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="28" font-weight="750" letter-spacing="-1">lucaslz</text>
+  <text class="tagline" x="78" y="54" font-family="SFMono-Regular, Consolas, Liberation Mono, monospace" font-size="9" font-weight="700" letter-spacing="2.2">ENGINEERING NOTES</text>
+</svg>
