@@ -1,0 +1,1 @@
+import{t as e}from"./preload-helper.CxFQXtKk.js";async function t(){let t=await e(()=>import(`/pagefind/pagefind.js`),[]);return await t.init(),t}function n(e){return e.replace(/<[^>]*>/g,``).replaceAll(`&lt;`,`<`).replaceAll(`&gt;`,`>`).replaceAll(`&quot;`,`"`).replaceAll(`&#39;`,`'`).replaceAll(`&amp;`,`&`)}export{n,t};
