@@ -1,0 +1,16 @@
+{
+  "name": "lucaslz · 工程笔记",
+  "short_name": "lucaslz",
+  "description": "关于软件工程、Web、Java 与持续学习的长期技术笔记。",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f1e8",
+  "theme_color": "#2855ec",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    }
+  ]
+}
