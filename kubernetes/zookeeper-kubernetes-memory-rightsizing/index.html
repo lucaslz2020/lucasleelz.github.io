@@ -1,0 +1,329 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="generator" content="Astro v7.1.6"><meta name="author" content="lucaslz"><meta name="theme-color" content="#f5f1e8" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)"><meta name="description" content="通过 JVM 参数、mntr、快照和 Kubernetes requests 拆解 ZooKeeper 高内存现象，给出分阶段缩容、监控、滚动验证与持久化迁移方案。"><meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"><meta name="keywords" content="Zookeeper, Kubernetes, JVM, 性能优化, 可观测性, ZooKeeper 内存优化, Kubernetes requests, ZOO_HEAP_SIZE, ZooKeeper mntr, StatefulSet 持久化"><link rel="canonical" href="https://lucaslz.com/kubernetes/zookeeper-kubernetes-memory-rightsizing/"><link rel="alternate" hreflang="zh-CN" href="https://lucaslz.com/kubernetes/zookeeper-kubernetes-memory-rightsizing/"><link rel="alternate" hreflang="x-default" href="https://lucaslz.com/kubernetes/zookeeper-kubernetes-memory-rightsizing/"><link rel="author" href="https://github.com/lucaslz2020"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon.ico" sizes="any"><link rel="apple-touch-icon" href="/icons/apple-touch-icon.png"><link rel="alternate" type="application/rss+xml" title="lucaslz · 工程笔记" href="/rss.xml"><link rel="manifest" href="/site.webmanifest"><title>ZooKeeper 每个 Pod 接近 2G：从固定堆到 Kubernetes 资源收缩 · lucaslz</title><meta property="og:type" content="article"><meta property="og:site_name" content="lucaslz · 工程笔记"><meta property="og:title" content="ZooKeeper 每个 Pod 接近 2G：从固定堆到 Kubernetes 资源收缩 · lucaslz"><meta property="og:description" content="通过 JVM 参数、mntr、快照和 Kubernetes requests 拆解 ZooKeeper 高内存现象，给出分阶段缩容、监控、滚动验证与持久化迁移方案。"><meta property="og:url" content="https://lucaslz.com/kubernetes/zookeeper-kubernetes-memory-rightsizing/"><meta property="og:image" content="https://lucaslz.com/og/kubernetes/zookeeper-kubernetes-memory-rightsizing.png"><meta property="og:image:type" content="image/png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="ZooKeeper 每个 Pod 接近 2G：从固定堆到 Kubernetes 资源收缩 的分享图片"><meta property="og:locale" content="zh_CN"><meta property="article:published_time" content="2026-08-09T00:00:00.000Z"><meta property="article:author" content="https://github.com/lucaslz2020"><meta property="article:tag" content="Zookeeper"><meta property="article:tag" content="Kubernetes"><meta property="article:tag" content="JVM"><meta property="article:tag" content="性能优化"><meta property="article:tag" content="可观测性"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="ZooKeeper 每个 Pod 接近 2G：从固定堆到 Kubernetes 资源收缩 · lucaslz"><meta name="twitter:description" content="通过 JVM 参数、mntr、快照和 Kubernetes requests 拆解 ZooKeeper 高内存现象，给出分阶段缩容、监控、滚动验证与持久化迁移方案。"><meta name="twitter:image" content="https://lucaslz.com/og/kubernetes/zookeeper-kubernetes-memory-rightsizing.png"><script>
+      (() => {
+        const saved = localStorage.getItem("theme");
+        const dark = saved
+          ? saved === "dark"
+          : matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+      })();
+    </script><script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Person","@id":"https://lucaslz.com/#person","name":"lucaslz","url":"https://lucaslz.com","sameAs":["https://github.com/lucaslz2020"]},{"@type":"WebSite","@id":"https://lucaslz.com/#website","name":"lucaslz · 工程笔记","alternateName":"lucaslz","description":"关于软件工程、Web、Java 与持续学习的长期技术笔记。","url":"https://lucaslz.com","inLanguage":"zh-CN","publisher":{"@id":"https://lucaslz.com/#person"}},{"@type":"BlogPosting","@id":"https://lucaslz.com/kubernetes/zookeeper-kubernetes-memory-rightsizing/#article","url":"https://lucaslz.com/kubernetes/zookeeper-kubernetes-memory-rightsizing/","headline":"ZooKeeper 每个 Pod 接近 2G：从固定堆到 Kubernetes 资源收缩","description":"通过 JVM 参数、mntr、快照和 Kubernetes requests 拆解 ZooKeeper 高内存现象，给出分阶段缩容、监控、滚动验证与持久化迁移方案。","inLanguage":"zh-CN","datePublished":"2026-08-09T00:00:00.000Z","dateModified":"2026-08-09T00:00:00.000Z","author":{"@id":"https://lucaslz.com/#person","name":"lucaslz"},"publisher":{"@id":"https://lucaslz.com/#person"},"isPartOf":{"@id":"https://lucaslz.com/#website"},"mainEntityOfPage":{"@type":"WebPage","@id":"https://lucaslz.com/kubernetes/zookeeper-kubernetes-memory-rightsizing/"},"image":{"@type":"ImageObject","url":"https://lucaslz.com/og/kubernetes/zookeeper-kubernetes-memory-rightsizing.png","width":1200,"height":630},"articleSection":["Zookeeper","Kubernetes","JVM","性能优化","可观测性"],"keywords":"Zookeeper, Kubernetes, JVM, 性能优化, 可观测性, ZooKeeper 内存优化, Kubernetes requests, ZOO_HEAP_SIZE, ZooKeeper mntr, StatefulSet 持久化","wordCount":2945},{"@type":"BreadcrumbList","@id":"https://lucaslz.com/kubernetes/zookeeper-kubernetes-memory-rightsizing/#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"首页","item":"https://lucaslz.com"},{"@type":"ListItem","position":2,"name":"ZooKeeper 每个 Pod 接近 2G：从固定堆到 Kubernetes 资源收缩","item":"https://lucaslz.com/kubernetes/zookeeper-kubernetes-memory-rightsizing/"}]}]}</script><style>@layer astro.images{:where([data-astro-image]){height:auto}:where([data-astro-image=full-width]){width:100%}:where([data-astro-image=constrained]){max-width:100%}[data-astro-image-fit=fill]{object-fit:fill}[data-astro-image-fit=contain]{object-fit:contain}[data-astro-image-fit=cover]{object-fit:cover}[data-astro-image-fit=scale-down]{object-fit:scale-down}[data-astro-image-pos=top]{object-position:top}[data-astro-image-pos=bottom]{object-position:bottom}[data-astro-image-pos=left]{object-position:left}[data-astro-image-pos=right]{object-position:right}[data-astro-image-pos=center]{object-position:center}[data-astro-image-pos=top-bottom]{object-position:top bottom}[data-astro-image-pos=top-left]{object-position:top left}[data-astro-image-pos=top-right]{object-position:top right}[data-astro-image-pos=top-center]{object-position:top center}[data-astro-image-pos=bottom-top]{object-position:bottom top}[data-astro-image-pos=bottom-left]{object-position:bottom left}[data-astro-image-pos=bottom-right]{object-position:bottom right}[data-astro-image-pos=bottom-center]{object-position:bottom center}[data-astro-image-pos=left-top]{object-position:left top}[data-astro-image-pos=left-bottom]{object-position:left bottom}[data-astro-image-pos=left-right]{object-position:left right}[data-astro-image-pos=left-center]{object-position:left center}[data-astro-image-pos=right-top]{object-position:right top}[data-astro-image-pos=right-bottom]{object-position:right bottom}[data-astro-image-pos=right-left]{object-position:right left}[data-astro-image-pos=right-center]{object-position:right center}[data-astro-image-pos=center-top]{object-position:center top}[data-astro-image-pos=center-bottom]{object-position:center bottom}[data-astro-image-pos=center-left]{object-position:center left}[data-astro-image-pos=center-right]{object-position:center right}}
+</style><link rel="stylesheet" href="/_astro/BaseLayout.C11I8iWb.css"><script type="module" src="/_astro/page.BS6wqQC3.js"></script></head> <body> <a class="skip-link" href="#main-content">跳到主要内容</a> <header class="site-header"> <div class="header-inner"> <a class="brand" href="/" title="返回首页" data-analytics-event="nav_click" data-analytics-target="home"> <span class="brand-mark">LZ</span> <span class="brand-copy"> <strong>lucaslz</strong> <small>ENGINEERING NOTES</small> </span> </a> <nav class="desktop-nav" aria-label="主要导航"> <a href="/" data-analytics-event="nav_click" data-analytics-target="首页"> 首页 </a><a href="/archive" data-analytics-event="nav_click" data-analytics-target="归档"> 归档 </a><a href="/tags" data-analytics-event="nav_click" data-analytics-target="标签"> 标签 </a> <a href="https://github.com/lucaslz2020" target="_blank" rel="noreferrer">GitHub ↗</a> </nav> <style>astro-island,astro-slot,astro-static-slot{display:contents}</style><script>(()=>{var e=async t=>{await(await t())()};(self.Astro||(self.Astro={})).load=e;window.dispatchEvent(new Event("astro:load"));})();</script><script>(()=>{var g=Object.defineProperty;var w=(a,s,c)=>s in a?g(a,s,{enumerable:!0,configurable:!0,writable:!0,value:c}):a[s]=c;var l=(a,s,c)=>w(a,typeof s!="symbol"?s+"":s,c);var E=new Set(["__proto__","constructor","prototype"]);{let a={0:t=>y(t),1:t=>c(t),2:t=>new RegExp(t),3:t=>new Date(t),4:t=>new Map(c(t)),5:t=>new Set(c(t)),6:t=>BigInt(t),7:t=>new URL(t),8:t=>new Uint8Array(t),9:t=>new Uint16Array(t),10:t=>new Uint32Array(t),11:t=>Number.POSITIVE_INFINITY*t},s=t=>{let[p,e]=t;return p in a?a[p](e):void 0},c=t=>t.map(s),y=t=>typeof t!="object"||t===null?t:Object.fromEntries(Object.entries(t).map(([p,e])=>[p,s(e)]));class f extends HTMLElement{constructor(){super(...arguments);l(this,"Component");l(this,"hydrator");l(this,"hydrate",async()=>{var b;if(!this.hydrator||!this.isConnected)return;let e=(b=this.parentElement)==null?void 0:b.closest("astro-island[ssr]");if(e){e.addEventListener("astro:hydrate",this.hydrate,{once:!0});return}let r=this.querySelectorAll("astro-slot"),n={},d=this.querySelectorAll("template[data-astro-template]");for(let o of d){let i=o.closest(this.tagName);i!=null&&i.isSameNode(this)&&(n[o.getAttribute("data-astro-template")||"default"]=o.innerHTML,o.remove())}for(let o of r){let i=o.closest(this.tagName);i!=null&&i.isSameNode(this)&&(n[o.getAttribute("name")||"default"]=o.innerHTML)}let u;try{u=this.hasAttribute("props")?y(JSON.parse(this.getAttribute("props"))):{}}catch(o){let i=this.getAttribute("component-url")||"<unknown>",v=this.getAttribute("component-export");throw v&&(i+=` (export ${v})`),console.error(`[hydrate] Error parsing props for component ${i}`,this.getAttribute("props"),o),o}let h;await this.hydrator(this)(this.Component,u,n,{client:this.getAttribute("client")}),this.removeAttribute("ssr"),this.dispatchEvent(new CustomEvent("astro:hydrate"))});l(this,"unmount",()=>{this.isConnected||this.dispatchEvent(new CustomEvent("astro:unmount"))})}disconnectedCallback(){document.removeEventListener("astro:after-swap",this.unmount),document.addEventListener("astro:after-swap",this.unmount,{once:!0})}connectedCallback(){if(!this.hasAttribute("await-children")||document.readyState==="interactive"||document.readyState==="complete")this.childrenConnectedCallback();else{let e=()=>{document.removeEventListener("DOMContentLoaded",e),r.disconnect(),this.childrenConnectedCallback()},r=new MutationObserver(()=>{var n;((n=this.lastChild)==null?void 0:n.nodeType)===Node.COMMENT_NODE&&this.lastChild.nodeValue==="astro:end"&&(this.lastChild.remove(),e())});r.observe(this,{childList:!0}),document.addEventListener("DOMContentLoaded",e)}}async childrenConnectedCallback(){let e=this.getAttribute("before-hydration-url");e&&await import(e),this.start()}getRetryImportUrl(e){let r=new URL(e,document.baseURI);return r.searchParams.set("astro-retry",Date.now().toString()),r.toString()}async importWithRetry(e){try{return await import(e)}catch(r){return await new Promise(n=>setTimeout(n,1e3)),import(this.getRetryImportUrl(e))}}handleHydrationError(e){let r=this.getAttribute("component-url"),n=new CustomEvent("astro:hydration-error",{cancelable:!0,bubbles:!0,composed:!0,detail:{error:e,componentUrl:r}});this.dispatchEvent(n)&&console.error(`[astro-island] Error hydrating ${r}`,e)}async start(){let e=JSON.parse(this.getAttribute("opts")),r=this.getAttribute("client");if(Astro[r]===void 0){window.addEventListener(`astro:${r}`,()=>this.start(),{once:!0});return}try{await Astro[r](async()=>{let n=this.getAttribute("renderer-url");try{let[d,{default:u}]=await Promise.all([this.importWithRetry(this.getAttribute("component-url")),n?this.importWithRetry(n):Promise.resolve({default:()=>()=>{}})]),h=this.getAttribute("component-export")||"default";if(h.includes(".")){this.Component=d;for(let m of h.split(".")){if(E.has(m)||!this.Component||typeof this.Component!="object"&&typeof this.Component!="function"||!Object.hasOwn(this.Component,m))throw new Error(`Invalid component export path: ${h}`);this.Component=this.Component[m]}}else{if(E.has(h))throw new Error(`Invalid component export path: ${h}`);this.Component=d[h]}return this.hydrator=u,this.hydrate}catch(d){return this.handleHydrationError(d),()=>{}}},e,this)}catch(n){this.handleHydrationError(n)}}attributeChangedCallback(){this.hydrate()}}l(f,"observedAttributes",["props"]),customElements.get("astro-island")||customElements.define("astro-island",f)}})();</script><astro-island uid="HC0aj" prefix="r3" component-url="/_astro/HeaderControls.0RcRpyl0.js" component-export="default" renderer-url="/_astro/client.BsI3l438.js" props="{&quot;githubUrl&quot;:[0,&quot;https://github.com/lucaslz2020&quot;]}" ssr client="load" opts="{&quot;name&quot;:&quot;HeaderControls&quot;,&quot;value&quot;:true}" await-children><div class="header-controls"><button class="icon-button search-trigger" type="button" aria-label="搜索文章"><span aria-hidden="true">⌕</span><span class="search-label">搜索</span><kbd>⌘K</kbd></button><button class="icon-button theme-trigger" type="button" aria-label="切换到深色模式"><span aria-hidden="true">◐</span></button><button class="icon-button menu-trigger" type="button" aria-label="打开导航"><span aria-hidden="true">☰</span></button></div><!--astro:end--></astro-island> </div> </header> <main id="main-content">  <article class="post-page" data-pagefind-body> <header class="post-header page-shell narrow-shell"> <a class="back-link" href="/">← 返回文章列表</a> <p class="eyebrow"> <span></span>ENGINEERING NOTE · 2026年8月9日 </p> <h1 data-pagefind-meta="title">ZooKeeper 每个 Pod 接近 2G：从固定堆到 Kubernetes 资源收缩</h1> <p class="post-description" data-pagefind-meta="description"> 通过 JVM 参数、mntr、快照和 Kubernetes requests 拆解 ZooKeeper 高内存现象，给出分阶段缩容、监控、滚动验证与持久化迁移方案。 </p> <meta data-pagefind-meta="date" content="2026-08-09"> <meta data-pagefind-meta="tags" content="Zookeeper, Kubernetes, JVM, 性能优化, 可观测性"> <div class="post-meta-row"> <div class="post-author"> <span class="mini-avatar">LZ</span> <span><strong>lucaslz</strong><small>作者</small></span> </div> <div class="post-facts"> <time datetime="2026-08-09T00:00:00.000Z">2026年8月9日</time>  <span>15 分钟阅读</span> <span class="post-view-count" data-page-views hidden></span> </div> </div> <div class="post-tag-row"> <a href="/tags/zookeeper" data-analytics-event="tag_click" data-analytics-target="Zookeeper">
+#Zookeeper </a><a href="/tags/kubernetes" data-analytics-event="tag_click" data-analytics-target="Kubernetes">
+#Kubernetes </a><a href="/tags/jvm" data-analytics-event="tag_click" data-analytics-target="JVM">
+#JVM </a><a href="/tags/性能优化" data-analytics-event="tag_click" data-analytics-target="性能优化">
+#性能优化 </a><a href="/tags/可观测性" data-analytics-event="tag_click" data-analytics-target="可观测性">
+#可观测性 </a> </div>    </header> <div class="post-divider"> <span></span><b>&#123; &#125;</b><span></span> </div> <div class="post-layout page-shell"> <div class="post-content prose">  <blockquote>
+<p>本文来自一个三节点 ZooKeeper 集群的资源治理。命名空间、节点、业务名称和容量已泛化；参数只能作为同量级负载的起点，不能直接复制到生产环境。系列导航：<a href="/kubernetes/kubernetes-migration-series">Kubernetes 重建迁移教程系列</a>。</p>
+</blockquote>
+<p>一个三节点 ZooKeeper 集群长期呈现下面的资源状态：</p>
+<table>
+<thead>
+<tr>
+<th>指标</th>
+<th style="text-align: right">节点 A</th>
+<th style="text-align: right">节点 B</th>
+<th style="text-align: right">节点 C</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Pod 内存</td>
+<td style="text-align: right">约 1.8 GiB</td>
+<td style="text-align: right">约 1.8 GiB</td>
+<td style="text-align: right">约 1.4 GiB</td>
+</tr>
+<tr>
+<td>CPU</td>
+<td style="text-align: right">约 10m</td>
+<td style="text-align: right">约 9m</td>
+<td style="text-align: right">约 11m</td>
+</tr>
+<tr>
+<td>memory request</td>
+<td style="text-align: right">2 GiB</td>
+<td style="text-align: right">2 GiB</td>
+<td style="text-align: right">2 GiB</td>
+</tr>
+<tr>
+<td>memory limit</td>
+<td style="text-align: right">3 GiB</td>
+<td style="text-align: right">3 GiB</td>
+<td style="text-align: right">3 GiB</td>
+</tr>
+<tr>
+<td>重启次数</td>
+<td style="text-align: right">0</td>
+<td style="text-align: right">0</td>
+<td style="text-align: right">0</td>
+</tr>
+</tbody>
+</table>
+<p>第一眼很像内存泄漏：CPU 很低，三个 Pod 却占用了接近 5 GiB。但继续检查发现，业务数据只有约 1.2 MiB，连接数和 watch 数也很低。</p>
+<p>真正的问题不是 ZooKeeper 保存了几 GiB 数据，而是 JVM 被配置成固定 2 GiB 堆，Chart 又通过资源预设为每个 Pod 申请了 2 GiB 内存。</p>
+<h2 id="先建立判断链路">先建立判断链路</h2>
+<pre><code class="language-mermaid">flowchart TD
+  A["kubectl top: Pod 接近 2G"] --&gt; B["读取真实 Java 命令行"]
+  B --&gt; C["确认 Xms / Xmx 与重复参数"]
+  C --&gt; D["采集 mntr、stat、快照和磁盘"]
+  D --&gt; E{"存活数据和连接压力高吗"}
+  E -- "高" --&gt; F["按峰值容量重新建模"]
+  E -- "低" --&gt; G["分阶段缩小 Heap 与 requests"]
+  G --&gt; H["逐 Pod 滚动并观察 GC / 延迟"]
+  H --&gt; I["再处理 emptyDir 持久化风险"]
+</code></pre>
+<p>这里最重要的是先分清“堆上限大”“堆已提交”和“业务存活对象多”。仅凭 <code>kubectl top</code> 无法区分三者。</p>
+<h2 id="第-1-步读取运行中的真实-jvm-参数">第 1 步：读取运行中的真实 JVM 参数</h2>
+<p>不要只看 Helm values。先检查容器内 Java 进程：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> infra</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> exec</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> zookeeper-0</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  sh</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -c</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'tr "\0" " " &lt; /proc/1/cmdline'</span></span></code></pre>
+<p>这次看到的关键片段是：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>-Xmx1000m -Xmx2048m -Xms2048m</span></span></code></pre>
+<p>重复的 <code>-Xmx</code> 不会相加，HotSpot 通常采用后出现的值。因此有效配置是：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>Xms = 2048 MiB</span></span>
+<span class="line"><span>Xmx = 2048 MiB</span></span></code></pre>
+<p>前一个 <code>-Xmx1000m</code> 来自镜像脚本默认值，后一个 <code>-Xmx2048m</code> 和 <code>-Xms2048m</code> 来自 Chart 的 <code>heapSize</code>。这说明：</p>
+<ul>
+<li>默认值没有真正限制住堆。</li>
+<li>堆从启动时就允许按 2 GiB 固定提交。</li>
+<li>三节点的理论固定堆预算已经达到 6 GiB。</li>
+</ul>
+<p>重复参数本身不是 3 GiB 堆，也不是泄漏证据，但会让只检查环境变量的人得出错误结论。</p>
+<h2 id="第-2-步区分-rsscommitted-heap-和-live-data">第 2 步：区分 RSS、Committed Heap 和 Live Data</h2>
+<p>ZooKeeper Pod 的内存可以粗略理解为：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>Pod working set</span></span>
+<span class="line"><span>≈ JVM committed heap</span></span>
+<span class="line"><span>+ Metaspace / Code Cache / GC structures</span></span>
+<span class="line"><span>+ thread stacks / direct buffers / native libraries</span></span>
+<span class="line"><span>+ process working-set file pages</span></span></code></pre>
+<p><code>Xms=2g</code> 不代表进程启动瞬间一定占满 2 GiB RSS，但 JVM 在运行和 GC 过程中会逐步触碰已提交页。即使存活对象很少，操作系统看到的工作集也可能长期接近固定堆大小。</p>
+<p>因此，下面两个判断都不成立：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>Pod RSS 接近 2 GiB，所以 ZooKeeper 一定存了 2 GiB 数据</span></span>
+<span class="line"><span>数据只有 1 MiB，所以 Pod RSS 应该只有几十 MiB</span></span></code></pre>
+<p>业务数据规模是决定堆需求的重要输入，但不是 Pod 总内存的直接等式。</p>
+<h2 id="第-3-步用-mntr-判断真实负载">第 3 步：用 mntr 判断真实负载</h2>
+<p>ZooKeeper 四字命令需要在服务端白名单中允许。启用前应评估安全边界，避免把管理接口暴露到不可信网络。<a href="https://zookeeper.apache.org/doc/current/zookeeperAdmin.html">ZooKeeper 管理指南</a>已经建议新系统优先使用 AdminServer；这里保留 <code>mntr</code>，是为了对应现有集群的采集方式。</p>
+<p>在允许 <code>mntr</code> 的环境中，可以执行：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> infra</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> exec</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> zookeeper-0</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  sh</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -c</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'printf "mntr\n" | nc 127.0.0.1 2181'</span></span></code></pre>
+<p>重点采集：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>zk_server_state</span></span>
+<span class="line"><span>zk_znode_count</span></span>
+<span class="line"><span>zk_approximate_data_size</span></span>
+<span class="line"><span>zk_num_alive_connections</span></span>
+<span class="line"><span>zk_outstanding_requests</span></span>
+<span class="line"><span>zk_avg_latency</span></span>
+<span class="line"><span>zk_max_latency</span></span>
+<span class="line"><span>zk_watch_count</span></span>
+<span class="line"><span>zk_ephemerals_count</span></span>
+<span class="line"><span>zk_open_file_descriptor_count</span></span>
+<span class="line"><span>zk_max_file_descriptor_count</span></span></code></pre>
+<p>本次脱敏后的数据量级是：</p>
+<table>
+<thead>
+<tr>
+<th>指标</th>
+<th style="text-align: right">观测值</th>
+<th>解释</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>znode 数</td>
+<td style="text-align: right">约 22,000</td>
+<td>规模较小</td>
+</tr>
+<tr>
+<td>approximate data size</td>
+<td style="text-align: right">约 1.2 MiB</td>
+<td>业务数据远小于固定堆</td>
+</tr>
+<tr>
+<td>全局 Session</td>
+<td style="text-align: right">约 40</td>
+<td>客户端压力低</td>
+</tr>
+<tr>
+<td>单节点存活连接</td>
+<td style="text-align: right">10–20</td>
+<td>连接压力低</td>
+</tr>
+<tr>
+<td>watch 数</td>
+<td style="text-align: right">10–20</td>
+<td>不存在 watch 风暴</td>
+</tr>
+<tr>
+<td>outstanding requests</td>
+<td style="text-align: right">0</td>
+<td>没有排队</td>
+</tr>
+<tr>
+<td>平均延迟</td>
+<td style="text-align: right">低于 1 ms</td>
+<td>当前性能余量充足</td>
+</tr>
+<tr>
+<td>单个快照</td>
+<td style="text-align: right">约 3 MiB</td>
+<td>与数据量级一致</td>
+</tr>
+</tbody>
+</table>
+<p>这些证据更支持“堆配置过大”，而不是“业务对象正在无限增长”。</p>
+<h2 id="第-4-步检查事务日志和快照">第 4 步：检查事务日志和快照</h2>
+<p>继续检查 ZooKeeper 数据目录：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> infra</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> exec</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> zookeeper-0</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  sh</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -c</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'du -sh /bitnami/zookeeper/data /bitnami/zookeeper/logs 2&gt;/dev/null'</span></span></code></pre>
+<p>事务日志可能使用预分配文件。看到几十 MiB 的日志文件，不代表其中每个字节都是有效业务数据，也不能直接作为堆大小依据。</p>
+<p>同时确认：</p>
+<ul>
+<li><code>snapCount</code>。</li>
+<li><code>autopurge.snapRetainCount</code>。</li>
+<li><code>autopurge.purgeInterval</code>。</li>
+<li>数据目录是否位于 PVC。</li>
+<li>三个节点的快照和事务日志是否持续增长。</li>
+</ul>
+<p>本次自动清理已经启用，快照也很小，因此没有证据支持立刻调整 <code>snapCount</code> 或清理频率。性能调优应只修改有证据指向的参数。</p>
+<h2 id="第-5-步把-chart-资源预设改成显式预算">第 5 步：把 Chart 资源预设改成显式预算</h2>
+<p>当前配置类似：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">heapSize</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2048</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">resourcesPreset</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">large</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">resources</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {}</span></span></code></pre>
+<p><code>resourcesPreset</code> 适合快速部署，但不适合长期容量治理。它隐藏了实际 request 和 limit，也很难表达“CPU 很低、内存需要保留 JVM 余量”的真实模型。<a href="https://github.com/bitnami/charts/blob/main/bitnami/zookeeper/README.md">Bitnami ZooKeeper Chart</a>同样建议生产工作负载使用按实际场景调整的 <code>resources</code>。</p>
+<p>不要在没有监控的情况下直接从 2 GiB 堆砍到 512 MiB。更稳妥的是两阶段收缩。</p>
+<h3 id="第一阶段先降到-1536-mib">第一阶段：先降到 1536 MiB</h3>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">heapSize</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1536</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">resourcesPreset</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">none</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">resources</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  requests</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    cpu</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">250m</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    memory</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">1792Mi</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    ephemeral-storage</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">256Mi</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  limits</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    cpu</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">1500m</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    memory</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">2560Mi</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    ephemeral-storage</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">1Gi</span></span></code></pre>
+<p>这一阶段保留约 1 GiB 的容器级余量，用来容纳 JVM 非堆、线程、直接内存、共享库和工作集波动。</p>
+<h3 id="第二阶段稳定后再评估-1024-mib">第二阶段：稳定后再评估 1024 MiB</h3>
+<p>如果至少跨过一个完整业务高峰，且 GC、延迟、连接和选举都稳定，可以继续评估：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">heapSize</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1024</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">resourcesPreset</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">none</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">resources</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  requests</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    cpu</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">250m</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    memory</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">1280Mi</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    ephemeral-storage</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">256Mi</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  limits</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    cpu</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">1500m</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    memory</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">2Gi</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    ephemeral-storage</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">1Gi</span></span></code></pre>
+<p>三个副本在第一阶段的 memory request 合计为 5.25 GiB；进入第二阶段后，合计为 3.75 GiB。CPU request 则从原来的 3 核降到 750m。实际节省应以调度器看到的 request 为准，不只看瞬时 <code>kubectl top</code>。</p>
+<h2 id="为什么-heap-不能顶到容器-limit">为什么 Heap 不能顶到容器 limit</h2>
+<p>即使 ZooKeeper 的主要数据在 Java Heap 中，也必须给这些区域留空间：</p>
+<ul>
+<li>Metaspace 和 Compressed Class Space。</li>
+<li>JIT Code Cache。</li>
+<li>GC remembered set 和其他本地结构。</li>
+<li>NIO Direct Buffer。</li>
+<li>线程栈。</li>
+<li>JNI 与压缩库。</li>
+<li>文件页和进程运行时。</li>
+</ul>
+<p>如果设置：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>Xmx = container memory limit</span></span></code></pre>
+<p>JVM 堆还没有 OOM，容器就可能先被 cgroup 杀死。对 1 GiB Heap 给出 2 GiB limit 不是浪费，而是先建立可验证的安全边界；观察稳定后再决定是否继续压缩。</p>
+<h2 id="第-6-步缩容前先补可观测性">第 6 步：缩容前先补可观测性</h2>
+<p>原配置如果关闭了 metrics，资源缩小后只能通过 <code>kubectl top</code> 猜测，风险很高。建议先开启 ZooKeeper metrics exporter，并至少监控：</p>
+<ul>
+<li>Pod working set 与 RSS。</li>
+<li>JVM heap used、committed、max。</li>
+<li>GC pause、次数和分配速率。</li>
+<li><code>zk_outstanding_requests</code>。</li>
+<li>avg/max latency。</li>
+<li>alive connections、watch、znode、ephemeral 数。</li>
+<li>leader 变化和选举时间。</li>
+<li>容器重启、OOMKilled 与探针失败。</li>
+</ul>
+<p>告警不应只使用“内存超过 80%”。更有意义的是组合判断：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>heap 持续高位</span></span>
+<span class="line"><span>+ GC 频率升高</span></span>
+<span class="line"><span>+ 请求延迟或 outstanding requests 增长</span></span></code></pre>
+<p>固定堆场景下，RSS 长期高位本来就可能是预期行为。</p>
+<h2 id="第-7-步按-zookeeper-法定人数滚动">第 7 步：按 ZooKeeper 法定人数滚动</h2>
+<p>三节点集群始终要保持至少两个健康成员。推荐流程：</p>
+<ol>
+<li>备份 values、ZooKeeper 配置和关键数据。</li>
+<li>确认三个成员角色、连接和法定人数正常。</li>
+<li>一次只更新一个 follower。</li>
+<li>等该 Pod Ready，并通过 <code>ruok</code>、<code>stat</code>、<code>mntr</code> 验证。</li>
+<li>观察同步、延迟、GC 和连接恢复。</li>
+<li>更新另一个 follower。</li>
+<li>最后处理 leader，或先确认 leader 已安全迁移。</li>
+<li>跨过真实高峰后再进入第二阶段。</li>
+</ol>
+<p>每一步都应等待 StatefulSet 就绪：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> infra</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> rollout</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> status</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> statefulset/zookeeper</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --timeout=15m</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> infra</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> get</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> pod</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -l</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> app.kubernetes.io/name=zookeeper</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -o</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> wide</span></span></code></pre>
+<p>发生下面任一情况应停止继续滚动：</p>
+<ul>
+<li>成员无法加入 quorum。</li>
+<li>选举频繁发生。</li>
+<li>GC 暂停明显上升。</li>
+<li>outstanding requests 持续非零并增长。</li>
+<li>业务端 Session 大量重建或超时。</li>
+</ul>
+<h2 id="比内存更大的风险数据目录使用-emptydir">比内存更大的风险：数据目录使用 emptyDir</h2>
+<p>本次检查还发现，StatefulSet 没有 <code>volumeClaimTemplates</code>，持久化开关关闭，数据目录实际使用 <code>emptyDir</code>。Bitnami Chart 的参数说明也明确写明：<code>persistence.enabled=false</code> 时使用 <code>emptyDir</code>。</p>
+<p>这意味着：</p>
+<ul>
+<li>容器重启但 Pod 未重建时，目录可能还在。</li>
+<li>Pod 被重新调度、删除或节点故障时，本地快照和事务日志会丢失。</li>
+<li>单节点可从其他成员重新同步，不代表三节点同时丢失后仍能恢复。</li>
+</ul>
+<p>三副本不是持久化的替代品。副本解决运行时可用性，PVC 和备份解决可恢复性。</p>
+<p>对 ZooKeeper 更适合使用低延迟块存储，例如 SSD StorageClass，而不是把高频事务日志放到通用 NFS 上。一个保守起点是每个 Pod 10 GiB PVC，再按事务量和保留策略调整：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">persistence</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  enabled</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">true</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  storageClass</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">ssd</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  size</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">10Gi</span></span></code></pre>
+<p>但这里不能直接做普通滚动更新。StatefulSet 的 <code>volumeClaimTemplates</code> 涉及不可变字段，通常需要单独设计迁移：</p>
+<ol>
+<li>创建并验证备份。</li>
+<li>确认现有 ensemble 健康。</li>
+<li>准备带 PVC 的新 StatefulSet 或按 Chart 的升级要求重建。</li>
+<li>一次迁移一个成员并等待重新同步。</li>
+<li>验证快照、事务日志和故障恢复。</li>
+<li>保留明确的回滚窗口。</li>
+</ol>
+<p>内存收缩和存储迁移应该拆成两次变更，否则出现问题时无法快速判断是 JVM 容量还是数据目录导致。</p>
+<h2 id="不应该顺手修改的参数">不应该顺手修改的参数</h2>
+<p>当前证据没有指向以下参数，因此不应为了“优化”一起修改：</p>
+<ul>
+<li><code>maxClientCnxns</code>：当前连接数远未达到限制。</li>
+<li><code>snapCount</code>：当前快照与事务压力不高。</li>
+<li>自动清理周期：现有磁盘增长正常。</li>
+<li>Tick、Session timeout：没有 Session 抖动证据。</li>
+<li>副本数：三节点是最小常用生产 quorum。</li>
+</ul>
+<p>一次只改变一个可解释的容量变量，才能在指标变化后判断因果。</p>
+<h2 id="完成定义">完成定义</h2>
+<p>ZooKeeper 内存优化完成，至少要满足：</p>
+<ul>
+<li>JVM 命令行中不存在无法解释的重复 Heap 参数。</li>
+<li>Heap、request 和 limit 形成明确的三层预算。</li>
+<li>三个成员在滚动期间始终保持 quorum。</li>
+<li>至少经过一个业务高峰，没有明显 GC 或延迟退化。</li>
+<li>znode、Session、watch、连接和请求积压均有监控。</li>
+<li>OOMKilled、频繁选举和 Session 重建有告警。</li>
+<li>emptyDir 风险已有独立的 SSD PVC 迁移计划和恢复演练。</li>
+</ul>
+<h2 id="最终结论">最终结论</h2>
+<p>ZooKeeper Pod 接近 2 GiB 不等于内存泄漏。固定 <code>Xms=Xmx=2g</code>、Chart 的大规格资源预设，以及 JVM 已提交页被逐步触碰，足以在很小的数据量下制造稳定的高工作集。</p>
+<p>正确做法不是看到 CPU 低就一次性把内存砍半，而是先读取真实命令行，用 <code>mntr</code> 和快照证明负载规模，显式声明 requests/limits，再通过 1536 MiB 到 1024 MiB 的两阶段滚动验证释放资源。</p>
+<p>而检查中暴露的 <code>emptyDir</code> 才是更值得优先进入风险清单的问题：资源过配浪费容量，没有持久化则可能在故障时失去恢复基础。</p>
+ </div> <aside class="table-of-contents" aria-label="文章目录" data-pagefind-ignore> <p>ON THIS PAGE</p> <ol> <li> <a href="#先建立判断链路" data-analytics-event="toc_click" data-analytics-target="先建立判断链路"> 先建立判断链路 </a> </li><li> <a href="#第-1-步读取运行中的真实-jvm-参数" data-analytics-event="toc_click" data-analytics-target="第-1-步读取运行中的真实-jvm-参数"> 第 1 步：读取运行中的真实 JVM 参数 </a> </li><li> <a href="#第-2-步区分-rsscommitted-heap-和-live-data" data-analytics-event="toc_click" data-analytics-target="第-2-步区分-rsscommitted-heap-和-live-data"> 第 2 步：区分 RSS、Committed Heap 和 Live Data </a> </li><li> <a href="#第-3-步用-mntr-判断真实负载" data-analytics-event="toc_click" data-analytics-target="第-3-步用-mntr-判断真实负载"> 第 3 步：用 mntr 判断真实负载 </a> </li><li> <a href="#第-4-步检查事务日志和快照" data-analytics-event="toc_click" data-analytics-target="第-4-步检查事务日志和快照"> 第 4 步：检查事务日志和快照 </a> </li><li> <a href="#第-5-步把-chart-资源预设改成显式预算" data-analytics-event="toc_click" data-analytics-target="第-5-步把-chart-资源预设改成显式预算"> 第 5 步：把 Chart 资源预设改成显式预算 </a> </li><li class="nested"> <a href="#第一阶段先降到-1536-mib" data-analytics-event="toc_click" data-analytics-target="第一阶段先降到-1536-mib"> 第一阶段：先降到 1536 MiB </a> </li><li class="nested"> <a href="#第二阶段稳定后再评估-1024-mib" data-analytics-event="toc_click" data-analytics-target="第二阶段稳定后再评估-1024-mib"> 第二阶段：稳定后再评估 1024 MiB </a> </li><li> <a href="#为什么-heap-不能顶到容器-limit" data-analytics-event="toc_click" data-analytics-target="为什么-heap-不能顶到容器-limit"> 为什么 Heap 不能顶到容器 limit </a> </li><li> <a href="#第-6-步缩容前先补可观测性" data-analytics-event="toc_click" data-analytics-target="第-6-步缩容前先补可观测性"> 第 6 步：缩容前先补可观测性 </a> </li><li> <a href="#第-7-步按-zookeeper-法定人数滚动" data-analytics-event="toc_click" data-analytics-target="第-7-步按-zookeeper-法定人数滚动"> 第 7 步：按 ZooKeeper 法定人数滚动 </a> </li><li> <a href="#比内存更大的风险数据目录使用-emptydir" data-analytics-event="toc_click" data-analytics-target="比内存更大的风险数据目录使用-emptydir"> 比内存更大的风险：数据目录使用 emptyDir </a> </li><li> <a href="#不应该顺手修改的参数" data-analytics-event="toc_click" data-analytics-target="不应该顺手修改的参数"> 不应该顺手修改的参数 </a> </li><li> <a href="#完成定义" data-analytics-event="toc_click" data-analytics-target="完成定义"> 完成定义 </a> </li><li> <a href="#最终结论" data-analytics-event="toc_click" data-analytics-target="最终结论"> 最终结论 </a> </li> </ol> </aside> </div> <script>(()=>{var l=(n,t)=>{let i=async()=>{await(await n())()},e=typeof t.value=="object"?t.value:void 0,s={timeout:e==null?void 0:e.timeout};"requestIdleCallback"in window?window.requestIdleCallback(i,s):setTimeout(i,s.timeout||200)};(self.Astro||(self.Astro={})).idle=l;window.dispatchEvent(new Event("astro:idle"));})();</script><astro-island uid="2bmK73" prefix="r2" component-url="/_astro/MermaidEnhancer.Dbj2-oAI.js" component-export="default" renderer-url="/_astro/client.BsI3l438.js" props="{}" ssr client="idle" opts="{&quot;name&quot;:&quot;MermaidEnhancer&quot;,&quot;value&quot;:true}"></astro-island> <div class="reading-progress" aria-hidden="true"><span></span></div> <div class="article-actions" data-reading-tools data-title="ZooKeeper 每个 Pod 接近 2G：从固定堆到 Kubernetes 资源收缩" data-href="https://lucaslz.com/kubernetes/zookeeper-kubernetes-memory-rightsizing"> <button type="button" data-share aria-label="分享">分享</button> <button type="button" data-copy-link aria-label="复制链接">复制链接</button> <button type="button" data-bookmark aria-label="收藏" aria-pressed="false">
+收藏
+</button> </div> <button class="back-to-top" type="button" aria-label="返回顶部" hidden>↑</button> <div class="reading-toast" role="status" aria-live="polite"></div> <script type="module" src="/_astro/ReadingTools.astro_astro_type_script_index_0_lang.B124Ynmb.js"></script> <footer class="post-footer page-shell narrow-shell" data-pagefind-ignore> <div class="post-end-mark"><span>END</span></div> <p>感谢阅读。你可以分享、收藏，或在下方参与讨论。</p> <section class="related-posts" aria-labelledby="related-title"> <div class="related-heading"> <span>CONTINUE READING</span> <h2 id="related-title">相关文章</h2> </div> <div class="related-grid"> <article class="article-card compact"> <a class="article-card-link" href="/kubernetes/kubernetes-stateful-services-migration" data-analytics-event="article_click" data-analytics-impression="article_impression" data-analytics-target="/kubernetes/kubernetes-stateful-services-migration"> <div class="article-card-top"> <span class="article-index">01</span> <span class="article-date">2026.07.04</span> </div> <h3>Kubernetes 集群重建时，MySQL、Redis、Kafka、RabbitMQ 和 Zookeeper 怎么迁移</h3> <p>按 RPO、备份恢复、零副本预部署和逐层验收迁移常见数据服务，避免只复制 PVC、只启动空库或把三个副本调度到同一节点。</p> <div class="article-card-bottom"> <div class="article-tags"> <span data-href="/tags/kubernetes">#Kubernetes</span><span data-href="/tags/mysql">#MySQL</span><span data-href="/tags/redis">#Redis</span> </div> <span class="read-time">10 min <b>↗</b></span> </div> </a> </article><article class="article-card compact"> <a class="article-card-link" href="/kubernetes/spring-boot-3-kubernetes-deployment-baseline" data-analytics-event="article_click" data-analytics-impression="article_impression" data-analytics-target="/kubernetes/spring-boot-3-kubernetes-deployment-baseline"> <div class="article-card-top"> <span class="article-index">02</span> <span class="article-date">2026.08.09</span> </div> <h3>50 个 Spring Boot 服务如何统一成一份 Kubernetes Deployment 模板</h3> <p>复盘一次多服务 Deployment 治理：合并重复模板，统一滚动发布、探针、JVM、缓存目录、安全上下文、消息并发、资源分档与跨节点策略。</p> <div class="article-card-bottom"> <div class="article-tags"> <span data-href="/tags/kubernetes">#Kubernetes</span><span data-href="/tags/spring-boot">#Spring Boot</span><span data-href="/tags/deployment">#Deployment</span> </div> <span class="read-time">11 min <b>↗</b></span> </div> </a> </article><article class="article-card compact"> <a class="article-card-link" href="/java/spring-boot-3-container-startup-compatibility-postmortem" data-analytics-event="article_click" data-analytics-impression="article_impression" data-analytics-target="/java/spring-boot-3-container-startup-compatibility-postmortem"> <div class="article-card-top"> <span class="article-index">03</span> <span class="article-date">2026.08.08</span> </div> <h3>Spring Boot 3 容器启动异常复盘：目录、废弃属性、日志桥与可选驱动</h3> <p>从 UnsatisfiedDependencyException 追到 mkdir failed，并系统处理 Nacos 缓存目录、server.use-forward-headers、commons-logging、nacos-logback.xml 和空 Class.forName。</p> <div class="article-card-bottom"> <div class="article-tags"> <span data-href="/tags/spring-boot">#Spring Boot</span><span data-href="/tags/java">#Java</span><span data-href="/tags/nacos">#Nacos</span> </div> <span class="read-time">12 min <b>↗</b></span> </div> </a> </article> </div> </section> <div class="post-navigation"> <a href="/java/spring-boot-3-container-startup-compatibility-postmortem" class="previous-post" data-analytics-event="article_click" data-analytics-target="/java/spring-boot-3-container-startup-compatibility-postmortem">  <small>← 上一篇</small> <strong>Spring Boot 3 容器启动异常复盘：目录、废弃属性、日志桥与可选驱动</strong>  </a> <a href="/kubernetes/spring-boot-3-nacos-global-configuration-baseline" class="next-post" data-analytics-event="article_click" data-analytics-target="/kubernetes/spring-boot-3-nacos-global-configuration-baseline">  <small>下一篇 →</small> <strong>Spring Boot 3 的 Nacos 完整生产基线：Redis、RabbitMQ、Hikari 与探针</strong>  </a> </div> </footer> </article> <div class="page-shell narrow-shell" data-pagefind-ignore>  <script type="module">window.addEventListener(`theme-change`,()=>{document.querySelector(`iframe.giscus-frame`)?.contentWindow?.postMessage({giscus:{setConfig:{theme:document.documentElement.dataset.theme===`dark`?`dark`:`light`}}},`https://giscus.app`)});</script> </div>  </main> <footer class="site-footer"> <div class="footer-inner"> <div class="footer-brand"> <span class="brand-mark">LZ</span> <div> <strong>lucaslz</strong> <p>关于软件工程、Web、Java 与持续学习的长期技术笔记。</p> </div> </div> <div class="footer-links"> <a href="/rss.xml">RSS</a> <a href="/archive">归档</a> <a href="/tags">标签</a> <a href="https://github.com/lucaslz2020" target="_blank" rel="noreferrer">GitHub</a> </div> </div> <div class="footer-bottom"> <span>© 2026 lucaslz</span> <span>Built with Astro + React · Deployed on Cloudflare Pages</span> </div> </footer> <script type="module">var e=`/api/analytics`,t=new Set([`lucaslz.com`,`www.lucaslz.com`]).has(window.location.hostname)||window.location.hostname.endsWith(`.pages.dev`),n=e=>{let t=new URL(e,window.location.origin);return t.pathname===`/`?`/`:t.pathname.replace(/\/$/,``)},r=e=>{try{return!window.sessionStorage.getItem(e)&&(window.sessionStorage.setItem(e,`1`),!0)}catch{return!0}},i=e=>{document.querySelectorAll(`[data-page-views]`).forEach(t=>{t.textContent=`${new Intl.NumberFormat(`zh-CN`).format(e)} 次阅读`,t.hidden=!1})},a=async(t,r=``)=>{let a=JSON.stringify({event:t,path:n(window.location.pathname),target:r});if(t===`page_view`){let t=await fetch(e,{method:`POST`,headers:{"content-type":`application/json`},body:a,credentials:`same-origin`});if(!t.ok)return;let n=await t.json();typeof n.total==`number`&&i(n.total);return}navigator.sendBeacon(e,new Blob([a],{type:`application/json`}))},o=async()=>{let t=new URLSearchParams({event:`page_view`,path:n(window.location.pathname)}),r=await fetch(`${e}?${t}`,{credentials:`same-origin`});if(!r.ok)return;let a=await r.json();typeof a.total==`number`&&i(a.total)};if(t){let e=n(window.location.pathname);r(`lz:page-view:${e}`)?a(`page_view`).catch(()=>void 0):document.querySelector(`[data-page-views]`)&&o().catch(()=>void 0),document.addEventListener(`click`,e=>{let t=e.target?.closest(`a`);if(!t)return;let n=t.dataset.analyticsEvent,r=new URL(t.href,window.location.origin);if(!n&&r.origin!==window.location.origin&&(n=`outbound_click`),!n)return;let i=t.dataset.analyticsTarget||r.href;a(n,i).catch(()=>void 0)});let t=new IntersectionObserver((e,t)=>{e.forEach(e=>{if(!e.isIntersecting||e.intersectionRatio<.5)return;let n=e.target,i=n.dataset.analyticsImpression,o=n.dataset.analyticsTarget||``,s=`lz:impression:${i}:${o}`;i&&r(s)&&a(i,o).catch(()=>void 0),t.unobserve(n)})},{threshold:.5});document.querySelectorAll(`[data-analytics-impression]`).forEach(e=>t.observe(e)),window.addEventListener(`blog:analytics`,e=>{let t=e.detail;t?.event&&a(t.event,t.target||``).catch(()=>void 0)}),document.querySelector(`[data-not-found]`)&&a(`not_found`,e).catch(()=>void 0)}</script> <script type="module">`serviceWorker`in navigator&&window.addEventListener(`load`,()=>{navigator.serviceWorker.register(`/sw.js`).catch(()=>void 0)});</script> </body> </html>

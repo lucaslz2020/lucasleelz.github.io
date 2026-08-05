@@ -1,0 +1,349 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="generator" content="Astro v7.1.6"><meta name="author" content="lucaslz"><meta name="theme-color" content="#f5f1e8" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)"><meta name="description" content="从 UnsatisfiedDependencyException 追到 mkdir failed，并系统处理 Nacos 缓存目录、server.use-forward-headers、commons-logging、nacos-logback.xml 和空 Class.forName。"><meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"><meta name="keywords" content="Spring Boot, Java, Nacos, Kubernetes, 故障复盘, Spring Boot 3 启动失败, UnsatisfiedDependencyException, commons-logging, nacos-logback.xml, ClassNotFoundException"><link rel="canonical" href="https://lucaslz.com/java/spring-boot-3-container-startup-compatibility-postmortem/"><link rel="alternate" hreflang="zh-CN" href="https://lucaslz.com/java/spring-boot-3-container-startup-compatibility-postmortem/"><link rel="alternate" hreflang="x-default" href="https://lucaslz.com/java/spring-boot-3-container-startup-compatibility-postmortem/"><link rel="author" href="https://github.com/lucaslz2020"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon.ico" sizes="any"><link rel="apple-touch-icon" href="/icons/apple-touch-icon.png"><link rel="alternate" type="application/rss+xml" title="lucaslz · 工程笔记" href="/rss.xml"><link rel="manifest" href="/site.webmanifest"><title>Spring Boot 3 容器启动异常复盘：目录、废弃属性、日志桥与可选驱动 · lucaslz</title><meta property="og:type" content="article"><meta property="og:site_name" content="lucaslz · 工程笔记"><meta property="og:title" content="Spring Boot 3 容器启动异常复盘：目录、废弃属性、日志桥与可选驱动 · lucaslz"><meta property="og:description" content="从 UnsatisfiedDependencyException 追到 mkdir failed，并系统处理 Nacos 缓存目录、server.use-forward-headers、commons-logging、nacos-logback.xml 和空 Class.forName。"><meta property="og:url" content="https://lucaslz.com/java/spring-boot-3-container-startup-compatibility-postmortem/"><meta property="og:image" content="https://lucaslz.com/og/java/spring-boot-3-container-startup-compatibility-postmortem.png"><meta property="og:image:type" content="image/png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="Spring Boot 3 容器启动异常复盘：目录、废弃属性、日志桥与可选驱动 的分享图片"><meta property="og:locale" content="zh_CN"><meta property="article:published_time" content="2026-08-08T00:00:00.000Z"><meta property="article:author" content="https://github.com/lucaslz2020"><meta property="article:tag" content="Spring Boot"><meta property="article:tag" content="Java"><meta property="article:tag" content="Nacos"><meta property="article:tag" content="Kubernetes"><meta property="article:tag" content="故障复盘"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="Spring Boot 3 容器启动异常复盘：目录、废弃属性、日志桥与可选驱动 · lucaslz"><meta name="twitter:description" content="从 UnsatisfiedDependencyException 追到 mkdir failed，并系统处理 Nacos 缓存目录、server.use-forward-headers、commons-logging、nacos-logback.xml 和空 Class.forName。"><meta name="twitter:image" content="https://lucaslz.com/og/java/spring-boot-3-container-startup-compatibility-postmortem.png"><script>
+      (() => {
+        const saved = localStorage.getItem("theme");
+        const dark = saved
+          ? saved === "dark"
+          : matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+      })();
+    </script><script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Person","@id":"https://lucaslz.com/#person","name":"lucaslz","url":"https://lucaslz.com","sameAs":["https://github.com/lucaslz2020"]},{"@type":"WebSite","@id":"https://lucaslz.com/#website","name":"lucaslz · 工程笔记","alternateName":"lucaslz","description":"关于软件工程、Web、Java 与持续学习的长期技术笔记。","url":"https://lucaslz.com","inLanguage":"zh-CN","publisher":{"@id":"https://lucaslz.com/#person"}},{"@type":"BlogPosting","@id":"https://lucaslz.com/java/spring-boot-3-container-startup-compatibility-postmortem/#article","url":"https://lucaslz.com/java/spring-boot-3-container-startup-compatibility-postmortem/","headline":"Spring Boot 3 容器启动异常复盘：目录、废弃属性、日志桥与可选驱动","description":"从 UnsatisfiedDependencyException 追到 mkdir failed，并系统处理 Nacos 缓存目录、server.use-forward-headers、commons-logging、nacos-logback.xml 和空 Class.forName。","inLanguage":"zh-CN","datePublished":"2026-08-08T00:00:00.000Z","dateModified":"2026-08-08T00:00:00.000Z","author":{"@id":"https://lucaslz.com/#person","name":"lucaslz"},"publisher":{"@id":"https://lucaslz.com/#person"},"isPartOf":{"@id":"https://lucaslz.com/#website"},"mainEntityOfPage":{"@type":"WebPage","@id":"https://lucaslz.com/java/spring-boot-3-container-startup-compatibility-postmortem/"},"image":{"@type":"ImageObject","url":"https://lucaslz.com/og/java/spring-boot-3-container-startup-compatibility-postmortem.png","width":1200,"height":630},"articleSection":["Spring Boot","Java","Nacos","Kubernetes","故障复盘"],"keywords":"Spring Boot, Java, Nacos, Kubernetes, 故障复盘, Spring Boot 3 启动失败, UnsatisfiedDependencyException, commons-logging, nacos-logback.xml, ClassNotFoundException","wordCount":2378},{"@type":"BreadcrumbList","@id":"https://lucaslz.com/java/spring-boot-3-container-startup-compatibility-postmortem/#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"首页","item":"https://lucaslz.com"},{"@type":"ListItem","position":2,"name":"Spring Boot 3 容器启动异常复盘：目录、废弃属性、日志桥与可选驱动","item":"https://lucaslz.com/java/spring-boot-3-container-startup-compatibility-postmortem/"}]}]}</script><style>@layer astro.images{:where([data-astro-image]){height:auto}:where([data-astro-image=full-width]){width:100%}:where([data-astro-image=constrained]){max-width:100%}[data-astro-image-fit=fill]{object-fit:fill}[data-astro-image-fit=contain]{object-fit:contain}[data-astro-image-fit=cover]{object-fit:cover}[data-astro-image-fit=scale-down]{object-fit:scale-down}[data-astro-image-pos=top]{object-position:top}[data-astro-image-pos=bottom]{object-position:bottom}[data-astro-image-pos=left]{object-position:left}[data-astro-image-pos=right]{object-position:right}[data-astro-image-pos=center]{object-position:center}[data-astro-image-pos=top-bottom]{object-position:top bottom}[data-astro-image-pos=top-left]{object-position:top left}[data-astro-image-pos=top-right]{object-position:top right}[data-astro-image-pos=top-center]{object-position:top center}[data-astro-image-pos=bottom-top]{object-position:bottom top}[data-astro-image-pos=bottom-left]{object-position:bottom left}[data-astro-image-pos=bottom-right]{object-position:bottom right}[data-astro-image-pos=bottom-center]{object-position:bottom center}[data-astro-image-pos=left-top]{object-position:left top}[data-astro-image-pos=left-bottom]{object-position:left bottom}[data-astro-image-pos=left-right]{object-position:left right}[data-astro-image-pos=left-center]{object-position:left center}[data-astro-image-pos=right-top]{object-position:right top}[data-astro-image-pos=right-bottom]{object-position:right bottom}[data-astro-image-pos=right-left]{object-position:right left}[data-astro-image-pos=right-center]{object-position:right center}[data-astro-image-pos=center-top]{object-position:center top}[data-astro-image-pos=center-bottom]{object-position:center bottom}[data-astro-image-pos=center-left]{object-position:center left}[data-astro-image-pos=center-right]{object-position:center right}}
+</style><link rel="stylesheet" href="/_astro/BaseLayout.C11I8iWb.css"><script type="module" src="/_astro/page.BS6wqQC3.js"></script></head> <body> <a class="skip-link" href="#main-content">跳到主要内容</a> <header class="site-header"> <div class="header-inner"> <a class="brand" href="/" title="返回首页" data-analytics-event="nav_click" data-analytics-target="home"> <span class="brand-mark">LZ</span> <span class="brand-copy"> <strong>lucaslz</strong> <small>ENGINEERING NOTES</small> </span> </a> <nav class="desktop-nav" aria-label="主要导航"> <a href="/" data-analytics-event="nav_click" data-analytics-target="首页"> 首页 </a><a href="/archive" data-analytics-event="nav_click" data-analytics-target="归档"> 归档 </a><a href="/tags" data-analytics-event="nav_click" data-analytics-target="标签"> 标签 </a> <a href="https://github.com/lucaslz2020" target="_blank" rel="noreferrer">GitHub ↗</a> </nav> <style>astro-island,astro-slot,astro-static-slot{display:contents}</style><script>(()=>{var e=async t=>{await(await t())()};(self.Astro||(self.Astro={})).load=e;window.dispatchEvent(new Event("astro:load"));})();</script><script>(()=>{var g=Object.defineProperty;var w=(a,s,c)=>s in a?g(a,s,{enumerable:!0,configurable:!0,writable:!0,value:c}):a[s]=c;var l=(a,s,c)=>w(a,typeof s!="symbol"?s+"":s,c);var E=new Set(["__proto__","constructor","prototype"]);{let a={0:t=>y(t),1:t=>c(t),2:t=>new RegExp(t),3:t=>new Date(t),4:t=>new Map(c(t)),5:t=>new Set(c(t)),6:t=>BigInt(t),7:t=>new URL(t),8:t=>new Uint8Array(t),9:t=>new Uint16Array(t),10:t=>new Uint32Array(t),11:t=>Number.POSITIVE_INFINITY*t},s=t=>{let[p,e]=t;return p in a?a[p](e):void 0},c=t=>t.map(s),y=t=>typeof t!="object"||t===null?t:Object.fromEntries(Object.entries(t).map(([p,e])=>[p,s(e)]));class f extends HTMLElement{constructor(){super(...arguments);l(this,"Component");l(this,"hydrator");l(this,"hydrate",async()=>{var b;if(!this.hydrator||!this.isConnected)return;let e=(b=this.parentElement)==null?void 0:b.closest("astro-island[ssr]");if(e){e.addEventListener("astro:hydrate",this.hydrate,{once:!0});return}let r=this.querySelectorAll("astro-slot"),n={},d=this.querySelectorAll("template[data-astro-template]");for(let o of d){let i=o.closest(this.tagName);i!=null&&i.isSameNode(this)&&(n[o.getAttribute("data-astro-template")||"default"]=o.innerHTML,o.remove())}for(let o of r){let i=o.closest(this.tagName);i!=null&&i.isSameNode(this)&&(n[o.getAttribute("name")||"default"]=o.innerHTML)}let u;try{u=this.hasAttribute("props")?y(JSON.parse(this.getAttribute("props"))):{}}catch(o){let i=this.getAttribute("component-url")||"<unknown>",v=this.getAttribute("component-export");throw v&&(i+=` (export ${v})`),console.error(`[hydrate] Error parsing props for component ${i}`,this.getAttribute("props"),o),o}let h;await this.hydrator(this)(this.Component,u,n,{client:this.getAttribute("client")}),this.removeAttribute("ssr"),this.dispatchEvent(new CustomEvent("astro:hydrate"))});l(this,"unmount",()=>{this.isConnected||this.dispatchEvent(new CustomEvent("astro:unmount"))})}disconnectedCallback(){document.removeEventListener("astro:after-swap",this.unmount),document.addEventListener("astro:after-swap",this.unmount,{once:!0})}connectedCallback(){if(!this.hasAttribute("await-children")||document.readyState==="interactive"||document.readyState==="complete")this.childrenConnectedCallback();else{let e=()=>{document.removeEventListener("DOMContentLoaded",e),r.disconnect(),this.childrenConnectedCallback()},r=new MutationObserver(()=>{var n;((n=this.lastChild)==null?void 0:n.nodeType)===Node.COMMENT_NODE&&this.lastChild.nodeValue==="astro:end"&&(this.lastChild.remove(),e())});r.observe(this,{childList:!0}),document.addEventListener("DOMContentLoaded",e)}}async childrenConnectedCallback(){let e=this.getAttribute("before-hydration-url");e&&await import(e),this.start()}getRetryImportUrl(e){let r=new URL(e,document.baseURI);return r.searchParams.set("astro-retry",Date.now().toString()),r.toString()}async importWithRetry(e){try{return await import(e)}catch(r){return await new Promise(n=>setTimeout(n,1e3)),import(this.getRetryImportUrl(e))}}handleHydrationError(e){let r=this.getAttribute("component-url"),n=new CustomEvent("astro:hydration-error",{cancelable:!0,bubbles:!0,composed:!0,detail:{error:e,componentUrl:r}});this.dispatchEvent(n)&&console.error(`[astro-island] Error hydrating ${r}`,e)}async start(){let e=JSON.parse(this.getAttribute("opts")),r=this.getAttribute("client");if(Astro[r]===void 0){window.addEventListener(`astro:${r}`,()=>this.start(),{once:!0});return}try{await Astro[r](async()=>{let n=this.getAttribute("renderer-url");try{let[d,{default:u}]=await Promise.all([this.importWithRetry(this.getAttribute("component-url")),n?this.importWithRetry(n):Promise.resolve({default:()=>()=>{}})]),h=this.getAttribute("component-export")||"default";if(h.includes(".")){this.Component=d;for(let m of h.split(".")){if(E.has(m)||!this.Component||typeof this.Component!="object"&&typeof this.Component!="function"||!Object.hasOwn(this.Component,m))throw new Error(`Invalid component export path: ${h}`);this.Component=this.Component[m]}}else{if(E.has(h))throw new Error(`Invalid component export path: ${h}`);this.Component=d[h]}return this.hydrator=u,this.hydrate}catch(d){return this.handleHydrationError(d),()=>{}}},e,this)}catch(n){this.handleHydrationError(n)}}attributeChangedCallback(){this.hydrate()}}l(f,"observedAttributes",["props"]),customElements.get("astro-island")||customElements.define("astro-island",f)}})();</script><astro-island uid="HC0aj" prefix="r3" component-url="/_astro/HeaderControls.0RcRpyl0.js" component-export="default" renderer-url="/_astro/client.BsI3l438.js" props="{&quot;githubUrl&quot;:[0,&quot;https://github.com/lucaslz2020&quot;]}" ssr client="load" opts="{&quot;name&quot;:&quot;HeaderControls&quot;,&quot;value&quot;:true}" await-children><div class="header-controls"><button class="icon-button search-trigger" type="button" aria-label="搜索文章"><span aria-hidden="true">⌕</span><span class="search-label">搜索</span><kbd>⌘K</kbd></button><button class="icon-button theme-trigger" type="button" aria-label="切换到深色模式"><span aria-hidden="true">◐</span></button><button class="icon-button menu-trigger" type="button" aria-label="打开导航"><span aria-hidden="true">☰</span></button></div><!--astro:end--></astro-island> </div> </header> <main id="main-content">  <article class="post-page" data-pagefind-body> <header class="post-header page-shell narrow-shell"> <a class="back-link" href="/">← 返回文章列表</a> <p class="eyebrow"> <span></span>ENGINEERING NOTE · 2026年8月8日 </p> <h1 data-pagefind-meta="title">Spring Boot 3 容器启动异常复盘：目录、废弃属性、日志桥与可选驱动</h1> <p class="post-description" data-pagefind-meta="description"> 从 UnsatisfiedDependencyException 追到 mkdir failed，并系统处理 Nacos 缓存目录、server.use-forward-headers、commons-logging、nacos-logback.xml 和空 Class.forName。 </p> <meta data-pagefind-meta="date" content="2026-08-08"> <meta data-pagefind-meta="tags" content="Spring Boot, Java, Nacos, Kubernetes, 故障复盘"> <div class="post-meta-row"> <div class="post-author"> <span class="mini-avatar">LZ</span> <span><strong>lucaslz</strong><small>作者</small></span> </div> <div class="post-facts"> <time datetime="2026-08-08T00:00:00.000Z">2026年8月8日</time>  <span>12 分钟阅读</span> <span class="post-view-count" data-page-views hidden></span> </div> </div> <div class="post-tag-row"> <a href="/tags/spring-boot" data-analytics-event="tag_click" data-analytics-target="Spring Boot">
+#Spring Boot </a><a href="/tags/java" data-analytics-event="tag_click" data-analytics-target="Java">
+#Java </a><a href="/tags/nacos" data-analytics-event="tag_click" data-analytics-target="Nacos">
+#Nacos </a><a href="/tags/kubernetes" data-analytics-event="tag_click" data-analytics-target="Kubernetes">
+#Kubernetes </a><a href="/tags/故障复盘" data-analytics-event="tag_click" data-analytics-target="故障复盘">
+#故障复盘 </a> </div>    </header> <div class="post-divider"> <span></span><b>&#123; &#125;</b><span></span> </div> <div class="post-layout page-shell"> <div class="post-content prose">  <blockquote>
+<p>本文来自一轮 Spring Boot 3 服务滚动发布。类名、服务名、路径和业务配置均已泛化。系列导航：<a href="/kubernetes/kubernetes-migration-series">Kubernetes 重建迁移教程系列</a>。</p>
+</blockquote>
+<p>统一 Deployment 发布后，启动日志同时出现了五类信息：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>UnsatisfiedDependencyException ... Factory method threw: mkdir failed</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>failed to create cache dir: /root/nacos/naming/.../failover</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>server.use-forward-headers is no longer supported</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>please remove commons-logging.jar from classpath</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>Could not initialize Logback Nacos logging from classpath:nacos-logback.xml</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>java.lang.ClassNotFoundException:</span></span>
+<span class="line"><span>  at java.lang.Class.forName(...)</span></span></code></pre>
+<p>把它们都归因于“Deployment 改坏了”不准确；把它们都当成无害 warning 也危险。真实情况跨越四层：</p>
+<table>
+<thead>
+<tr>
+<th>层</th>
+<th>典型问题</th>
+<th>是否可能阻止启动</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>文件系统</td>
+<td>SDK 无法创建缓存或断点文件</td>
+<td>是</td>
+</tr>
+<tr>
+<td>配置迁移</td>
+<td>旧属性由 migrator 临时映射</td>
+<td>通常否</td>
+</tr>
+<tr>
+<td>classpath</td>
+<td>日志桥重复、Logback 版本不兼容</td>
+<td>视组件而定</td>
+</tr>
+<tr>
+<td>业务代码</td>
+<td>空字符串传给 <code>Class.forName</code></td>
+<td>是或形成隐患</td>
+</tr>
+</tbody>
+</table>
+<h2 id="正确的排查顺序">正确的排查顺序</h2>
+<pre><code class="language-mermaid">flowchart TD
+  A["Spring Boot 启动失败"] --&gt; B["从异常最底部向上读"]
+  B --&gt; C{"最深 Cause 是什么"}
+  C --&gt; D["IOException / mkdir"]
+  C --&gt; E["NoClassDefFound / ClassNotFound"]
+  C --&gt; F["Properties migration"]
+  C --&gt; G["Logging warning"]
+  D --&gt; H["检查 UID、HOME、挂载与权限"]
+  E --&gt; I["检查有效配置和依赖树"]
+  F --&gt; J["替换配置 key"]
+  G --&gt; K["清理日志桥或增加适配器"]
+</code></pre>
+<p><code>UnsatisfiedDependencyException</code> 往往只是最外层包装。Controller 依赖 Service，Service 依赖 FileManager，FileManager 构造时创建目录失败，最终才让 Controller 无法注入。</p>
+<p>不要在第一屏堆栈看到哪个 Bean，就先改哪个 Bean。</p>
+<h2 id="事故一unsatisfieddependencyexception-的根因是-mkdir">事故一：UnsatisfiedDependencyException 的根因是 mkdir</h2>
+<p>外层日志：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>Error creating bean with name 'voucherController'</span></span>
+<span class="line"><span>Unsatisfied dependency expressed through constructor parameter 0</span></span></code></pre>
+<p>继续向下：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>Error creating bean with name 'fileManager'</span></span>
+<span class="line"><span>Factory method 'fileManager' threw exception with message: mkdir failed</span></span></code></pre>
+<p>最底部：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>Caused by: java.io.IOException: mkdir failed</span></span>
+<span class="line"><span>  at ...FileRecorder.&lt;init&gt;(...)</span></span></code></pre>
+<p>这说明：</p>
+<ul>
+<li>Spring DI 本身没有坏。</li>
+<li>Controller 和 Service 构造器不是首要问题。</li>
+<li>第三方文件 SDK 在 Bean 初始化阶段创建断点记录目录失败。</li>
+</ul>
+<p>先进入相同镜像和安全上下文检查：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">id</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">printf</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'HOME=%s\n'</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> "</span><span style="color:#24292E;--shiki-dark:#E1E4E8">$HOME</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">java</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -XshowSettings:properties</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -version</span><span style="color:#D73A49;--shiki-dark:#F97583"> 2&gt;&amp;1</span><span style="color:#D73A49;--shiki-dark:#F97583"> |</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> grep</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'user.home'</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">mount</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">ls</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -ld</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /root</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /tmp</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /data/java/logs</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">touch</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /tmp/write-test</span></span></code></pre>
+<p>容器能以 root UID 运行，也不代表任何路径都可写；read-only root filesystem、卷权限、挂载覆盖和 SDK 选择的默认路径都会改变结果。</p>
+<h2 id="事故二nacos-为什么突然写-rootnacos">事故二：Nacos 为什么突然写 /root/nacos</h2>
+<p>Nacos Client 会保存 naming failover、snapshot 或日志。路径计算可能依赖：</p>
+<ul>
+<li><code>HOME</code>。</li>
+<li>Java <code>user.home</code>。</li>
+<li>Nacos 自己的 <code>JM.SNAPSHOT.PATH</code>。</li>
+<li><code>JM.LOG.PATH</code>。</li>
+</ul>
+<p>旧 Deployment 恰好允许写 <code>/root</code>，所以问题一直被隐藏。安全基线收紧或镜像用户改变后，启动线程开始报告：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>failed to create cache dir: /root/nacos/naming/&lt;namespace&gt;/failover</span></span></code></pre>
+<p>修复方式是给客户端一个明确、受控、可写的目录：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">volumeMounts</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  - </span><span style="color:#22863A;--shiki-dark:#85E89D">name</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">tmp-volume</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    mountPath</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">/tmp</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">env</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  - </span><span style="color:#22863A;--shiki-dark:#85E89D">name</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">HOME</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    value</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">/tmp</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  - </span><span style="color:#22863A;--shiki-dark:#85E89D">name</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">JDK_JAVA_OPTIONS</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    value</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#D73A49;--shiki-dark:#F97583">&gt;-</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      -Duser.home=/tmp</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      -DJM.SNAPSHOT.PATH=/tmp</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      -DJM.LOG.PATH=/data/java/logs/nacos</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">volumes</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  - </span><span style="color:#22863A;--shiki-dark:#85E89D">name</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">tmp-volume</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    emptyDir</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">      sizeLimit</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">2Gi</span></span></code></pre>
+<p>启动脚本提前创建目录并在失败时退出：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="sh"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">mkdir</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -p</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /tmp/nacos</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /data/java/logs/nacos</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">test</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -w</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /tmp</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">test</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -w</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /data/java/logs/nacos</span></span></code></pre>
+<p>不要通过恢复所有 capability 或让整个根文件系统可写来解决一个缓存目录问题。</p>
+<p>还要区分严重程度：</p>
+<ul>
+<li>Nacos failover 备份失败，主注册流程有时仍能工作，但容灾能力下降。</li>
+<li>文件 SDK 在 Bean 构造期间 <code>mkdir failed</code>，会直接让 Spring Context 失败。</li>
+</ul>
+<p>“日志级别都是 ERROR”不代表影响相同，必须结合异常所在的生命周期判断。</p>
+<h2 id="事故三serveruse-forward-headers-是迁移提示">事故三：server.use-forward-headers 是迁移提示</h2>
+<p>日志：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>The use of configuration keys that are no longer supported was found:</span></span>
+<span class="line"><span>server.use-forward-headers</span></span>
+<span class="line"><span>Reason: Replaced to support additional strategies.</span></span></code></pre>
+<p>升级期如果引入 <code>spring-boot-properties-migrator</code>，应用可能仍能启动，因为 migrator 临时映射了旧 key。但应该尽快替换：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="properties"><code><span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D"># 删除</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">server.use-forward-headers</span><span style="color:#24292E;--shiki-dark:#E1E4E8">=true</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D"># 根据代理链选择</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">server.forward-headers-strategy</span><span style="color:#24292E;--shiki-dark:#E1E4E8">=framework</span></span></code></pre>
+<p><code>FRAMEWORK</code>、<code>NATIVE</code> 和 <code>NONE</code> 的差异见<a href="https://docs.spring.io/spring-boot/docs/3.1.12/reference/html/howto.html">Spring Boot 反向代理指南</a>。</p>
+<p><a href="https://docs.spring.io/spring-boot/upgrading.html">Spring Boot 升级指南</a>明确说明，properties migrator 只用于发现和临时迁移重命名属性，完成升级后应删除该依赖。</p>
+<p>所以处理顺序是：</p>
+<ol>
+<li>在 Nacos 中搜索旧 key 的所有 namespace、group 和 dataId。</li>
+<li>用新 key 替换。</li>
+<li>滚动服务并确认不再出现迁移报告。</li>
+<li>从 parent 或应用移除 properties migrator。</li>
+</ol>
+<p>不要通过关闭迁移日志来“解决”配置。</p>
+<h2 id="事故四commons-logging-与-spring-jcl-同时存在">事故四：commons-logging 与 spring-jcl 同时存在</h2>
+<p>警告：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>Standard Commons Logging discovery in action with spring-jcl:</span></span>
+<span class="line"><span>please remove commons-logging.jar from classpath</span></span></code></pre>
+<p>Spring Framework 使用 <code>spring-jcl</code> 作为 Commons Logging bridge。classpath 又出现传统的：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>commons-logging:commons-logging</span></span></code></pre>
+<p>就可能发生日志实现发现顺序冲突。</p>
+<p>先定位引入链：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">mvn</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> dependency:tree</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  -Dverbose</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  -Dincludes=commons-logging:commons-logging</span></span></code></pre>
+<p>不要在几十个业务仓库逐个排除。如果依赖来自统一的 Nacos config/discovery starter，应在内部 starter 的直接依赖边界排除：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="xml"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">&lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">dependency</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  &lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">groupId</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;com.alibaba.cloud&lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">groupId</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  &lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">artifactId</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;spring-cloud-starter-alibaba-nacos-config&lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">artifactId</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  &lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">exclusions</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    &lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">exclusion</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">      &lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">groupId</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;commons-logging&lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">groupId</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">      &lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">artifactId</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;commons-logging&lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">artifactId</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    &lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">exclusion</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  &lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">exclusions</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">&lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">dependency</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span></code></pre>
+<p>discovery starter 若有独立依赖，也要在对应边界排除。Maven exclusion 只作用于指定依赖路径；另一个 SDK 仍可能再次引入同一个 JAR。</p>
+<p>治理后重新检查：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">mvn</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> dependency:tree</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  -Dincludes=commons-logging:commons-logging</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">jar</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> tf</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> application.jar</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  |</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> grep</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'BOOT-INF/lib/commons-logging'</span></span></code></pre>
+<p>如果组织内要求长期禁止它，可以在 parent 增加 Maven Enforcer 的 banned dependency；但应先处理已知传递链，避免一次升级把所有仓库同时阻断。</p>
+<h2 id="事故五nacos-无法加载-nacos-logbackxml">事故五：Nacos 无法加载 nacos-logback.xml</h2>
+<p>警告：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>Load Logback Configuration of Nacos fail,</span></span>
+<span class="line"><span>message: Could not initialize Logback Nacos logging</span></span>
+<span class="line"><span>from classpath:nacos-logback.xml</span></span></code></pre>
+<p>这不是“缺少一个 XML 文件”这么简单。Spring Boot 3 使用 Logback 1.4，而部分 Nacos Client 2.2.x 的日志初始化方式与其不兼容。</p>
+<p><a href="https://nacos.io/news/faq/nacos-user-question-history12701/">Nacos 官方 FAQ</a>给出的适配关系是：</p>
+<table>
+<thead>
+<tr>
+<th>Nacos Client</th>
+<th>logback-adapter</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2.2.1–2.3.x</td>
+<td>1.0.x</td>
+</tr>
+<tr>
+<td>2.4.0 及以后</td>
+<td>1.1.x</td>
+</tr>
+</tbody>
+</table>
+<p>对于 Nacos Client 2.2.1，可以在统一依赖管理中锁定：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="xml"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">&lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">properties</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  &lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">nacos-logback-adapter.version</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;1.0.1&lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">nacos-logback-adapter.version</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">&lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">properties</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">&lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">dependencyManagement</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  &lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">dependencies</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    &lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">dependency</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">      &lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">groupId</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;com.alibaba.nacos&lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">groupId</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">      &lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">artifactId</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;logback-adapter&lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">artifactId</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">      &lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">version</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;${nacos-logback-adapter.version}&lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">version</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    &lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">dependency</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  &lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">dependencies</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">&lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">dependencyManagement</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span></code></pre>
+<p>但 <code>dependencyManagement</code> 只管理版本，不会自动把 JAR 放进应用。真正使用 Nacos 的公共 starter 还要声明：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="xml"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">&lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">dependency</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  &lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">groupId</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;com.alibaba.nacos&lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">groupId</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  &lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">artifactId</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;logback-adapter&lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">artifactId</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">&lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">dependency</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span></code></pre>
+<p>最终用可执行 JAR 验证，而不是只看 parent：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">jar</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> tf</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> application.jar</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  |</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> grep</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -E</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'nacos-client|logback-adapter|logback-classic'</span></span></code></pre>
+<p>不要自己复制一份旧 <code>nacos-logback.xml</code> 到每个应用。这样会把版本兼容责任分散到业务仓库，并在下次 Nacos 升级时再次漂移。</p>
+<h2 id="事故六没有-message-的-classnotfoundexception">事故六：没有 message 的 ClassNotFoundException</h2>
+<p>另一个服务启动时出现：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>java.lang.ClassNotFoundException:</span></span>
+<span class="line"><span>  at java.lang.Class.forName0(...)</span></span>
+<span class="line"><span>  at java.lang.Class.forName(...)</span></span>
+<span class="line"><span>  at ...JDBCUtil.initialize(...)</span></span></code></pre>
+<p>异常冒号后没有类名，这是重要线索。代码实际执行了：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="java"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">Class.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">forName</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(driver);</span></span></code></pre>
+<p>但可选配置：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="properties"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">sales.driver</span><span style="color:#24292E;--shiki-dark:#E1E4E8">=</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">sales.url</span><span style="color:#24292E;--shiki-dark:#E1E4E8">=</span></span></code></pre>
+<p>为空字符串。<code>Class.forName("")</code> 会抛出几乎没有业务信息的 <code>ClassNotFoundException</code>。</p>
+<p>如果这组同步数据源是可选功能，初始化逻辑应该先判断“功能是否启用”：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="java"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">@</span><span style="color:#D73A49;--shiki-dark:#F97583">PostConstruct</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">void</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> initialize</span><span style="color:#24292E;--shiki-dark:#E1E4E8">() {</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    if</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> (</span><span style="color:#D73A49;--shiki-dark:#F97583">!</span><span style="color:#24292E;--shiki-dark:#E1E4E8">StringUtils.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">hasText</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(url)) {</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">        log.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">info</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"未配置 sales.url，同步功能已禁用"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">        return</span><span style="color:#24292E;--shiki-dark:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    if</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> (</span><span style="color:#D73A49;--shiki-dark:#F97583">!</span><span style="color:#24292E;--shiki-dark:#E1E4E8">StringUtils.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">hasText</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(driver)) {</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">        throw</span><span style="color:#D73A49;--shiki-dark:#F97583"> new</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> IllegalStateException</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">            "已配置 sales.url，但缺少 sales.driver"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">        );</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    try</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">        Class.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">forName</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(driver);</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    } </span><span style="color:#D73A49;--shiki-dark:#F97583">catch</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> (ClassNotFoundException </span><span style="color:#E36209;--shiki-dark:#FFAB70">ex</span><span style="color:#24292E;--shiki-dark:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">        throw</span><span style="color:#D73A49;--shiki-dark:#F97583"> new</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> IllegalStateException</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">            "无法加载同步数据库驱动: "</span><span style="color:#D73A49;--shiki-dark:#F97583"> +</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> driver,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">            ex</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">        );</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    }</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
+<p>更理想的做法是使用条件装配：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="java"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">@</span><span style="color:#D73A49;--shiki-dark:#F97583">ConditionalOnProperty</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    prefix</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> "sales"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">    name</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> "url"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">)</span></span></code></pre>
+<p>让未配置的可选功能根本不创建 Bean。不要用空字符串表示“启用但暂时不知道驱动”。</p>
+<p>另外，<code>Class.forName</code> 所在的方法曾被命名为 <code>getServletPort</code>，但它实际加载 JDBC 驱动。错误命名会让堆栈误导排障，应一起修正。</p>
+<h2 id="如何判断应该改-deploymentnacosparent-还是业务代码">如何判断应该改 Deployment、Nacos、parent 还是业务代码</h2>
+<table>
+<thead>
+<tr>
+<th>证据</th>
+<th>修改位置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>同一镜像在旧安全上下文可写，新上下文不可写</td>
+<td>Deployment 与挂载</td>
+</tr>
+<tr>
+<td>key 被 properties migrator 映射</td>
+<td>Nacos / application 配置</td>
+</tr>
+<tr>
+<td>多个应用都由同一 starter 引入旧 JAR</td>
+<td>parent 或公共 starter</td>
+</tr>
+<tr>
+<td>只有一个可选模块把空值传给反射 API</td>
+<td>业务代码</td>
+</tr>
+<tr>
+<td>Adapter 与客户端版本不匹配</td>
+<td>dependency management + starter</td>
+</tr>
+</tbody>
+</table>
+<p>不要因为日志出现在 Kubernetes 里，就默认所有问题都应通过 YAML 修复。</p>
+<h2 id="滚动验证清单">滚动验证清单</h2>
+<ol>
+<li>构建后检查最终 JAR 的依赖，不只检查 IDE dependency view。</li>
+<li>渲染 Deployment，确认 <code>HOME</code>、<code>user.home</code>、挂载和 UID。</li>
+<li>先滚动一个副本。</li>
+<li>等新 ReplicaSet Ready，确认旧 Pod 仍能兜底。</li>
+<li>检查启动日志中的五类关键字。</li>
+<li>触发 Nacos 注册、Redis、文件上传和可选 JDBC 的真实路径。</li>
+<li>再滚动剩余副本。</li>
+</ol>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#D73A49;--shiki-dark:#F97583"> &lt;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">namespac</span><span style="color:#24292E;--shiki-dark:#E1E4E8">e</span><span style="color:#D73A49;--shiki-dark:#F97583">&gt;</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> logs</span><span style="color:#D73A49;--shiki-dark:#F97583"> &lt;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">new-po</span><span style="color:#24292E;--shiki-dark:#E1E4E8">d</span><span style="color:#D73A49;--shiki-dark:#F97583">&gt;</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --since=20m</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  |</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> grep</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -Ei</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  'mkdir failed|/root/nacos|use-forward-headers|commons-logging|nacos-logback|ClassNotFound'</span></span></code></pre>
+<h2 id="完成定义">完成定义</h2>
+<ul>
+<li>Spring 异常已追到最底层 Cause，而不是停在 Bean 名。</li>
+<li>所有需要写入的客户端目录都有受控挂载和大小限制。</li>
+<li>Nacos 不再尝试写 <code>/root/nacos</code>。</li>
+<li>Nacos、上传 SDK 和日志目录都完成真实写入验证。</li>
+<li><code>server.use-forward-headers</code> 已从所有 Nacos dataId 删除。</li>
+<li>最终 JAR 不包含传统 <code>commons-logging.jar</code>。</li>
+<li>Nacos Client 与 logback-adapter 版本匹配。</li>
+<li>可选 JDBC 功能在未配置时不加载驱动。</li>
+<li>新旧 ReplicaSet 切换完成，没有旧 Pod 长期兜底。</li>
+</ul>
+<h2 id="最终结论">最终结论</h2>
+<p>这轮启动事故没有一个统一的“神奇配置”。它真正提供的是一条稳定的判断路径：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>先读最深 Cause</span></span>
+<span class="line"><span>→ 判断文件系统、配置、classpath 还是业务代码</span></span>
+<span class="line"><span>→ 在最接近根因的公共边界修复</span></span>
+<span class="line"><span>→ 检查最终 JAR 和最终 Pod，而不是源码与模板</span></span></code></pre>
+<p>安全基线暴露了以前依赖 <code>/root</code> 可写的隐式假设；Spring Boot 3 暴露了旧属性和日志栈的版本边界；空 <code>Class.forName</code> 则暴露了业务代码没有正确表达“可选功能”。</p>
+<p>把这些问题分别修在 Deployment、Nacos、公共 starter 和业务代码中，才不会为了消除一条日志，又给整个集群放宽权限或引入新的 classpath 冲突。</p>
+ </div> <aside class="table-of-contents" aria-label="文章目录" data-pagefind-ignore> <p>ON THIS PAGE</p> <ol> <li> <a href="#正确的排查顺序" data-analytics-event="toc_click" data-analytics-target="正确的排查顺序"> 正确的排查顺序 </a> </li><li> <a href="#事故一unsatisfieddependencyexception-的根因是-mkdir" data-analytics-event="toc_click" data-analytics-target="事故一unsatisfieddependencyexception-的根因是-mkdir"> 事故一：UnsatisfiedDependencyException 的根因是 mkdir </a> </li><li> <a href="#事故二nacos-为什么突然写-rootnacos" data-analytics-event="toc_click" data-analytics-target="事故二nacos-为什么突然写-rootnacos"> 事故二：Nacos 为什么突然写 /root/nacos </a> </li><li> <a href="#事故三serveruse-forward-headers-是迁移提示" data-analytics-event="toc_click" data-analytics-target="事故三serveruse-forward-headers-是迁移提示"> 事故三：server.use-forward-headers 是迁移提示 </a> </li><li> <a href="#事故四commons-logging-与-spring-jcl-同时存在" data-analytics-event="toc_click" data-analytics-target="事故四commons-logging-与-spring-jcl-同时存在"> 事故四：commons-logging 与 spring-jcl 同时存在 </a> </li><li> <a href="#事故五nacos-无法加载-nacos-logbackxml" data-analytics-event="toc_click" data-analytics-target="事故五nacos-无法加载-nacos-logbackxml"> 事故五：Nacos 无法加载 nacos-logback.xml </a> </li><li> <a href="#事故六没有-message-的-classnotfoundexception" data-analytics-event="toc_click" data-analytics-target="事故六没有-message-的-classnotfoundexception"> 事故六：没有 message 的 ClassNotFoundException </a> </li><li> <a href="#如何判断应该改-deploymentnacosparent-还是业务代码" data-analytics-event="toc_click" data-analytics-target="如何判断应该改-deploymentnacosparent-还是业务代码"> 如何判断应该改 Deployment、Nacos、parent 还是业务代码 </a> </li><li> <a href="#滚动验证清单" data-analytics-event="toc_click" data-analytics-target="滚动验证清单"> 滚动验证清单 </a> </li><li> <a href="#完成定义" data-analytics-event="toc_click" data-analytics-target="完成定义"> 完成定义 </a> </li><li> <a href="#最终结论" data-analytics-event="toc_click" data-analytics-target="最终结论"> 最终结论 </a> </li> </ol> </aside> </div> <script>(()=>{var l=(n,t)=>{let i=async()=>{await(await n())()},e=typeof t.value=="object"?t.value:void 0,s={timeout:e==null?void 0:e.timeout};"requestIdleCallback"in window?window.requestIdleCallback(i,s):setTimeout(i,s.timeout||200)};(self.Astro||(self.Astro={})).idle=l;window.dispatchEvent(new Event("astro:idle"));})();</script><astro-island uid="2bmK73" prefix="r2" component-url="/_astro/MermaidEnhancer.Dbj2-oAI.js" component-export="default" renderer-url="/_astro/client.BsI3l438.js" props="{}" ssr client="idle" opts="{&quot;name&quot;:&quot;MermaidEnhancer&quot;,&quot;value&quot;:true}"></astro-island> <div class="reading-progress" aria-hidden="true"><span></span></div> <div class="article-actions" data-reading-tools data-title="Spring Boot 3 容器启动异常复盘：目录、废弃属性、日志桥与可选驱动" data-href="https://lucaslz.com/java/spring-boot-3-container-startup-compatibility-postmortem"> <button type="button" data-share aria-label="分享">分享</button> <button type="button" data-copy-link aria-label="复制链接">复制链接</button> <button type="button" data-bookmark aria-label="收藏" aria-pressed="false">
+收藏
+</button> </div> <button class="back-to-top" type="button" aria-label="返回顶部" hidden>↑</button> <div class="reading-toast" role="status" aria-live="polite"></div> <script type="module" src="/_astro/ReadingTools.astro_astro_type_script_index_0_lang.B124Ynmb.js"></script> <footer class="post-footer page-shell narrow-shell" data-pagefind-ignore> <div class="post-end-mark"><span>END</span></div> <p>感谢阅读。你可以分享、收藏，或在下方参与讨论。</p> <section class="related-posts" aria-labelledby="related-title"> <div class="related-heading"> <span>CONTINUE READING</span> <h2 id="related-title">相关文章</h2> </div> <div class="related-grid"> <article class="article-card compact"> <a class="article-card-link" href="/kubernetes/spring-boot-2-3-nacos-redis-property-postmortem" data-analytics-event="article_click" data-analytics-impression="article_impression" data-analytics-target="/kubernetes/spring-boot-2-3-nacos-redis-property-postmortem"> <div class="article-card-top"> <span class="article-index">01</span> <span class="article-date">2026.08.08</span> </div> <h3>Spring Boot 2 与 3 混部：Nacos Redis 配置为什么会回退到 localhost</h3> <p>复盘一次 Spring Boot 2 服务在 Kubernetes 中读取不到 Boot 3 Redis 配置的问题，覆盖属性前缀、Nacos dataId、延迟建连、滚动发布和 commons-pool2 依赖陷阱。</p> <div class="article-card-bottom"> <div class="article-tags"> <span data-href="/tags/spring-boot">#Spring Boot</span><span data-href="/tags/nacos">#Nacos</span><span data-href="/tags/redis">#Redis</span> </div> <span class="read-time">12 min <b>↗</b></span> </div> </a> </article><article class="article-card compact"> <a class="article-card-link" href="/java/spring-boot-3-5-to-4-1-migration" data-analytics-event="article_click" data-analytics-impression="article_impression" data-analytics-target="/java/spring-boot-3-5-to-4-1-migration"> <div class="article-card-top"> <span class="article-index">02</span> <span class="article-date">2026.08.02</span> </div> <h3>从 Spring Boot 3.5.13 升级到 4.1：先分清已完成事项与真正风险</h3> <p>以 JDK 25、Nacos 3.1.2 和标准数据访问为基线，梳理 Spring Boot 3.5.13 升级到 4.1 的依赖边界、实施顺序与验收清单。</p> <div class="article-card-bottom"> <div class="article-tags"> <span data-href="/tags/java">#Java</span><span data-href="/tags/spring-boot">#Spring Boot</span><span data-href="/tags/spring-cloud">#Spring Cloud</span> </div> <span class="read-time">12 min <b>↗</b></span> </div> </a> </article><article class="article-card compact"> <a class="article-card-link" href="/java/spring-boot-3-1-to-3-5-upgrade-postmortem" data-analytics-event="article_click" data-analytics-impression="article_impression" data-analytics-target="/java/spring-boot-3-1-to-3-5-upgrade-postmortem"> <div class="article-card-top"> <span class="article-index">03</span> <span class="article-date">2026.08.01</span> </div> <h3>Spring Boot 从 3.1.7 升级到 3.5.13：三个编译通过后才暴露的问题</h3> <p>复盘一次 Spring Boot 3.1.7 到 3.5.13、Java 17 到 Java 25 的升级，定位 Spring Batch Job 重名、TaskExecutor 注入歧义与 MongoDB 4.2 健康检查不兼容。</p> <div class="article-card-bottom"> <div class="article-tags"> <span data-href="/tags/spring-boot">#Spring Boot</span><span data-href="/tags/java">#Java</span><span data-href="/tags/spring-batch">#Spring Batch</span> </div> <span class="read-time">12 min <b>↗</b></span> </div> </a> </article> </div> </section> <div class="post-navigation"> <a href="/kubernetes/spring-boot-2-3-nacos-redis-property-postmortem" class="previous-post" data-analytics-event="article_click" data-analytics-target="/kubernetes/spring-boot-2-3-nacos-redis-property-postmortem">  <small>← 上一篇</small> <strong>Spring Boot 2 与 3 混部：Nacos Redis 配置为什么会回退到 localhost</strong>  </a> <a href="/kubernetes/zookeeper-kubernetes-memory-rightsizing" class="next-post" data-analytics-event="article_click" data-analytics-target="/kubernetes/zookeeper-kubernetes-memory-rightsizing">  <small>下一篇 →</small> <strong>ZooKeeper 每个 Pod 接近 2G：从固定堆到 Kubernetes 资源收缩</strong>  </a> </div> </footer> </article> <div class="page-shell narrow-shell" data-pagefind-ignore>  <script type="module">window.addEventListener(`theme-change`,()=>{document.querySelector(`iframe.giscus-frame`)?.contentWindow?.postMessage({giscus:{setConfig:{theme:document.documentElement.dataset.theme===`dark`?`dark`:`light`}}},`https://giscus.app`)});</script> </div>  </main> <footer class="site-footer"> <div class="footer-inner"> <div class="footer-brand"> <span class="brand-mark">LZ</span> <div> <strong>lucaslz</strong> <p>关于软件工程、Web、Java 与持续学习的长期技术笔记。</p> </div> </div> <div class="footer-links"> <a href="/rss.xml">RSS</a> <a href="/archive">归档</a> <a href="/tags">标签</a> <a href="https://github.com/lucaslz2020" target="_blank" rel="noreferrer">GitHub</a> </div> </div> <div class="footer-bottom"> <span>© 2026 lucaslz</span> <span>Built with Astro + React · Deployed on Cloudflare Pages</span> </div> </footer> <script type="module">var e=`/api/analytics`,t=new Set([`lucaslz.com`,`www.lucaslz.com`]).has(window.location.hostname)||window.location.hostname.endsWith(`.pages.dev`),n=e=>{let t=new URL(e,window.location.origin);return t.pathname===`/`?`/`:t.pathname.replace(/\/$/,``)},r=e=>{try{return!window.sessionStorage.getItem(e)&&(window.sessionStorage.setItem(e,`1`),!0)}catch{return!0}},i=e=>{document.querySelectorAll(`[data-page-views]`).forEach(t=>{t.textContent=`${new Intl.NumberFormat(`zh-CN`).format(e)} 次阅读`,t.hidden=!1})},a=async(t,r=``)=>{let a=JSON.stringify({event:t,path:n(window.location.pathname),target:r});if(t===`page_view`){let t=await fetch(e,{method:`POST`,headers:{"content-type":`application/json`},body:a,credentials:`same-origin`});if(!t.ok)return;let n=await t.json();typeof n.total==`number`&&i(n.total);return}navigator.sendBeacon(e,new Blob([a],{type:`application/json`}))},o=async()=>{let t=new URLSearchParams({event:`page_view`,path:n(window.location.pathname)}),r=await fetch(`${e}?${t}`,{credentials:`same-origin`});if(!r.ok)return;let a=await r.json();typeof a.total==`number`&&i(a.total)};if(t){let e=n(window.location.pathname);r(`lz:page-view:${e}`)?a(`page_view`).catch(()=>void 0):document.querySelector(`[data-page-views]`)&&o().catch(()=>void 0),document.addEventListener(`click`,e=>{let t=e.target?.closest(`a`);if(!t)return;let n=t.dataset.analyticsEvent,r=new URL(t.href,window.location.origin);if(!n&&r.origin!==window.location.origin&&(n=`outbound_click`),!n)return;let i=t.dataset.analyticsTarget||r.href;a(n,i).catch(()=>void 0)});let t=new IntersectionObserver((e,t)=>{e.forEach(e=>{if(!e.isIntersecting||e.intersectionRatio<.5)return;let n=e.target,i=n.dataset.analyticsImpression,o=n.dataset.analyticsTarget||``,s=`lz:impression:${i}:${o}`;i&&r(s)&&a(i,o).catch(()=>void 0),t.unobserve(n)})},{threshold:.5});document.querySelectorAll(`[data-analytics-impression]`).forEach(e=>t.observe(e)),window.addEventListener(`blog:analytics`,e=>{let t=e.detail;t?.event&&a(t.event,t.target||``).catch(()=>void 0)}),document.querySelector(`[data-not-found]`)&&a(`not_found`,e).catch(()=>void 0)}</script> <script type="module">`serviceWorker`in navigator&&window.addEventListener(`load`,()=>{navigator.serviceWorker.register(`/sw.js`).catch(()=>void 0)});</script> </body> </html>
