@@ -1,4 +1,4 @@
-const CACHE = "lucaslz-4e93cb37508f";
+const CACHE = "lucaslz-b041a96c36d7";
 const PRECACHE = ["/","/archive/","/tags/","/404.html","/site.webmanifest","/favicon.svg","/og.png"];
 
 self.addEventListener("install", (event) => {
