@@ -1,0 +1,350 @@
+<!DOCTYPE html><html lang="zh-Hant-HK" data-theme="light" data-locale="zh-HK"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="generator" content="Astro v7.2.0"><meta name="author" content="lucaslz"><meta name="theme-color" content="#f5f1e8" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)"><meta name="description" content="一份可執行的 kubeadm 叢集重建遷移手冊，涵蓋凍結基線、備份還原、節點初始化、網絡、數據、Nacos、業務驗收、停止條件與回滾。"><meta name="google-site-verification" content="o_QOQN3-adA79KPRfqy1wAj9zviE8hyD5jvfdQEMVco"><meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"><meta name="keywords" content="Kubernetes, Runbook, kubeadm, 災備, DevOps, Kubernetes Runbook, 叢集重建, kubeadm 遷移, 災備還原, Go No-Go, 維運手冊"><link rel="canonical" href="https://lucaslz.com/zh-hk/kubernetes/kubeadm-cluster-rebuild-migration-runbook/"><link rel="alternate" hreflang="zh-CN" href="https://lucaslz.com/kubernetes/kubeadm-cluster-rebuild-migration-runbook/"><link rel="alternate" hreflang="en" href="https://lucaslz.com/en/kubernetes/kubeadm-cluster-rebuild-migration-runbook/"><link rel="alternate" hreflang="zh-Hant-TW" href="https://lucaslz.com/zh-tw/kubernetes/kubeadm-cluster-rebuild-migration-runbook/"><link rel="alternate" hreflang="x-default" href="https://lucaslz.com/kubernetes/kubeadm-cluster-rebuild-migration-runbook/"><link rel="author" href="https://github.com/lucaslz2020"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon.ico" sizes="any"><link rel="apple-touch-icon" href="/icons/apple-touch-icon.png"><link rel="alternate" type="application/rss+xml" title="lucaslz · 工程筆記" href="/zh-hk/rss.xml"><link rel="manifest" href="/site.webmanifest"><title>Kubernetes 重建式遷移 Runbook：把臨場救火變成階段驗收 · lucaslz</title><meta property="og:type" content="article"><meta property="og:site_name" content="lucaslz · 工程筆記"><meta property="og:title" content="Kubernetes 重建式遷移 Runbook：把臨場救火變成階段驗收 · lucaslz"><meta property="og:description" content="一份可執行的 kubeadm 叢集重建遷移手冊，涵蓋凍結基線、備份還原、節點初始化、網絡、數據、Nacos、業務驗收、停止條件與回滾。"><meta property="og:url" content="https://lucaslz.com/zh-hk/kubernetes/kubeadm-cluster-rebuild-migration-runbook/"><meta property="og:image" content="https://lucaslz.com/og/zh-hk/kubernetes/kubeadm-cluster-rebuild-migration-runbook.png"><meta property="og:image:type" content="image/png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="Kubernetes 重建式遷移 Runbook：把臨場救火變成階段驗收 的分享圖片"><meta property="og:locale" content="zh_HK"><meta property="article:published_time" content="2026-07-05T00:00:00.000Z"><meta property="article:author" content="https://github.com/lucaslz2020"><meta property="article:tag" content="Kubernetes"><meta property="article:tag" content="Runbook"><meta property="article:tag" content="kubeadm"><meta property="article:tag" content="災備"><meta property="article:tag" content="DevOps"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="Kubernetes 重建式遷移 Runbook：把臨場救火變成階段驗收 · lucaslz"><meta name="twitter:description" content="一份可執行的 kubeadm 叢集重建遷移手冊，涵蓋凍結基線、備份還原、節點初始化、網絡、數據、Nacos、業務驗收、停止條件與回滾。"><meta name="twitter:image" content="https://lucaslz.com/og/zh-hk/kubernetes/kubeadm-cluster-rebuild-migration-runbook.png"><script>
+      (() => {
+        const saved = localStorage.getItem("theme");
+        const dark = saved
+          ? saved === "dark"
+          : matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+      })();
+    </script><script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Person","@id":"https://lucaslz.com/#person","name":"lucaslz","url":"https://lucaslz.com","sameAs":["https://github.com/lucaslz2020"]},{"@type":"WebSite","@id":"https://lucaslz.com/#website","name":"lucaslz · 工程筆記","alternateName":"lucaslz","description":"關於軟件工程、Web、Java 與持續學習的長期技術筆記。","url":"https://lucaslz.com","inLanguage":"zh-Hant-HK","publisher":{"@id":"https://lucaslz.com/#person"}},{"@type":"BlogPosting","@id":"https://lucaslz.com/zh-hk/kubernetes/kubeadm-cluster-rebuild-migration-runbook/#article","url":"https://lucaslz.com/zh-hk/kubernetes/kubeadm-cluster-rebuild-migration-runbook/","headline":"Kubernetes 重建式遷移 Runbook：把臨場救火變成階段驗收","description":"一份可執行的 kubeadm 叢集重建遷移手冊，涵蓋凍結基線、備份還原、節點初始化、網絡、數據、Nacos、業務驗收、停止條件與回滾。","inLanguage":"zh-Hant-HK","datePublished":"2026-07-05T00:00:00.000Z","dateModified":"2026-07-05T00:00:00.000Z","author":{"@id":"https://lucaslz.com/#person","name":"lucaslz"},"publisher":{"@id":"https://lucaslz.com/#person"},"isPartOf":{"@id":"https://lucaslz.com/#website"},"mainEntityOfPage":{"@type":"WebPage","@id":"https://lucaslz.com/zh-hk/kubernetes/kubeadm-cluster-rebuild-migration-runbook/"},"image":{"@type":"ImageObject","url":"https://lucaslz.com/og/zh-hk/kubernetes/kubeadm-cluster-rebuild-migration-runbook.png","width":1200,"height":630},"articleSection":["Kubernetes","Runbook","kubeadm","災備","DevOps"],"keywords":"Kubernetes, Runbook, kubeadm, 災備, DevOps, Kubernetes Runbook, 叢集重建, kubeadm 遷移, 災備還原, Go No-Go, 維運手冊","wordCount":2258},{"@type":"BreadcrumbList","@id":"https://lucaslz.com/zh-hk/kubernetes/kubeadm-cluster-rebuild-migration-runbook/#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"主頁","item":"https://lucaslz.com/zh-hk/"},{"@type":"ListItem","position":2,"name":"Kubernetes 重建式遷移 Runbook：把臨場救火變成階段驗收","item":"https://lucaslz.com/zh-hk/kubernetes/kubeadm-cluster-rebuild-migration-runbook/"}]}]}</script><style>@layer astro.images{:where([data-astro-image]){height:auto}:where([data-astro-image=full-width]){width:100%}:where([data-astro-image=constrained]){max-width:100%}[data-astro-image-fit=fill]{object-fit:fill}[data-astro-image-fit=contain]{object-fit:contain}[data-astro-image-fit=cover]{object-fit:cover}[data-astro-image-fit=scale-down]{object-fit:scale-down}[data-astro-image-pos=top]{object-position:top}[data-astro-image-pos=bottom]{object-position:bottom}[data-astro-image-pos=left]{object-position:left}[data-astro-image-pos=right]{object-position:right}[data-astro-image-pos=center]{object-position:center}[data-astro-image-pos=top-bottom]{object-position:top bottom}[data-astro-image-pos=top-left]{object-position:top left}[data-astro-image-pos=top-right]{object-position:top right}[data-astro-image-pos=top-center]{object-position:top center}[data-astro-image-pos=bottom-top]{object-position:bottom top}[data-astro-image-pos=bottom-left]{object-position:bottom left}[data-astro-image-pos=bottom-right]{object-position:bottom right}[data-astro-image-pos=bottom-center]{object-position:bottom center}[data-astro-image-pos=left-top]{object-position:left top}[data-astro-image-pos=left-bottom]{object-position:left bottom}[data-astro-image-pos=left-right]{object-position:left right}[data-astro-image-pos=left-center]{object-position:left center}[data-astro-image-pos=right-top]{object-position:right top}[data-astro-image-pos=right-bottom]{object-position:right bottom}[data-astro-image-pos=right-left]{object-position:right left}[data-astro-image-pos=right-center]{object-position:right center}[data-astro-image-pos=center-top]{object-position:center top}[data-astro-image-pos=center-bottom]{object-position:center bottom}[data-astro-image-pos=center-left]{object-position:center left}[data-astro-image-pos=center-right]{object-position:center right}}
+</style><link rel="stylesheet" href="/_astro/BaseLayout.sWFOg0EP.css"><script type="module" src="/_astro/page.CQWjsXKf.js"></script></head> <body> <a class="skip-link" href="#main-content">跳到主要內容</a> <header class="site-header"> <div class="header-inner"> <a class="brand" href="/zh-hk/" title="主頁" data-analytics-event="nav_click" data-analytics-target="home"> <img class="brand-mark" src="/brand/avatar.svg" alt="" width="42" height="42" decoding="async"> <span class="brand-copy"> <strong>lucaslz</strong> <small>ENGINEERING NOTES</small> </span> </a> <nav class="desktop-nav" aria-label="主要導覽"> <a href="/zh-hk/" data-analytics-event="nav_click" data-analytics-target="主頁" aria-current="page"> 主頁 </a><a href="/zh-hk/archive/" data-analytics-event="nav_click" data-analytics-target="彙整"> 彙整 </a><a href="/zh-hk/tags/" data-analytics-event="nav_click" data-analytics-target="標籤"> 標籤 </a> <a href="https://github.com/lucaslz2020" target="_blank" rel="noreferrer">GitHub ↗</a> </nav> <style>astro-island,astro-slot,astro-static-slot{display:contents}</style><script>(()=>{var e=async t=>{await(await t())()};(self.Astro||(self.Astro={})).load=e;window.dispatchEvent(new Event("astro:load"));})();</script><script>(()=>{var g=Object.defineProperty;var w=(a,s,c)=>s in a?g(a,s,{enumerable:!0,configurable:!0,writable:!0,value:c}):a[s]=c;var l=(a,s,c)=>w(a,typeof s!="symbol"?s+"":s,c);var E=new Set(["__proto__","constructor","prototype"]);{let a={0:t=>y(t),1:t=>c(t),2:t=>new RegExp(t),3:t=>new Date(t),4:t=>new Map(c(t)),5:t=>new Set(c(t)),6:t=>BigInt(t),7:t=>new URL(t),8:t=>new Uint8Array(t),9:t=>new Uint16Array(t),10:t=>new Uint32Array(t),11:t=>Number.POSITIVE_INFINITY*t},s=t=>{let[p,e]=t;return p in a?a[p](e):void 0},c=t=>t.map(s),y=t=>typeof t!="object"||t===null?t:Object.fromEntries(Object.entries(t).map(([p,e])=>[p,s(e)]));class f extends HTMLElement{constructor(){super(...arguments);l(this,"Component");l(this,"hydrator");l(this,"hydrate",async()=>{var b;if(!this.hydrator||!this.isConnected)return;let e=(b=this.parentElement)==null?void 0:b.closest("astro-island[ssr]");if(e){e.addEventListener("astro:hydrate",this.hydrate,{once:!0});return}let r=this.querySelectorAll("astro-slot"),n={},d=this.querySelectorAll("template[data-astro-template]");for(let o of d){let i=o.closest(this.tagName);i!=null&&i.isSameNode(this)&&(n[o.getAttribute("data-astro-template")||"default"]=o.innerHTML,o.remove())}for(let o of r){let i=o.closest(this.tagName);i!=null&&i.isSameNode(this)&&(n[o.getAttribute("name")||"default"]=o.innerHTML)}let u;try{u=this.hasAttribute("props")?y(JSON.parse(this.getAttribute("props"))):{}}catch(o){let i=this.getAttribute("component-url")||"<unknown>",v=this.getAttribute("component-export");throw v&&(i+=` (export ${v})`),console.error(`[hydrate] Error parsing props for component ${i}`,this.getAttribute("props"),o),o}let h;await this.hydrator(this)(this.Component,u,n,{client:this.getAttribute("client")}),this.removeAttribute("ssr"),this.dispatchEvent(new CustomEvent("astro:hydrate"))});l(this,"unmount",()=>{this.isConnected||this.dispatchEvent(new CustomEvent("astro:unmount"))})}disconnectedCallback(){document.removeEventListener("astro:after-swap",this.unmount),document.addEventListener("astro:after-swap",this.unmount,{once:!0})}connectedCallback(){if(!this.hasAttribute("await-children")||document.readyState==="interactive"||document.readyState==="complete")this.childrenConnectedCallback();else{let e=()=>{document.removeEventListener("DOMContentLoaded",e),r.disconnect(),this.childrenConnectedCallback()},r=new MutationObserver(()=>{var n;((n=this.lastChild)==null?void 0:n.nodeType)===Node.COMMENT_NODE&&this.lastChild.nodeValue==="astro:end"&&(this.lastChild.remove(),e())});r.observe(this,{childList:!0}),document.addEventListener("DOMContentLoaded",e)}}async childrenConnectedCallback(){let e=this.getAttribute("before-hydration-url");e&&await import(e),this.start()}getRetryImportUrl(e){let r=new URL(e,document.baseURI);return r.searchParams.set("astro-retry",Date.now().toString()),r.toString()}async importWithRetry(e){try{return await import(e)}catch(r){return await new Promise(n=>setTimeout(n,1e3)),import(this.getRetryImportUrl(e))}}handleHydrationError(e){let r=this.getAttribute("component-url"),n=new CustomEvent("astro:hydration-error",{cancelable:!0,bubbles:!0,composed:!0,detail:{error:e,componentUrl:r}});this.dispatchEvent(n)&&console.error(`[astro-island] Error hydrating ${r}`,e)}async start(){let e=JSON.parse(this.getAttribute("opts")),r=this.getAttribute("client");if(Astro[r]===void 0){window.addEventListener(`astro:${r}`,()=>this.start(),{once:!0});return}try{await Astro[r](async()=>{let n=this.getAttribute("renderer-url");try{let[d,{default:u}]=await Promise.all([this.importWithRetry(this.getAttribute("component-url")),n?this.importWithRetry(n):Promise.resolve({default:()=>()=>{}})]),h=this.getAttribute("component-export")||"default";if(h.includes(".")){this.Component=d;for(let m of h.split(".")){if(E.has(m)||!this.Component||typeof this.Component!="object"&&typeof this.Component!="function"||!Object.hasOwn(this.Component,m))throw new Error(`Invalid component export path: ${h}`);this.Component=this.Component[m]}}else{if(E.has(h))throw new Error(`Invalid component export path: ${h}`);this.Component=d[h]}return this.hydrator=u,this.hydrate}catch(d){return this.handleHydrationError(d),()=>{}}},e,this)}catch(n){this.handleHydrationError(n)}}attributeChangedCallback(){this.hydrate()}}l(f,"observedAttributes",["props"]),customElements.get("astro-island")||customElements.define("astro-island",f)}})();</script><astro-island uid="ZHDaOD" prefix="r1" component-url="/_astro/HeaderControls.sXhIZxRm.js" component-export="default" renderer-url="/_astro/client.BvqO7VYE.js" props="{&quot;githubUrl&quot;:[0,&quot;https://github.com/lucaslz2020&quot;],&quot;locale&quot;:[0,&quot;zh-HK&quot;],&quot;languageTargets&quot;:[0,{&quot;zh-CN&quot;:[0,&quot;/kubernetes/kubeadm-cluster-rebuild-migration-runbook/&quot;],&quot;en&quot;:[0,&quot;/en/kubernetes/kubeadm-cluster-rebuild-migration-runbook/&quot;],&quot;zh-TW&quot;:[0,&quot;/zh-tw/kubernetes/kubeadm-cluster-rebuild-migration-runbook/&quot;],&quot;de&quot;:[0,&quot;/de/&quot;],&quot;zh-HK&quot;:[0,&quot;/zh-hk/&quot;]}]}" ssr client="load" opts="{&quot;name&quot;:&quot;HeaderControls&quot;,&quot;value&quot;:true}" await-children><div class="header-controls"><div class="language-switcher"><button type="button" class="language-switcher-trigger" aria-haspopup="menu" aria-expanded="false" aria-label="語言"><span aria-hidden="true">繁</span><span class="language-switcher-caret" aria-hidden="true">▾</span></button></div><button class="icon-button search-trigger" type="button" aria-label="搜尋"><span aria-hidden="true">⌕</span><span class="search-label">搜尋</span><kbd>⌘K</kbd></button><button class="icon-button theme-trigger" type="button" aria-label="切換到深色模式"><span aria-hidden="true">◐</span></button><button class="icon-button menu-trigger" type="button" aria-label="開啟導覽"><span aria-hidden="true">☰</span></button></div><!--astro:end--></astro-island> </div> </header> <main id="main-content">  <article class="post-page" data-pagefind-body> <meta data-pagefind-filter="locale[content]" content="zh-HK"> <header class="post-header page-shell narrow-shell"> <a class="back-link" href="/zh-hk/">← 返回文章列表</a> <p class="eyebrow"> <span></span>ENGINEERING NOTE · 2026年7月5日 </p> <h1 data-pagefind-meta="title">Kubernetes 重建式遷移 Runbook：把臨場救火變成階段驗收</h1> <p class="post-description" data-pagefind-meta="description"> 一份可執行的 kubeadm 叢集重建遷移手冊，涵蓋凍結基線、備份還原、節點初始化、網絡、數據、Nacos、業務驗收、停止條件與回滾。 </p> <meta data-pagefind-meta="date" content="2026-07-05"> <meta data-pagefind-meta="tags" content="Kubernetes, Runbook, kubeadm, 災備, DevOps"> <div class="post-meta-row"> <div class="post-author"> <img class="mini-avatar" src="/brand/avatar.svg" alt="" width="36" height="36" decoding="async"> <span><strong>lucaslz</strong><small>作者</small></span> </div> <div class="post-facts"> <time datetime="2026-07-05T00:00:00.000Z">2026年7月5日</time>  <span>12 分鐘閱讀</span> <span class="post-view-count" data-page-views hidden></span> </div> </div> <div class="post-tag-row"> <a href="/zh-hk/tags/kubernetes/" data-analytics-event="tag_click" data-analytics-target="Kubernetes">
+#Kubernetes </a><a href="/zh-hk/tags/runbook/" data-analytics-event="tag_click" data-analytics-target="Runbook">
+#Runbook </a><a href="/zh-hk/tags/kubeadm/" data-analytics-event="tag_click" data-analytics-target="kubeadm">
+#kubeadm </a><a href="/zh-hk/tags/災備/" data-analytics-event="tag_click" data-analytics-target="災備">
+#災備 </a><a href="/zh-hk/tags/devops/" data-analytics-event="tag_click" data-analytics-target="DevOps">
+#DevOps </a> </div>    </header> <div class="post-divider"> <span></span><b>&#123; &#125;</b><span></span> </div> <div class="post-layout page-shell"> <div class="post-content prose">  <blockquote>
+<p>本文中的節點、位址、網域、環境名稱及容量數據均為脫敏示例。Secret、資料庫備份、Token 與內部倉庫資訊不屬於可發布內容。</p>
+</blockquote>
+<blockquote>
+<p>系列導覽：<a href="/zh-hk/kubernetes/kubernetes-migration-series/">Kubernetes 重建遷移教學系列</a>。本篇涵蓋遷移日的執行、停止條件與回滾。</p>
+</blockquote>
+<p>上一篇文章復盤了重建式遷移中遇到的問題。這篇不再沿事故時間線敘述，而是把經驗整理成一份可以逐階段執行的 Runbook。</p>
+<p>「一步到位」並不等於用一條指令啟動所有節點和業務，而是指：在遷移窗口內只執行經過驗證的版本化資產，不再臨時修改 YAML、Nacos、Service IP、節點污點或防火牆。</p>
+<h2 id="總原則上一階段失敗就停止">總原則：上一階段失敗就停止</h2>
+<pre><code class="language-mermaid">flowchart LR
+  A["凍結設計"] --> B["備份與還原演練"]
+  B --> C["作業系統基線"]
+  C --> D["高可用控制平面"]
+  D --> E["CNI 與基礎設施"]
+  E --> F["零副本預部署"]
+  F --> G["數據還原"]
+  G --> H["Nacos 與平台依賴"]
+  H --> I["業務分批啟動"]
+  I --> J["真實業務驗收"]
+  J --> K["入口切換"]
+</code></pre>
+<p>每個箭頭都是硬性關卡。失敗時只能：</p>
+<ol>
+<li>回滾當前批次。</li>
+<li>在 Git 修正源配置。</li>
+<li>重新執行 dry-run 和評審。</li>
+<li>由失敗階段重新執行。</li>
+</ol>
+<p>不要用 <code>kubectl edit</code>、臨時 patch、固定 sleep 或重啟 Pod 來掩飾配置錯誤。</p>
+<h2 id="階段-0凍結不可變基線">階段 0：凍結不可變基線</h2>
+<p>建立第一個控制平面之前，先凍結：</p>
+<ul>
+<li>Kubernetes、kubeadm、kubelet、kubectl 版本。</li>
+<li>作業系統和 containerd 版本。</li>
+<li>控制平面節點和 API VIP。</li>
+<li>Pod CIDR、Service CIDR、叢集 DNS 網域。</li>
+<li>CNI、Ingress、StorageClass 和 metrics-server 方案。</li>
+<li>Nacos 版本與叢集模式。</li>
+<li>映像來源和 digest。</li>
+<li>節點池、標籤、污點和 toleration。</li>
+</ul>
+<p>三類網絡必須有清晰邊界：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>網絡</th><th>用途</th><th>是否寫入應用配置</th></tr></thead><tbody><tr><td>節點網段</td><td>虛擬機器、節點及少量外部依賴</td><td>僅在確有必要時</td></tr><tr><td>Pod CIDR</td><td>CNI 分配的 Pod IP</td><td>禁止</td></tr><tr><td>Service CIDR</td><td>ClusterIP</td><td>僅相容白名單</td></tr></tbody></table>
+<p>應用內部預設使用：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>&#x3C;service>.&#x3C;namespace>.svc.cluster.local:&#x3C;port></span></span></code></pre>
+<h2 id="階段-1準備全部輸入">階段 1：準備全部輸入</h2>
+<p>執行前必須具備：</p>
+<ul>
+<li>伺服器、虛擬機器、磁碟和節點池清單。</li>
+<li>舊主機名稱到新主機名稱的對應。</li>
+<li>etcd snapshot 和 Kubernetes 資源歸檔。</li>
+<li>資料庫、訊息系統和檔案儲存備份。</li>
+<li>Nacos namespace、group、dataId、內容和校驗值。</li>
+<li>映像及 digest 清單。</li>
+<li>Service DNS 替換表和固定 ClusterIP 白名單。</li>
+<li>網域、證書、Ingress 和外層入口對應。</li>
+<li>回滾負責人、停止條件和還原指令。</li>
+</ul>
+<p>只要任一輸入缺失，就不應重裝仍承載數據的舊節點。</p>
+<h2 id="階段-2完成還原演練">階段 2：完成還原演練</h2>
+<p>備份矩陣可以按以下方式建立：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>服務</th><th>備份</th><th>驗收</th></tr></thead><tbody><tr><td>etcd</td><td>snapshot</td><td>隔離還原，API 物件可讀</td></tr><tr><td>MySQL</td><td>全量備份、用戶授權、binlog</td><td>關鍵表、行數、應用帳號查詢</td></tr><tr><td>PostgreSQL</td><td>dump/base backup、角色、WAL</td><td>schema、擴充功能、應用查詢</td></tr><tr><td>MongoDB</td><td>dump/snapshot、認證庫</td><td>collection、索引、業務查詢</td></tr><tr><td>Redis</td><td>RDB/AOF、配置</td><td>PING、關鍵 key、TTL 抽樣</td></tr><tr><td>Kafka</td><td>topic、partition、offset</td><td>broker、ISR、consumer group</td></tr><tr><td>RabbitMQ</td><td>definitions、vhost、用戶</td><td>exchange、queue、binding</td></tr><tr><td>NFS/hostPath</td><td>檔案或儲存快照</td><td>檔案數、容量、checksum 抽樣</td></tr></tbody></table>
+<p>備份檔案存在本身不算完成。還原演練才是門檻。</p>
+<h2 id="階段-3所有配置先在-git-改完">階段 3：所有配置先在 Git 改完</h2>
+<p>遷移前完成以下靜態治理：</p>
+<ul>
+<li>內部 URL 改為 Service DNS。</li>
+<li>Pod IP 引用歸零。</li>
+<li>固定 ClusterIP 只保留白名單。</li>
+<li>Kafka advertised listener 單獨評審，不做字串替換。</li>
+<li>Deployment 的資源、探針、排程、DNS 和優雅停機統一。</li>
+<li>匯出物件移除唯讀欄位和舊管理平台元數據。</li>
+<li>Deployment、StatefulSet 初始副本為 0。</li>
+<li>CronJob 初始 <code>suspend=true</code>。</li>
+</ul>
+<p>常用靜態掃描：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">rg</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> '&#x3C;pod-cidr-pattern>'</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> config/</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> manifests/</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">rg</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> '&#x3C;service-cidr-pattern>'</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> config/</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> manifests/</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">rg</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'node[0-9]+'</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> manifests/</span></span></code></pre>
+<p>掃描結果不能直接大量替換，每個命中都需要歸類為 Service、節點、外部依賴或遺留垃圾配置。</p>
+<h2 id="階段-4統一節點基線">階段 4：統一節點基線</h2>
+<p>重裝後每台節點執行同一指令碼：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">swapoff</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -a</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">modprobe</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> overlay</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">modprobe</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> br_netfilter</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">sysctl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --system</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">systemctl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> enable</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --now</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> containerd</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">systemctl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> enable</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> kubelet</span></span></code></pre>
+<p>逐節點驗收：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">hostnamectl</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">ip</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> address</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">ip</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> route</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">timedatectl</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">swapon</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --show</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">systemctl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> is-active</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> containerd</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">crictl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> info</span></span></code></pre>
+<p>firewalld 規則必須在 kubeadm 之前完成。所有節點需要允許 Pod CIDR 轉發；<code>hostNetwork</code> 服務則按實際連接埠增加最小範圍的放行規則。</p>
+<h2 id="階段-5建立控制平面">階段 5：建立控制平面</h2>
+<p>順序固定為：</p>
+<ol>
+<li>初始化第一個 control-plane。</li>
+<li>部署 kube-vip 並驗證 API VIP。</li>
+<li>加入其餘 control-plane。</li>
+<li>檢查 etcd 成員。</li>
+<li>測試 VIP Leader 漂移。</li>
+<li>產生並妥善保存 worker join 指令。</li>
+</ol>
+<p>控制平面驗收項：</p>
+<ul>
+<li>API VIP 連續可達。</li>
+<li>三個控制平面節點 Ready。</li>
+<li>etcd 三成員健康。</li>
+<li>kubeconfig 指向 VIP，而非單台主機。</li>
+<li>證書 SAN 包含實際存取位址。</li>
+</ul>
+<h2 id="階段-6安裝網絡和基礎設施">階段 6：安裝網絡和基礎設施</h2>
+<p>安裝 CNI 後，先驗證跨節點 Pod IP、CoreDNS、Service ClusterIP 和外部 DNS。</p>
+<p>再依次安裝：</p>
+<ol>
+<li>預設儲存類。</li>
+<li>metrics-server。</li>
+<li>Ingress Controller。</li>
+<li>日誌與監控。</li>
+</ol>
+<p>每個節點池至少執行一次 PVC smoke test；<code>kubectl top nodes</code> 和 <code>kubectl top pods -A</code> 都返回數據後，指標系統才算可用。</p>
+<h2 id="階段-7標籤污點和零副本預部署">階段 7：標籤、污點和零副本預部署</h2>
+<p>節點加入後立即設定目標標籤和污點，避免未標記節點參與排程。</p>
+<p>多副本狀態服務使用 required Pod Anti-Affinity：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">podAntiAffinity</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  requiredDuringSchedulingIgnoredDuringExecution</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    - </span><span style="color:#22863A;--shiki-dark:#85E89D">topologyKey</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">kubernetes.io/hostname</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">      labelSelector</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">        matchLabels</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">          app</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">zookeeper</span></span></code></pre>
+<p>資源預部署後的硬性檢查：</p>
+<ul>
+<li>PVC 已 Bound 或有明確還原計劃。</li>
+<li>Service selector 與 Pod label 完全匹配。</li>
+<li>固定 ClusterIP 未衝突。</li>
+<li>所有映像可拉取。</li>
+<li>不存在舊主機名稱。</li>
+<li>停用環境的副本保持為 0。</li>
+</ul>
+<h2 id="階段-8數據還原">階段 8：數據還原</h2>
+<p>固定順序：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>存储</span></span>
+<span class="line"><span>→ 基础数据库与消息组件</span></span>
+<span class="line"><span>→ Kafka</span></span>
+<span class="line"><span>→ PostgreSQL 与辅助服务</span></span>
+<span class="line"><span>→ Nacos 数据库</span></span>
+<span class="line"><span>→ Nacos</span></span></code></pre>
+<p>每個服務必須從同節點 Pod、跨節點 Pod、Service DNS 三個入口驗證。只看 Pod 是否 Ready，無法發現 kube-proxy、firewalld 或 DNS 問題。</p>
+<h2 id="階段-9nacos-叢集驗收">階段 9：Nacos 叢集驗收</h2>
+<p>Nacos 三個 Pod 需要兩類 Service：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Service</th><th>類型</th><th>用途</th></tr></thead><tbody><tr><td><code>nacos-hs</code></td><td>Headless</td><td>成員穩定 DNS 和叢集互聯</td></tr><tr><td><code>nacos-cs</code></td><td>ClusterIP</td><td>用戶端統一入口</td></tr></tbody></table>
+<p>三層驗收：</p>
+<ol>
+<li>三個成員均為健康狀態。</li>
+<li>三個節點的執行模式開關一致。</li>
+<li>測試用戶端註冊後，三個節點都能查詢到同一執行個體。</li>
+</ol>
+<p>完成後再匯入 Nacos 配置，逐個回讀 namespace、group、dataId 和校驗值。</p>
+<h2 id="階段-10平台依賴和業務分批啟動">階段 10：平台依賴和業務分批啟動</h2>
+<p>先啟動認證、字典、檔案、工作流程等平台依賴，再啟動 OAuth、Gateway 和 DevOps。首個認證服務應成為硬性門檻：</p>
+<ul>
+<li>Deployment Ready。</li>
+<li>Service 有 Endpoint。</li>
+<li>三個 Nacos 節點執行個體一致。</li>
+<li>OAuth 能透過 Service DNS 呼叫。</li>
+<li>無效登入應返回明確的業務錯誤，而不是「無可用執行個體」。</li>
+</ul>
+<p>業務一次只啟動一個命名空間。該批次全部通過後再繼續下一批。</p>
+<h2 id="階段-11ingress-與真實業務驗收">階段 11：Ingress 與真實業務驗收</h2>
+<p>先繞過外部入口，直接請求 Ingress：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">curl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --resolve</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> app.example.com:443:</span><span style="color:#D73A49;--shiki-dark:#F97583">&#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">ingress-addres</span><span style="color:#24292E;--shiki-dark:#E1E4E8">s</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  https://app.example.com/</span></span></code></pre>
+<p>叢集內成功後，再配置路由器、NLB 或代理層的 Host/SNI 轉發。當叢集內返回 200 而公網存取失敗時，不要修改 Kubernetes 業務資源。</p>
+<p>真實驗收至少覆蓋：</p>
+<ul>
+<li>正常登入、失敗登入和 Token 刷新。</li>
+<li>權限、檔案、Session。</li>
+<li>資料庫讀寫。</li>
+<li>Kafka/RabbitMQ 生產消費。</li>
+<li>WebSocket。</li>
+<li>CI/CD 上傳發布。</li>
+</ul>
+<h2 id="自動停止條件">自動停止條件</h2>
+<p>遇到以下情況立即停止：</p>
+<ul>
+<li>etcd 或資料庫備份無法還原。</li>
+<li>網絡 CIDR 衝突。</li>
+<li>API VIP 漂移失敗。</li>
+<li>CNI 或 kube-proxy 未全量就緒。</li>
+<li>數據校驗不一致。</li>
+<li>Nacos 三節點執行個體不一致。</li>
+<li>核心認證鏈路不可用。</li>
+<li>出現不可接受的數據寫入錯誤。</li>
+<li>公網故障需要修改業務 Pod 才能繞過。</li>
+</ul>
+<h2 id="go--no-go-清單">Go / No-Go 清單</h2>
+<ul class="contains-task-list">
+<li class="task-list-item"><input type="checkbox" disabled> 伺服器與節點池清單無重複、無遺漏。</li>
+<li class="task-list-item"><input type="checkbox" disabled> 版本、網絡和映像已凍結。</li>
+<li class="task-list-item"><input type="checkbox" disabled> etcd 與資料庫已還原演練。</li>
+<li class="task-list-item"><input type="checkbox" disabled> 檔案儲存已備份。</li>
+<li class="task-list-item"><input type="checkbox" disabled> Nacos 配置已匯出、DNS 化並回讀。</li>
+<li class="task-list-item"><input type="checkbox" disabled> 固定 ClusterIP 白名單已評審。</li>
+<li class="task-list-item"><input type="checkbox" disabled> 標籤、污點和 toleration 已成對校驗。</li>
+<li class="task-list-item"><input type="checkbox" disabled> 防火牆初始化指令碼已驗證。</li>
+<li class="task-list-item"><input type="checkbox" disabled> Nacos 兩類 Service 清單完整。</li>
+<li class="task-list-item"><input type="checkbox" disabled> 網域、證書和入口對應已準備。</li>
+<li class="task-list-item"><input type="checkbox" disabled> 所有資源可零副本預部署。</li>
+<li class="task-list-item"><input type="checkbox" disabled> 真實驗收請求及預期結果已準備。</li>
+<li class="task-list-item"><input type="checkbox" disabled> 回滾入口、負責人和停止條件已確認。</li>
+</ul>
+<h2 id="完成定義">完成定義</h2>
+<p>遷移完成必須同時滿足：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>全部节点 Ready</span></span>
+<span class="line"><span>+ 基础组件健康</span></span>
+<span class="line"><span>+ 数据恢复并通过应用查询</span></span>
+<span class="line"><span>+ Nacos 三节点一致</span></span>
+<span class="line"><span>+ Service DNS 与 Endpoint 正常</span></span>
+<span class="line"><span>+ 活跃业务全部 Ready</span></span>
+<span class="line"><span>+ 登录与核心业务成功</span></span>
+<span class="line"><span>+ 公网入口成功</span></span>
+<span class="line"><span>+ 配置和脚本已进入 Git</span></span>
+<span class="line"><span>+ 旧集群经过观察窗口后下线</span></span></code></pre>
+<p>Runbook 的真正價值不是讓操作更「機械」，而是把依賴個人記憶的臨場決策，轉化為可以審查、暫停、回滾和重現的工程流程。</p> </div> <aside class="table-of-contents" aria-label="文章目錄" data-pagefind-ignore> <p>ON THIS PAGE</p> <ol> <li> <a href="#總原則上一階段失敗就停止" data-analytics-event="toc_click" data-analytics-target="總原則上一階段失敗就停止"> 總原則：上一階段失敗就停止 </a> </li><li> <a href="#階段-0凍結不可變基線" data-analytics-event="toc_click" data-analytics-target="階段-0凍結不可變基線"> 階段 0：凍結不可變基線 </a> </li><li> <a href="#階段-1準備全部輸入" data-analytics-event="toc_click" data-analytics-target="階段-1準備全部輸入"> 階段 1：準備全部輸入 </a> </li><li> <a href="#階段-2完成還原演練" data-analytics-event="toc_click" data-analytics-target="階段-2完成還原演練"> 階段 2：完成還原演練 </a> </li><li> <a href="#階段-3所有配置先在-git-改完" data-analytics-event="toc_click" data-analytics-target="階段-3所有配置先在-git-改完"> 階段 3：所有配置先在 Git 改完 </a> </li><li> <a href="#階段-4統一節點基線" data-analytics-event="toc_click" data-analytics-target="階段-4統一節點基線"> 階段 4：統一節點基線 </a> </li><li> <a href="#階段-5建立控制平面" data-analytics-event="toc_click" data-analytics-target="階段-5建立控制平面"> 階段 5：建立控制平面 </a> </li><li> <a href="#階段-6安裝網絡和基礎設施" data-analytics-event="toc_click" data-analytics-target="階段-6安裝網絡和基礎設施"> 階段 6：安裝網絡和基礎設施 </a> </li><li> <a href="#階段-7標籤污點和零副本預部署" data-analytics-event="toc_click" data-analytics-target="階段-7標籤污點和零副本預部署"> 階段 7：標籤、污點和零副本預部署 </a> </li><li> <a href="#階段-8數據還原" data-analytics-event="toc_click" data-analytics-target="階段-8數據還原"> 階段 8：數據還原 </a> </li><li> <a href="#階段-9nacos-叢集驗收" data-analytics-event="toc_click" data-analytics-target="階段-9nacos-叢集驗收"> 階段 9：Nacos 叢集驗收 </a> </li><li> <a href="#階段-10平台依賴和業務分批啟動" data-analytics-event="toc_click" data-analytics-target="階段-10平台依賴和業務分批啟動"> 階段 10：平台依賴和業務分批啟動 </a> </li><li> <a href="#階段-11ingress-與真實業務驗收" data-analytics-event="toc_click" data-analytics-target="階段-11ingress-與真實業務驗收"> 階段 11：Ingress 與真實業務驗收 </a> </li><li> <a href="#自動停止條件" data-analytics-event="toc_click" data-analytics-target="自動停止條件"> 自動停止條件 </a> </li><li> <a href="#go--no-go-清單" data-analytics-event="toc_click" data-analytics-target="go--no-go-清單"> Go / No-Go 清單 </a> </li><li> <a href="#完成定義" data-analytics-event="toc_click" data-analytics-target="完成定義"> 完成定義 </a> </li> </ol> </aside> </div> <script type="module" src="/_astro/MermaidEnhancer.astro_astro_type_script_index_0_lang.DnWaDEwA.js"></script> <dialog class="image-lightbox" data-image-lightbox data-locale="zh-HK" aria-labelledby="lightbox-caption"> <div class="image-lightbox-inner"> <button type="button" class="image-lightbox-close" aria-label="關閉圖片預覽">
+×
+</button> <img alt="" decoding="async"> <p id="lightbox-caption" hidden></p> </div> </dialog> <script type="module" src="/_astro/ImageLightbox.astro_astro_type_script_index_0_lang.Db8U22Iw.js"></script> <div class="reading-progress" aria-hidden="true"><span></span></div> <div class="article-actions" data-reading-tools data-locale="zh-HK" data-title="Kubernetes 重建式遷移 Runbook：把臨場救火變成階段驗收" data-href="https://lucaslz.com/zh-hk/kubernetes/kubeadm-cluster-rebuild-migration-runbook/"> <button type="button" data-share aria-label="分享"> 分享 </button> <button type="button" data-copy-link aria-label="複製連結"> 複製連結 </button> <button type="button" data-bookmark aria-label="加入書籤" aria-pressed="false"> 加入書籤 </button> </div> <button class="back-to-top" type="button" aria-label="返回頂部" hidden>↑</button> <div class="reading-toast" role="status" aria-live="polite"></div> <script type="module" src="/_astro/ReadingTools.astro_astro_type_script_index_0_lang.CXpXB1Lm.js"></script> <footer class="post-footer page-shell narrow-shell" data-pagefind-ignore> <div class="post-end-mark"><span>END</span></div> <p>感謝閱讀。你可以分享、加入書籤，或在下方參與討論。</p> <section class="related-posts" aria-labelledby="related-title"> <div class="related-heading"> <span>CONTINUE READING</span> <h2 id="related-title">相關文章</h2> </div> <div class="related-grid"> <article class="article-card compact"> <a class="article-card-link" href="/zh-hk/nexus/nexus3-kubernetes-cutover-runbook/" data-analytics-event="article_click" data-analytics-impression="article_impression" data-analytics-target="/zh-hk/nexus/nexus3-kubernetes-cutover-runbook/"> <div class="article-card-top"> <span class="article-index">01</span> <span class="article-date">05.08.2026</span> </div> <h3>Nexus3 Kubernetes 遷移 Runbook：H2、PostgreSQL、探針與無感切換</h3> <p>將 Nexus2 到 Nexus3 的遷移拆成可執行的 Kubernetes Runbook，涵蓋資源建立、Upgrade Wizard、H2 升級、Database Migrator、驗證與 VIP 回滾。</p> <div class="article-card-bottom"> <div class="article-tags"> <span data-href="/zh-hk/tags/nexus/">
+#Nexus </span><span data-href="/zh-hk/tags/kubernetes/">
+#Kubernetes </span><span data-href="/zh-hk/tags/runbook/">
+#Runbook </span> </div> <span class="read-time">9 分鐘 <b>↗</b></span> </div> </a> </article><article class="article-card compact"> <a class="article-card-link" href="/zh-hk/nexus/nexus2-to-nexus3-kubernetes-postgresql/" data-analytics-event="article_click" data-analytics-impression="article_impression" data-analytics-target="/zh-hk/nexus/nexus2-to-nexus3-kubernetes-postgresql/"> <div class="article-card-top"> <span class="article-index">02</span> <span class="article-date">12.07.2026</span> </div> <h3>從 Nexus Repository 2 平滑遷移到 Nexus 3：Kubernetes、PostgreSQL 與 VIP 切換</h3> <p>記錄 Nexus2 到 Nexus3 的完整遷移路徑：官方 Upgrade Wizard、H2 版本升級、PostgreSQL 數據遷移、Kubernetes StatefulSet、舊路徑相容與 VIP 回滾。</p> <div class="article-card-bottom"> <div class="article-tags"> <span data-href="/zh-hk/tags/nexus/">
+#Nexus </span><span data-href="/zh-hk/tags/kubernetes/">
+#Kubernetes </span><span data-href="/zh-hk/tags/postgresql/">
+#PostgreSQL </span> </div> <span class="read-time">12 分鐘 <b>↗</b></span> </div> </a> </article><article class="article-card compact"> <a class="article-card-link" href="/zh-hk/kubernetes/kubeadm-cluster-rebuild-migration-retrospective/" data-analytics-event="article_click" data-analytics-impression="article_impression" data-analytics-target="/zh-hk/kubernetes/kubeadm-cluster-rebuild-migration-retrospective/"> <div class="article-card-top"> <span class="article-index">03</span> <span class="article-date">30.05.2026</span> </div> <h3>由零開始搭建 Kubernetes v1.36.3：Rocky Linux 與 kubeadm 完整教學</h3> <p>由網絡規劃和 Rocky Linux 初始化開始，一步步建立 kubeadm 高可用叢集，安裝 kube-vip、Calico、指標、儲存與 Ingress，並完成叢集驗收。</p> <div class="article-card-bottom"> <div class="article-tags"> <span data-href="/zh-hk/tags/kubernetes/">
+#Kubernetes </span><span data-href="/zh-hk/tags/kubeadm/">
+#kubeadm </span><span data-href="/zh-hk/tags/rocky-linux/">
+#Rocky Linux </span> </div> <span class="read-time">24 分鐘 <b>↗</b></span> </div> </a> </article> </div> </section> <div class="post-navigation"> <a href="/zh-hk/kubernetes/kubernetes-stateful-services-migration/" class="previous-post" data-analytics-event="article_click" data-analytics-target="/zh-hk/kubernetes/kubernetes-stateful-services-migration/">  <small>← 上一篇</small> <strong>Kubernetes 叢集重建時，MySQL、Redis、Kafka、RabbitMQ 同 Zookeeper 點樣遷移</strong>  </a> <a href="/zh-hk/nexus/nexus3-kubernetes-deployment/" class="next-post" data-analytics-event="article_click" data-analytics-target="/zh-hk/nexus/nexus3-kubernetes-deployment/">  <small>下一篇 →</small> <strong>在 Kubernetes 從零開始部署 Nexus Repository 3：PostgreSQL、PVC 與 Ingress</strong>  </a> </div> </footer> </article> <div class="page-shell narrow-shell" data-pagefind-ignore> <section class="comments-section" aria-labelledby="comments-title" data-giscus-comments data-repo="lucaslz2020/lucasleelz.github.io" data-repo-id="MDEwOlJlcG9zaXRvcnkyNzcxNjkwNw==" data-category="Announcements" data-category-id="DIC_kwDOAabtK84DCw-x" data-discussion-path="/kubernetes/kubeadm-cluster-rebuild-migration-runbook/" data-giscus-language="zh-HK"> <div class="comments-heading"> <p class="eyebrow"> <span></span>
+DISCUSSION
+</p> <h2 id="comments-title">討論與回饋</h2> </div> <div class="giscus" aria-live="polite"></div> </section> <script type="module">var e=()=>document.documentElement.dataset.theme===`dark`?`noborder_dark`:`noborder_light`,t=t=>{if(t.dataset.loaded===`true`)return;let n=t.querySelector(`.giscus`);if(!n)return;let r=document.createElement(`script`);r.src=`https://giscus.app/client.js`,r.async=!0,r.crossOrigin=`anonymous`,r.dataset.repo=t.dataset.repo??``,r.dataset.repoId=t.dataset.repoId??``,r.dataset.category=t.dataset.category??``,r.dataset.categoryId=t.dataset.categoryId??``,r.dataset.mapping=`specific`,r.dataset.term=t.dataset.discussionPath??window.location.pathname,r.dataset.strict=`1`,r.dataset.reactionsEnabled=`1`,r.dataset.emitMetadata=`0`,r.dataset.inputPosition=`top`,r.dataset.theme=e(),r.dataset.lang=t.dataset.giscusLanguage??`zh-CN`,r.dataset.loading=`lazy`,t.dataset.loaded=`true`,n.append(r)},n=document.querySelector(`[data-giscus-comments]`);if(n){if(`IntersectionObserver`in window){let e=new IntersectionObserver(r=>{r.some(e=>e.isIntersecting)&&(t(n),e.disconnect())},{rootMargin:`500px 0px`});e.observe(n)}else t(n)}window.addEventListener(`theme-change`,()=>{document.querySelector(`iframe.giscus-frame`)?.contentWindow?.postMessage({giscus:{setConfig:{theme:e()}}},`https://giscus.app`)});</script> </div>  </main> <footer class="site-footer"> <div class="footer-inner"> <div class="footer-brand"> <img class="brand-mark" src="/brand/avatar.svg" alt="" width="42" height="42" loading="lazy" decoding="async"> <div> <strong>lucaslz</strong> <p>關於軟件工程、Web、Java 與持續學習的長期技術筆記。</p> </div> </div> <div class="footer-links"> <a href="/zh-hk/rss.xml">RSS</a> <a href="/zh-hk/archive/">彙整</a> <a href="/zh-hk/tags/">標籤</a> <a href="https://github.com/lucaslz2020" target="_blank" rel="noreferrer">GitHub</a> </div> </div> <div class="footer-bottom"> <span>© 2013 ~ 2026 lucaslz</span> <span>Built with Astro + React · Deployed on Cloudflare Pages</span> </div> </footer> <script type="module" src="/_astro/Analytics.astro_astro_type_script_index_0_lang.EOcdV3vz.js"></script> <aside class="pwa-notice" data-pwa-notice data-locale="zh-HK" data-mode="status" aria-label="應用程式狀態" aria-live="polite" aria-atomic="true" hidden> <span class="pwa-notice-icon" data-pwa-icon aria-hidden="true">↧</span> <p> <strong data-pwa-title>離線閱讀已就緒</strong> <small data-pwa-message>瀏覽過的文章可以在離線時繼續閱讀。</small> </p> <div class="pwa-notice-actions"> <button type="button" data-pwa-action hidden> 立即安裝 </button> <button type="button" data-pwa-dismiss>知道了</button> </div> </aside> <script type="module" src="/_astro/Pwa.astro_astro_type_script_index_0_lang.goX2jG5I.js"></script> </body> </html>

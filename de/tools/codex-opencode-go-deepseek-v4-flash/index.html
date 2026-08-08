@@ -1,0 +1,737 @@
+<!DOCTYPE html><html lang="de" data-theme="light" data-locale="de"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="generator" content="Astro v7.2.0"><meta name="author" content="lucaslz"><meta name="theme-color" content="#f5f1e8" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)"><meta name="description" content="Ein Rückblick auf die reale Timeline, in der DeepSeek V4 Flash über die Responses API von OpenCode Go in Codex eingebunden wurde – inklusive Protokollverifikation, Proxy-Fehleinschätzung, Authentifizierung ohne Klartext-Key, Modellkatalog, Umschaltung zwischen zwei Profilen, exec-Kompatibilitätsfix und realem Dateiänderungstest."><meta name="google-site-verification" content="o_QOQN3-adA79KPRfqy1wAj9zviE8hyD5jvfdQEMVco"><meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"><meta name="keywords" content="Codex, DeepSeek, OpenCode, Responses API, KI-Programmierung, Codex Custom-Modelle, DeepSeek V4 Flash, OpenCode Go, model_provider, Codex Profile"><link rel="canonical" href="https://lucaslz.com/de/tools/codex-opencode-go-deepseek-v4-flash/"><link rel="alternate" hreflang="zh-CN" href="https://lucaslz.com/tools/codex-opencode-go-deepseek-v4-flash/"><link rel="alternate" hreflang="en" href="https://lucaslz.com/en/tools/codex-opencode-go-deepseek-v4-flash/"><link rel="alternate" hreflang="zh-Hant-TW" href="https://lucaslz.com/zh-tw/tools/codex-opencode-go-deepseek-v4-flash/"><link rel="alternate" hreflang="x-default" href="https://lucaslz.com/tools/codex-opencode-go-deepseek-v4-flash/"><link rel="author" href="https://github.com/lucaslz2020"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon.ico" sizes="any"><link rel="apple-touch-icon" href="/icons/apple-touch-icon.png"><link rel="alternate" type="application/rss+xml" title="lucaslz · Technische Notizen" href="/de/rss.xml"><link rel="manifest" href="/site.webmanifest"><title>DeepSeek V4 Flash über OpenCode Go in Codex einbinden: Responses API, Modellkatalog und Profilwechsel · lucaslz</title><meta property="og:type" content="article"><meta property="og:site_name" content="lucaslz · Technische Notizen"><meta property="og:title" content="DeepSeek V4 Flash über OpenCode Go in Codex einbinden: Responses API, Modellkatalog und Profilwechsel · lucaslz"><meta property="og:description" content="Ein Rückblick auf die reale Timeline, in der DeepSeek V4 Flash über die Responses API von OpenCode Go in Codex eingebunden wurde – inklusive Protokollverifikation, Proxy-Fehleinschätzung, Authentifizierung ohne Klartext-Key, Modellkatalog, Umschaltung zwischen zwei Profilen, exec-Kompatibilitätsfix und realem Dateiänderungstest."><meta property="og:url" content="https://lucaslz.com/de/tools/codex-opencode-go-deepseek-v4-flash/"><meta property="og:image" content="https://lucaslz.com/og/de/tools/codex-opencode-go-deepseek-v4-flash.png"><meta property="og:image:type" content="image/png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="Teilen-Bild für DeepSeek V4 Flash über OpenCode Go in Codex einbinden: Responses API, Modellkatalog und Profilwechsel"><meta property="og:locale" content="de_DE"><meta property="article:published_time" content="2026-08-06T00:00:00.000Z"><meta property="article:author" content="https://github.com/lucaslz2020"><meta property="article:tag" content="Codex"><meta property="article:tag" content="DeepSeek"><meta property="article:tag" content="OpenCode"><meta property="article:tag" content="Responses API"><meta property="article:tag" content="KI-Programmierung"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="DeepSeek V4 Flash über OpenCode Go in Codex einbinden: Responses API, Modellkatalog und Profilwechsel · lucaslz"><meta name="twitter:description" content="Ein Rückblick auf die reale Timeline, in der DeepSeek V4 Flash über die Responses API von OpenCode Go in Codex eingebunden wurde – inklusive Protokollverifikation, Proxy-Fehleinschätzung, Authentifizierung ohne Klartext-Key, Modellkatalog, Umschaltung zwischen zwei Profilen, exec-Kompatibilitätsfix und realem Dateiänderungstest."><meta name="twitter:image" content="https://lucaslz.com/og/de/tools/codex-opencode-go-deepseek-v4-flash.png"><script>
+      (() => {
+        const saved = localStorage.getItem("theme");
+        const dark = saved
+          ? saved === "dark"
+          : matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+      })();
+    </script><script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Person","@id":"https://lucaslz.com/#person","name":"lucaslz","url":"https://lucaslz.com","sameAs":["https://github.com/lucaslz2020"]},{"@type":"WebSite","@id":"https://lucaslz.com/#website","name":"lucaslz · Technische Notizen","alternateName":"lucaslz","description":"Langfristige technische Notizen zu Softwareentwicklung, Web, Java und kontinuierlichem Lernen.","url":"https://lucaslz.com","inLanguage":"de","publisher":{"@id":"https://lucaslz.com/#person"}},{"@type":"BlogPosting","@id":"https://lucaslz.com/de/tools/codex-opencode-go-deepseek-v4-flash/#article","url":"https://lucaslz.com/de/tools/codex-opencode-go-deepseek-v4-flash/","headline":"DeepSeek V4 Flash über OpenCode Go in Codex einbinden: Responses API, Modellkatalog und Profilwechsel","description":"Ein Rückblick auf die reale Timeline, in der DeepSeek V4 Flash über die Responses API von OpenCode Go in Codex eingebunden wurde – inklusive Protokollverifikation, Proxy-Fehleinschätzung, Authentifizierung ohne Klartext-Key, Modellkatalog, Umschaltung zwischen zwei Profilen, exec-Kompatibilitätsfix und realem Dateiänderungstest.","inLanguage":"de","datePublished":"2026-08-06T00:00:00.000Z","dateModified":"2026-08-06T00:00:00.000Z","author":{"@id":"https://lucaslz.com/#person","name":"lucaslz"},"publisher":{"@id":"https://lucaslz.com/#person"},"isPartOf":{"@id":"https://lucaslz.com/#website"},"mainEntityOfPage":{"@type":"WebPage","@id":"https://lucaslz.com/de/tools/codex-opencode-go-deepseek-v4-flash/"},"image":{"@type":"ImageObject","url":"https://lucaslz.com/og/de/tools/codex-opencode-go-deepseek-v4-flash.png","width":1200,"height":630},"articleSection":["Codex","DeepSeek","OpenCode","Responses API","KI-Programmierung"],"keywords":"Codex, DeepSeek, OpenCode, Responses API, KI-Programmierung, Codex Custom-Modelle, DeepSeek V4 Flash, OpenCode Go, model_provider, Codex Profile","wordCount":4932},{"@type":"BreadcrumbList","@id":"https://lucaslz.com/de/tools/codex-opencode-go-deepseek-v4-flash/#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"Startseite","item":"https://lucaslz.com/de/"},{"@type":"ListItem","position":2,"name":"DeepSeek V4 Flash über OpenCode Go in Codex einbinden: Responses API, Modellkatalog und Profilwechsel","item":"https://lucaslz.com/de/tools/codex-opencode-go-deepseek-v4-flash/"}]}]}</script><style>@layer astro.images{:where([data-astro-image]){height:auto}:where([data-astro-image=full-width]){width:100%}:where([data-astro-image=constrained]){max-width:100%}[data-astro-image-fit=fill]{object-fit:fill}[data-astro-image-fit=contain]{object-fit:contain}[data-astro-image-fit=cover]{object-fit:cover}[data-astro-image-fit=scale-down]{object-fit:scale-down}[data-astro-image-pos=top]{object-position:top}[data-astro-image-pos=bottom]{object-position:bottom}[data-astro-image-pos=left]{object-position:left}[data-astro-image-pos=right]{object-position:right}[data-astro-image-pos=center]{object-position:center}[data-astro-image-pos=top-bottom]{object-position:top bottom}[data-astro-image-pos=top-left]{object-position:top left}[data-astro-image-pos=top-right]{object-position:top right}[data-astro-image-pos=top-center]{object-position:top center}[data-astro-image-pos=bottom-top]{object-position:bottom top}[data-astro-image-pos=bottom-left]{object-position:bottom left}[data-astro-image-pos=bottom-right]{object-position:bottom right}[data-astro-image-pos=bottom-center]{object-position:bottom center}[data-astro-image-pos=left-top]{object-position:left top}[data-astro-image-pos=left-bottom]{object-position:left bottom}[data-astro-image-pos=left-right]{object-position:left right}[data-astro-image-pos=left-center]{object-position:left center}[data-astro-image-pos=right-top]{object-position:right top}[data-astro-image-pos=right-bottom]{object-position:right bottom}[data-astro-image-pos=right-left]{object-position:right left}[data-astro-image-pos=right-center]{object-position:right center}[data-astro-image-pos=center-top]{object-position:center top}[data-astro-image-pos=center-bottom]{object-position:center bottom}[data-astro-image-pos=center-left]{object-position:center left}[data-astro-image-pos=center-right]{object-position:center right}}
+</style><link rel="stylesheet" href="/_astro/BaseLayout.sWFOg0EP.css"><script type="module" src="/_astro/page.CQWjsXKf.js"></script></head> <body> <a class="skip-link" href="#main-content">Zum Hauptinhalt springen</a> <header class="site-header"> <div class="header-inner"> <a class="brand" href="/de/" title="Startseite" data-analytics-event="nav_click" data-analytics-target="home"> <img class="brand-mark" src="/brand/avatar.svg" alt="" width="42" height="42" decoding="async"> <span class="brand-copy"> <strong>lucaslz</strong> <small>ENGINEERING NOTES</small> </span> </a> <nav class="desktop-nav" aria-label="Hauptnavigation"> <a href="/de/" data-analytics-event="nav_click" data-analytics-target="Startseite" aria-current="page"> Startseite </a><a href="/de/archive/" data-analytics-event="nav_click" data-analytics-target="Archiv"> Archiv </a><a href="/de/tags/" data-analytics-event="nav_click" data-analytics-target="Tags"> Tags </a> <a href="https://github.com/lucaslz2020" target="_blank" rel="noreferrer">GitHub ↗</a> </nav> <style>astro-island,astro-slot,astro-static-slot{display:contents}</style><script>(()=>{var e=async t=>{await(await t())()};(self.Astro||(self.Astro={})).load=e;window.dispatchEvent(new Event("astro:load"));})();</script><script>(()=>{var g=Object.defineProperty;var w=(a,s,c)=>s in a?g(a,s,{enumerable:!0,configurable:!0,writable:!0,value:c}):a[s]=c;var l=(a,s,c)=>w(a,typeof s!="symbol"?s+"":s,c);var E=new Set(["__proto__","constructor","prototype"]);{let a={0:t=>y(t),1:t=>c(t),2:t=>new RegExp(t),3:t=>new Date(t),4:t=>new Map(c(t)),5:t=>new Set(c(t)),6:t=>BigInt(t),7:t=>new URL(t),8:t=>new Uint8Array(t),9:t=>new Uint16Array(t),10:t=>new Uint32Array(t),11:t=>Number.POSITIVE_INFINITY*t},s=t=>{let[p,e]=t;return p in a?a[p](e):void 0},c=t=>t.map(s),y=t=>typeof t!="object"||t===null?t:Object.fromEntries(Object.entries(t).map(([p,e])=>[p,s(e)]));class f extends HTMLElement{constructor(){super(...arguments);l(this,"Component");l(this,"hydrator");l(this,"hydrate",async()=>{var b;if(!this.hydrator||!this.isConnected)return;let e=(b=this.parentElement)==null?void 0:b.closest("astro-island[ssr]");if(e){e.addEventListener("astro:hydrate",this.hydrate,{once:!0});return}let r=this.querySelectorAll("astro-slot"),n={},d=this.querySelectorAll("template[data-astro-template]");for(let o of d){let i=o.closest(this.tagName);i!=null&&i.isSameNode(this)&&(n[o.getAttribute("data-astro-template")||"default"]=o.innerHTML,o.remove())}for(let o of r){let i=o.closest(this.tagName);i!=null&&i.isSameNode(this)&&(n[o.getAttribute("name")||"default"]=o.innerHTML)}let u;try{u=this.hasAttribute("props")?y(JSON.parse(this.getAttribute("props"))):{}}catch(o){let i=this.getAttribute("component-url")||"<unknown>",v=this.getAttribute("component-export");throw v&&(i+=` (export ${v})`),console.error(`[hydrate] Error parsing props for component ${i}`,this.getAttribute("props"),o),o}let h;await this.hydrator(this)(this.Component,u,n,{client:this.getAttribute("client")}),this.removeAttribute("ssr"),this.dispatchEvent(new CustomEvent("astro:hydrate"))});l(this,"unmount",()=>{this.isConnected||this.dispatchEvent(new CustomEvent("astro:unmount"))})}disconnectedCallback(){document.removeEventListener("astro:after-swap",this.unmount),document.addEventListener("astro:after-swap",this.unmount,{once:!0})}connectedCallback(){if(!this.hasAttribute("await-children")||document.readyState==="interactive"||document.readyState==="complete")this.childrenConnectedCallback();else{let e=()=>{document.removeEventListener("DOMContentLoaded",e),r.disconnect(),this.childrenConnectedCallback()},r=new MutationObserver(()=>{var n;((n=this.lastChild)==null?void 0:n.nodeType)===Node.COMMENT_NODE&&this.lastChild.nodeValue==="astro:end"&&(this.lastChild.remove(),e())});r.observe(this,{childList:!0}),document.addEventListener("DOMContentLoaded",e)}}async childrenConnectedCallback(){let e=this.getAttribute("before-hydration-url");e&&await import(e),this.start()}getRetryImportUrl(e){let r=new URL(e,document.baseURI);return r.searchParams.set("astro-retry",Date.now().toString()),r.toString()}async importWithRetry(e){try{return await import(e)}catch(r){return await new Promise(n=>setTimeout(n,1e3)),import(this.getRetryImportUrl(e))}}handleHydrationError(e){let r=this.getAttribute("component-url"),n=new CustomEvent("astro:hydration-error",{cancelable:!0,bubbles:!0,composed:!0,detail:{error:e,componentUrl:r}});this.dispatchEvent(n)&&console.error(`[astro-island] Error hydrating ${r}`,e)}async start(){let e=JSON.parse(this.getAttribute("opts")),r=this.getAttribute("client");if(Astro[r]===void 0){window.addEventListener(`astro:${r}`,()=>this.start(),{once:!0});return}try{await Astro[r](async()=>{let n=this.getAttribute("renderer-url");try{let[d,{default:u}]=await Promise.all([this.importWithRetry(this.getAttribute("component-url")),n?this.importWithRetry(n):Promise.resolve({default:()=>()=>{}})]),h=this.getAttribute("component-export")||"default";if(h.includes(".")){this.Component=d;for(let m of h.split(".")){if(E.has(m)||!this.Component||typeof this.Component!="object"&&typeof this.Component!="function"||!Object.hasOwn(this.Component,m))throw new Error(`Invalid component export path: ${h}`);this.Component=this.Component[m]}}else{if(E.has(h))throw new Error(`Invalid component export path: ${h}`);this.Component=d[h]}return this.hydrator=u,this.hydrate}catch(d){return this.handleHydrationError(d),()=>{}}},e,this)}catch(n){this.handleHydrationError(n)}}attributeChangedCallback(){this.hydrate()}}l(f,"observedAttributes",["props"]),customElements.get("astro-island")||customElements.define("astro-island",f)}})();</script><astro-island uid="ZYBRmf" prefix="r1" component-url="/_astro/HeaderControls.sXhIZxRm.js" component-export="default" renderer-url="/_astro/client.BvqO7VYE.js" props="{&quot;githubUrl&quot;:[0,&quot;https://github.com/lucaslz2020&quot;],&quot;locale&quot;:[0,&quot;de&quot;],&quot;languageTargets&quot;:[0,{&quot;zh-CN&quot;:[0,&quot;/tools/codex-opencode-go-deepseek-v4-flash/&quot;],&quot;en&quot;:[0,&quot;/en/tools/codex-opencode-go-deepseek-v4-flash/&quot;],&quot;zh-TW&quot;:[0,&quot;/zh-tw/tools/codex-opencode-go-deepseek-v4-flash/&quot;],&quot;de&quot;:[0,&quot;/de/&quot;],&quot;zh-HK&quot;:[0,&quot;/zh-hk/&quot;]}]}" ssr client="load" opts="{&quot;name&quot;:&quot;HeaderControls&quot;,&quot;value&quot;:true}" await-children><div class="header-controls"><div class="language-switcher"><button type="button" class="language-switcher-trigger" aria-haspopup="menu" aria-expanded="false" aria-label="Sprache"><span aria-hidden="true">DE</span><span class="language-switcher-caret" aria-hidden="true">▾</span></button></div><button class="icon-button search-trigger" type="button" aria-label="Suche"><span aria-hidden="true">⌕</span><span class="search-label">Suche</span><kbd>⌘K</kbd></button><button class="icon-button theme-trigger" type="button" aria-label="Zum dunklen Modus wechseln"><span aria-hidden="true">◐</span></button><button class="icon-button menu-trigger" type="button" aria-label="Navigation öffnen"><span aria-hidden="true">☰</span></button></div><!--astro:end--></astro-island> </div> </header> <main id="main-content">  <article class="post-page" data-pagefind-body> <meta data-pagefind-filter="locale[content]" content="de"> <header class="post-header page-shell narrow-shell"> <a class="back-link" href="/de/">← Zurück zur Artikelliste</a> <p class="eyebrow"> <span></span>ENGINEERING NOTE · 6. August 2026 </p> <h1 data-pagefind-meta="title">DeepSeek V4 Flash über OpenCode Go in Codex einbinden: Responses API, Modellkatalog und Profilwechsel</h1> <p class="post-description" data-pagefind-meta="description"> Ein Rückblick auf die reale Timeline, in der DeepSeek V4 Flash über die Responses API von OpenCode Go in Codex eingebunden wurde – inklusive Protokollverifikation, Proxy-Fehleinschätzung, Authentifizierung ohne Klartext-Key, Modellkatalog, Umschaltung zwischen zwei Profilen, exec-Kompatibilitätsfix und realem Dateiänderungstest. </p> <meta data-pagefind-meta="date" content="2026-08-06"> <meta data-pagefind-meta="tags" content="Codex, DeepSeek, OpenCode, Responses API, KI-Programmierung"> <div class="post-meta-row"> <div class="post-author"> <img class="mini-avatar" src="/brand/avatar.svg" alt="" width="36" height="36" decoding="async"> <span><strong>lucaslz</strong><small>Autor</small></span> </div> <div class="post-facts"> <time datetime="2026-08-06T00:00:00.000Z">6. August 2026</time>  <span>25 Min. Lesezeit</span> <span class="post-view-count" data-page-views hidden></span> </div> </div> <div class="post-tag-row"> <a href="/de/tags/codex/" data-analytics-event="tag_click" data-analytics-target="Codex">
+#Codex </a><a href="/de/tags/deepseek/" data-analytics-event="tag_click" data-analytics-target="DeepSeek">
+#DeepSeek </a><a href="/de/tags/opencode/" data-analytics-event="tag_click" data-analytics-target="OpenCode">
+#OpenCode </a><a href="/de/tags/responses-api/" data-analytics-event="tag_click" data-analytics-target="Responses API">
+#Responses API </a><a href="/de/tags/ki-programmierung/" data-analytics-event="tag_click" data-analytics-target="KI-Programmierung">
+#KI-Programmierung </a> </div> <div class="tested-with"> <span>Verifizierte Umgebung</span> <dl aria-label="Verifizierungsumgebung des Artikels"> <div> <dt>codex</dt> <dd>0.145.0</dd> </div><div> <dt>model</dt> <dd>deepseek-v4-flash</dd> </div><div> <dt>protocol</dt> <dd>Responses API</dd> </div> </dl> </div>   </header> <div class="post-divider"> <span></span><b>&#123; &#125;</b><span></span> </div> <div class="post-layout page-shell"> <div class="post-content prose">  <p>Das Ziel war klar: die bestehende OpenAI-Anmeldung von Codex behalten und gleichzeitig das von OpenCode Go bereitgestellte <strong>DeepSeek V4 Flash</strong> in Codex einbinden. DeepSeek soll standardmäßig verwendet werden; bei Bedarf lässt sich mit einem einzigen Befehl zurück zu OpenAI wechseln.</p>
+<p>Am Ende gab es drei Einstiege:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D"># 默认：DeepSeek V4 Flash</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D"># 显式选择 DeepSeek</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -p</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> deepseek</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D"># 切回 OpenAI</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -p</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> openai</span></span></code></pre>
+<p>Der tatsächliche Prozess war mehr als nur das Ändern eines Modellnamens. Im Spiel waren Responses-API-Kompatibilität, Provider-Authentifizierung, Modellmetadaten, benutzerdefinierte Codex-Tools und die Override-Reihenfolge der Profile. Erschwerend kam hinzu, dass manche Konfiguration die statische Prüfung besteht und erst bei der ersten echten Anfrage Protokollunterschiede offenbart.</p>
+<h2 id="anforderungen-randbedingungen-und-abnahmekriterien">Anforderungen, Randbedingungen und Abnahmekriterien</h2>
+<p>Vor Beginn der Änderungen habe ich das Ziel in eine Reihe überprüfbarer Bedingungen zerlegt:</p>
+<ul>
+<li><code>deepseek-v4-flash</code> verwenden, wie es in OpenCode Go bereits konfiguriert ist – ohne ein weiteres Credential anzufordern oder zu duplizieren.</li>
+<li>Codex ruft die Responses API direkt auf, ohne einen dauerhaft laufenden lokalen Protokoll-Proxy.</li>
+<li>DeepSeek bleibt die Standardoption; die OpenAI-Anmeldung und die OpenAI-Modelle bleiben weiterhin nutzbar.</li>
+<li>Ein Wechsel zwischen Providern darf nicht nur den Modellnamen ändern, sondern muss zugleich Authentifizierung und Modellkatalog umschalten.</li>
+<li>Die Konfiguration der aktuellen Session bleibt nachvollziehbar; vor Änderungen wird die ursprüngliche <code>config.toml</code> gesichert.</li>
+<li>Der API-Key erscheint nicht in Terminal-Logs, Artikeln, Git oder Screenshots.</li>
+<li>Verifikation nicht nur per <code>curl</code>, sondern auch über den nativen Codex-Chat und echte Dateiänderungen.</li>
+<li>Bei Inkompatibilitäten bleibt der vollständige Fehler erhalten und wird der Anfrage-Protokoll-Ebene zugeordnet, statt durch erneute Versuche übertüncht zu werden.</li>
+</ul>
+<p>Die endgültigen Abnahmekriterien:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Prüfpunkt</th><th>Erfolgskriterium</th></tr></thead><tbody><tr><td>Roh-API</td><td><code>/v1/responses</code> liefert HTTP 200 und <code>completed</code></td></tr><tr><td>Codex-Konfiguration</td><td><code>doctor</code> ohne warning und ohne failure</td></tr><tr><td>Modellkatalog</td><td>1-Millionen-Kontext, <code>high/max</code> und korrekter Tool-Modus werden aufgelöst</td></tr><tr><td>DeepSeek-Profile</td><td>Startausgabe zeigt <code>opencode-go + deepseek-v4-flash</code></td></tr><tr><td>OpenAI-Profile</td><td>Startausgabe zeigt <code>openai + gpt-5.6-luna</code></td></tr><tr><td>Generierungsfähigkeit</td><td>Beide Profile liefern jeweils exakt den vereinbarten Text</td></tr><tr><td>Agent-Tools</td><td>DeepSeek kann über <code>apply_patch</code> den vorgegebenen Inhalt erstellen und schreiben</td></tr><tr><td>Credential-Sicherheit</td><td>Codex-Konfiguration enthält keinen API-Key; relevante Dateien sind nur für den aktuellen Benutzer lesbar</td></tr></tbody></table>
+<h2 id="die-vollständige-timeline-der-fehlersuche">Die vollständige Timeline der Fehlersuche</h2>
+<p>Diese Integration durchlief mehrere Kurskorrekturen. Nachfolgend der Ablauf in chronologischer Reihenfolge:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Phase</th><th>Aktion</th><th>Ergebnis bzw. Einschätzung</th></tr></thead><tbody><tr><td>1</td><td>Bestätigt, dass OpenCode Go die DeepSeek-Zugangsdaten bereits gespeichert hat</td><td>Kein weiterer Klartext-Key gespeichert</td></tr><tr><td>2</td><td>Anhand alter Unterlagen angenommen, dass nur Chat Completions unterstützt werden</td><td>Einschätzung veraltet, falsche Richtung</td></tr><tr><td>3</td><td>Kompatibilitäts-Proxy vorübergehend installiert</td><td>Noch nicht aktiviert; wartet auf Bestätigung der Interface-Fähigkeiten</td></tr><tr><td>4</td><td>DeepSeek-Dokumentation zum Erstellen einer Response gelesen</td><td>Neues Interface unterstützt die Responses API</td></tr><tr><td>5</td><td>Direkte Anfrage an OpenCode Go <code>/v1/responses</code></td><td>HTTP 200, liefert <code>OK</code></td></tr><tr><td>6</td><td>Unbenutzten Proxy deinstalliert</td><td>Eine Ebene Laufzeit- und Credential-Kette weniger</td></tr><tr><td>7</td><td>Benutzerdefinierten Provider und Laufzeit-Authentifizierung in Codex konfiguriert</td><td>Provider erreichbar, Key nicht in die Konfiguration geschrieben</td></tr><tr><td>8</td><td>Mit Fallback-Metadaten für das unbekannte Modell ausgeführt</td><td>Nativer Codex liefert <code>OK</code>, aber Warnung zu Modellmetadaten</td></tr><tr><td>9</td><td>Benutzerdefinierten Modellkatalog ergänzt</td><td>Warnung verschwindet, aber die erste echte Anfrage wird vom <code>exec</code>-Tool abgelehnt</td></tr><tr><td>10</td><td><code>tool_mode</code> von <code>code_mode_only</code> auf den Standardmodus umgestellt</td><td>Native DeepSeek-Anfragen gelingen wieder</td></tr><tr><td>11</td><td>Profile <code>deepseek</code> und <code>openai</code> angelegt</td><td>Ein Befehl wechselt die komplette Provider-Konfiguration</td></tr><tr><td>12</td><td>Echte <code>apply_patch</code>-Dateiänderung ausgeführt</td><td>Dateiinhalt und abschließender Zeilenumbruch byte-genau verifiziert</td></tr></tbody></table>
+<p>Diese Timeline hat einen kontraintuitiven Punkt: <strong>Ohne Modellkatalog gelingt die Anfrage; mit dem vermeintlich vollständigeren Katalog schlägt sie fehl.</strong> Die Ursache lag nicht an der Modellqualität, sondern daran, dass der Modellkatalog die Tool-Deklarationen verändert, die Codex an den Upstream sendet.</p>
+<h2 id="endgültige-architektur">Endgültige Architektur</h2>
+<pre><code class="language-mermaid">flowchart LR
+  A[Codex CLI] --> B{Startparameter}
+  B -->|Standard oder -p deepseek| C[DeepSeek Profile]
+  B -->|-p openai| D[OpenAI Profile]
+  C --> E[OpenCode Go Provider]
+  E --> F[deepseek-v4-flash]
+  D --> G[OpenAI Provider]
+  G --> H[gpt-5.6-luna]
+</code></pre>
+<p>Die Konfiguration verteilt sich auf vier Dateien:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>~/.codex/</span></span>
+<span class="line"><span>├── config.toml</span></span>
+<span class="line"><span>├── deepseek.config.toml</span></span>
+<span class="line"><span>├── openai.config.toml</span></span>
+<span class="line"><span>└── model-catalogs/</span></span>
+<span class="line"><span>    └── opencode-go.json</span></span></code></pre>
+<p><code>config.toml</code> enthält die Standardwerte und die Provider-Definitionen; die beiden Profile überschreiben nur Modell, Provider, Kontextfenster und Modellkatalog. Der API-Key steht nicht in diesen Dateien, sondern wird zur Laufzeit aus der von OpenCode gespeicherten Authentifizierungsdatei gelesen.</p>
+<h2 id="erst-die-responses-api-verifizieren-nicht-aus-alten-unterlagen-ableiten">Erst die Responses API verifizieren, nicht aus alten Unterlagen ableiten</h2>
+<p>Zunächst nahm ich anhand älterer Suchergebnisse fälschlich an, der DeepSeek-Endpunkt unterstütze nur Chat Completions, und plante einen zusätzlichen Protokoll-Proxy. In der <a href="https://api-docs.deepseek.com/zh-cn/api/create-response">DeepSeek-Dokumentation zum Erstellen einer Response</a> fand ich dann die Bestätigung für die Responses API und verifizierte den tatsächlichen OpenCode-Go-Endpunkt mit einer minimalen Anfrage:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">curl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --request</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> POST</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --url</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> https://opencode.ai/zen/go/v1/responses</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --header</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> "Authorization: Bearer ${</span><span style="color:#24292E;--shiki-dark:#E1E4E8">OPENCODE_GO_API_KEY</span><span style="color:#032F62;--shiki-dark:#9ECBFF">}"</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --header</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> "Content-Type: application/json"</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --data</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> '{</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">    "model": "deepseek-v4-flash",</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">    "input": "Reply exactly OK.",</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">    "max_output_tokens": 16</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  }'</span></span></code></pre>
+<p>Die entscheidenden Ergebnisse in anonymisierter Form:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "object"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"response"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "status"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"completed"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "model"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"deepseek-v4-flash"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "output_text"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"OK"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "error"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">null</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
+<p>Der Endpunkt lieferte HTTP 200, der Antwortstatus war <code>completed</code>, das Modell <code>deepseek-v4-flash</code> und der Text <code>OK</code>. Damit war kein zusätzlicher Protokoll-Proxy nötig; Codex kann direkt <code>wire_api = "responses"</code> verwenden.</p>
+<h3 id="dokumentation-modellservice-und-gateway-drei-fähigkeitsebenen">Dokumentation, Modellservice und Gateway: drei Fähigkeitsebenen</h3>
+<p>Man darf hier nicht nur fragen, ob DeepSeek die Responses API unterstützt – die echte Anfrage durchläuft drei Ebenen:</p>
+<ol>
+<li>Ob DeepSeek-Modell und Interface-Definition das Response-Objekt unterstützen.</li>
+<li>Ob OpenCode Go eine kompatible <code>/v1/responses</code>-Route bereitstellt.</li>
+<li>Ob OpenCode Go die von Codex mitgelieferten Tool-Schemas und Streaming-Events vollständig akzeptiert.</li>
+</ol>
+<p>Eine minimale Textanfrage belegt nur die ersten beiden Ebenen und einen Grundteil der dritten. Codex sendet zusätzlich Developer-Instructions, Tools, Reasoning-Parameter und Streaming-Konfiguration – daher ist weiterhin ein nativer End-to-End-Test nötig.</p>
+<p>Dieser Schritt ist wichtig: Suchindizes, alte Dokumentation und Hinweise von Drittanbietern können veraltet sein. Maßgeblich sind letztlich der tatsächliche Vertrag des Ziel-Endpunkts und das Ergebnis einer minimalen Anfrage. Der zuvor temporär installierte, aber noch nicht genutzte Proxy wurde anschließend entfernt, um keine doppelte Kette zurückzulassen.</p>
+<p>Beim Testen darf der echte API-Key nicht in Artikel, Skripte oder die Shell-History geraten. Die Umgebungsvariable oben dient nur zur Veranschaulichung der Anfrage-Struktur.</p>
+<h2 id="erster-umweg-warum-der-proxy-installiert-und-wieder-entfernt-wurde">Erster Umweg: Warum der Proxy installiert und wieder entfernt wurde</h2>
+<p>Die ursprüngliche Einschätzung beruhte auf dem Eindruck der älteren DeepSeek-API: Wenn der Upstream nur <code>/chat/completions</code> kennt und der aktuelle benutzerdefinierte Codex-Provider nur <code>wire_api = "responses"</code> akzeptiert, braucht es dazwischen eine Konvertierungsschicht.</p>
+<p>Die damalige Alternativ-Kette war daher:</p>
+<pre><code class="language-mermaid">flowchart LR
+  A[Codex Responses] --> B[Lokaler Kompatibilitäts-Proxy]
+  B --> C[Chat Completions]
+  C --> D[DeepSeek]
+</code></pre>
+<p>Das Proxy-Paket war zwar temporär installiert, aber es lief kein Dienst und es gab keinen Codex-Routing-Eintrag. Nach der neuen DeepSeek-Dokumentation habe ich die Proxy-Konfiguration nicht weiter ausgebaut, sondern zuerst die Direktverbindung verifiziert. Nach dem erfolgreichen Test wurde der Proxy sofort deinstalliert.</p>
+<p>Es ging nicht nur darum, ein npm-Paket zu entfernen. Eine zusätzliche Proxy-Ebene hätte eingeführt:</p>
+<ul>
+<li>eine zweite Stelle, an der API-Key oder Zugangsdaten gelesen werden</li>
+<li>einen eigenen Prozess, Port, Health-Checks und Autostart</li>
+<li>zwei Sätze aus Timeouts, Streaming-Weiterleitung, Retries und Fehlerformaten</li>
+<li>Konvertierungsrisiken für Tool-Schemas, Reasoning-Felder und Response-Events</li>
+<li>bei Fehlern ist schwer zu bestimmen, ob das Problem an Codex, am Proxy, an OpenCode Go oder am Modell liegt</li>
+</ul>
+<p>Ein Proxy lohnt sich nur langfristig, wenn das direkte Protokoll wirklich fehlt oder wenn eine einheitliche Ebene für Audit, Rate-Limiting und Routing zwingend nötig ist.</p>
+<h2 id="vor-der-konfiguration-lokalen-zustand-erfassen">Vor der Konfiguration: lokalen Zustand erfassen</h2>
+<p>Bevor ich <code>config.toml</code> überschrieb, prüfte ich die aktuelle Version, das Standardmodell, den Anmeldestatus und die gespeicherten OpenCode-Zugangsdaten. Zum Zeitpunkt dieses Artikels galt:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>Codex CLI: 0.145.0</span></span>
+<span class="line"><span>原默认模型: gpt-5.6-luna</span></span>
+<span class="line"><span>原推理强度: high</span></span>
+<span class="line"><span>OpenAI 登录: 已存在</span></span>
+<span class="line"><span>OpenCode Go 凭证: 已存在</span></span></code></pre>
+<p>Versionsprüfung:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --version</span></span></code></pre>
+<p>Die Prüfung der Zugangsdaten liefert nur ein boolesches Ergebnis und gibt keinen Inhalt aus:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">jq</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -e</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  '.["opencode-go"].key | type == "string" and length > 0'</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  ~/.local/share/opencode/auth.json</span><span style="color:#D73A49;--shiki-dark:#F97583"> ></span><span style="color:#032F62;--shiki-dark:#9ECBFF">/dev/null</span></span></code></pre>
+<p>Danach die Dateiberechtigungen prüfen:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">ls</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -l</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ~/.codex/config.toml</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ~/.local/share/opencode/auth.json</span></span></code></pre>
+<p>Wenn die Berechtigungen anderen lokalen Benutzern Lesezugriff erlauben, sollten die Rechte zuerst eingeschränkt werden, bevor es weitergeht. Zur Existenzprüfung des Keys sollte man nicht direkt <code>jq -r</code> ausführen, da dieses Kommando den Key im Terminal ausgeben würde.</p>
+<h2 id="den-opencode-go-provider-konfigurieren">Den OpenCode-Go-Provider konfigurieren</h2>
+<p>Zuerst die aktuelle Konfiguration sichern:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">cp</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ~/.codex/config.toml</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ~/.codex/config.toml.before-opencode-go</span></span></code></pre>
+<p>In <code>~/.codex/config.toml</code> das Standardmodell festlegen:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="toml"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">model = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"deepseek-v4-flash"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">model_provider = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"opencode-go"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">model_context_window = </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1000000</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">model_catalog_json = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"/Users/you/.codex/model-catalogs/opencode-go.json"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">model_reasoning_effort = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"high"</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">[</span><span style="color:#6F42C1;--shiki-dark:#B392F0">model_providers</span><span style="color:#24292E;--shiki-dark:#E1E4E8">.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">opencode-go</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">name = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"OpenCode Go"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">base_url = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"https://opencode.ai/zen/go/v1"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">wire_api = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"responses"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">request_max_retries = </span><span style="color:#005CC5;--shiki-dark:#79B8FF">4</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">stream_max_retries = </span><span style="color:#005CC5;--shiki-dark:#79B8FF">5</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">stream_idle_timeout_ms = </span><span style="color:#005CC5;--shiki-dark:#79B8FF">300000</span></span></code></pre>
+<p><code>base_url</code> endet bei <code>/v1</code>; Codex fragt je nach <code>wire_api</code> <code>/responses</code> ab. Der vollständige <code>/responses</code>-Pfad darf nicht zusätzlich in <code>base_url</code> stehen.</p>
+<p>Hier wird der Kontext explizit auf 1 Million gesetzt, aber das tatsächlich nutzbare Fenster hängt weiterhin von Modell, Provider und Gateway-Richtlinien ab. Für sehr lange Aufgaben gehört vor dem Produktivgang ein eigener Grenzwerttest; lokale Metadaten allein reichen nicht.</p>
+<h3 id="wofür-jedes-feld-steht">Wofür jedes Feld steht</h3>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Konfigurationseintrag</th><th>Zweck</th></tr></thead><tbody><tr><td><code>model</code></td><td>Modellkennung, die an den Upstream gesendet wird</td></tr><tr><td><code>model_provider</code></td><td>Wählt Base URL, Authentifizierung und Retry-Strategie aus</td></tr><tr><td><code>model_context_window</code></td><td>Kontextbudget-Hinweis für Codex</td></tr><tr><td><code>model_catalog_json</code></td><td>Modellname, Reasoning-Stufen, Tool-Modus und weitere Fähigkeitsmetadaten</td></tr><tr><td><code>wire_api</code></td><td>Legt fest, dass der Provider das Responses-Protokoll verwendet</td></tr><tr><td><code>request_max_retries</code></td><td>Maximale Anzahl von Retries für normale HTTP-Anfragen</td></tr><tr><td><code>stream_max_retries</code></td><td>Anzahl der Wiederherstellungsversuche nach einer Streaming-Unterbrechung</td></tr><tr><td><code>stream_idle_timeout_ms</code></td><td>Timeout, wenn der Stream lange keine Events liefert</td></tr></tbody></table>
+<p><code>model</code> und <code>model_provider</code> gehören zusammen. Wird das Modell auf DeepSeek geändert, aber <code>model_provider = "openai"</code> beibehalten, werden Anfragen nicht automatisch an OpenCode Go geroutet. Umgekehrt schlägt unter dem OpenCode-Go-Provider ein Modellname fehl, der nur von OpenAI angeboten wird.</p>
+<h3 id="warum-der-key-nicht-über-eine-umgebungsvariable-dupliziert-wurde">Warum der Key nicht über eine Umgebungsvariable dupliziert wurde</h3>
+<p>Ein Codex-Provider kann auch eine benannte Umgebungsvariable lesen, aber dann müsste jedes Terminal, jede IDE und jeder Desktop-Prozess, der Codex startet, dieselbe Variable erben. Da die Zugangsdaten bereits von OpenCode verwaltet werden, entspricht ein Authentifizierungskommando, das die vorhandene Datei bei Bedarf liest, besser dem Prinzip einer einzigen Credential-Quelle.</p>
+<p>Wenn das Team Umgebungsvariablen über einen zentralen Secret Manager injiziert, sollte die teamübliche Lösung Vorrang haben. Der <code>jq</code>-Ansatz dieses Artikels passt zu persönlichen Entwicklungsmaschinen, die bereits den lokalen OpenCode-Authentifizierungsspeicher nutzen.</p>
+<h2 id="eine-antwort-von-models-heißt-noch-nicht-dass-codex-sie-verarbeiten-kann">Eine Antwort von <code>/models</code> heißt noch nicht, dass Codex sie verarbeiten kann</h2>
+<p>Nach der Provider-Konfiguration versucht Codex, die Modellliste zu aktualisieren. Das <code>/models</code> von OpenCode Go lieferte damals eine Struktur im OpenAI-Stil:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "object"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"list"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "data"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [{ </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"deepseek-v4-flash"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"object"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"model"</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> }]</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
+<p>Der Modellmanager von Codex erwartet in diesem benutzerdefinierten Aktualisierungspfad eine Katalogstruktur mit dem Feld <code>models</code> und protokollierte daher einen Fehler wie diesen:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>failed to decode models response:</span></span>
+<span class="line"><span>missing field `models`</span></span></code></pre>
+<p>Das bedeutet nicht, dass <code>/responses</code> unbrauchbar ist. Tatsächlich waren sowohl die minimale Response als auch die Codex-Anfrage mit Fallback-Metadaten erfolgreich. Gescheitert ist nur der Hilfspfad zur automatischen Aktualisierung des Modellkatalogs.</p>
+<p>Der Weg war weder, die Gateway-Antwort zu verändern, noch alle Logs zu ignorieren, sondern einen lokalen <code>model_catalog_json</code> bereitzustellen:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>文本生成链路: Codex -> /responses -> 成功</span></span>
+<span class="line"><span>模型发现链路: Codex -> /models -> schema 不匹配</span></span>
+<span class="line"><span>替代方案:     Codex -> 本地 model_catalog_json</span></span></code></pre>
+<p>So lassen sich Modellbetrieb und Modell-Discovery entkoppeln; die Fähigkeitsdeklaration von DeepSeek wird ausdrücklich in der lokalen Konfiguration gepflegt.</p>
+<h2 id="authentifizierung-zur-laufzeit-statt-klartext-key-kopie">Authentifizierung zur Laufzeit statt Klartext-Key-Kopie</h2>
+<p>OpenCode speichert die Zugangsdaten bereits in der lokalen Authentifizierungsdatei; es gibt keinen Grund, denselben Key zusätzlich in <code>config.toml</code> zu kopieren. Benutzerdefinierte Codex-Provider können Authentifizierungsinformationen über ein Kommando beziehen:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="toml"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">[</span><span style="color:#6F42C1;--shiki-dark:#B392F0">model_providers</span><span style="color:#24292E;--shiki-dark:#E1E4E8">.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">opencode-go</span><span style="color:#24292E;--shiki-dark:#E1E4E8">.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">auth</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">command = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"/usr/bin/jq"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">args = [</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  "-r"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  ".[</span><span style="color:#005CC5;--shiki-dark:#79B8FF">\"</span><span style="color:#032F62;--shiki-dark:#9ECBFF">opencode-go</span><span style="color:#005CC5;--shiki-dark:#79B8FF">\"</span><span style="color:#032F62;--shiki-dark:#9ECBFF">].key"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  "/Users/you/.local/share/opencode/auth.json"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">timeout_ms = </span><span style="color:#005CC5;--shiki-dark:#79B8FF">5000</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">refresh_interval_ms = </span><span style="color:#005CC5;--shiki-dark:#79B8FF">300000</span></span></code></pre>
+<p>Achtung: <code>args</code> wird von Codex direkt an das Kommando übergeben und durchläuft nicht unbedingt eine Shell. Man sollte also nicht annehmen, dass <code>~</code> automatisch expandiert wird. Unter macOS muss der tatsächliche absolute Pfad angegeben werden, unter Linux in der Regel <code>/home/用户名/...</code>.</p>
+<p>Das hat mehrere Vorteile:</p>
+<ul>
+<li>Es gibt keine zweite Klartext-Kopie des Keys in der Codex-Konfiguration.</li>
+<li>Nach einem Credential-Update in OpenCode kann Codex die Datei innerhalb des Refresh-Intervalls erneut lesen.</li>
+<li>Die Konfigurationsdatei eignet sich besser für Backups und Reviews.</li>
+</ul>
+<p>Sowohl die Authentifizierungsdatei als auch die Codex-Konfiguration sollten nur für den aktuellen Benutzer lesbar sein, zum Beispiel mit Berechtigung <code>600</code>. Auch Diagnoseausgaben dürfen den Key nicht ausgeben.</p>
+<h2 id="warum-ein-benutzerdefinierter-modellkatalog-nötig-ist">Warum ein benutzerdefinierter Modellkatalog nötig ist</h2>
+<p>Mit nur einem Modellnamen startet Codex zwar mit Fallback-Metadaten, meldet aber:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>Model metadata for `deepseek-v4-flash` not found.</span></span>
+<span class="line"><span>Defaulting to fallback metadata; this can degrade performance and cause issues.</span></span></code></pre>
+<p>Interessanterweise bestand dieser Fallback-Modus zunächst den nativen Codex-Test: Die Startausgabe zeigte <code>deepseek-v4-flash + opencode-go</code> und lieferte <code>OK</code>. Daraus ergeben sich zwei Schlussfolgerungen:</p>
+<ul>
+<li>Provider, Authentifizierung und Responses-Routing funktionieren grundsätzlich.</li>
+<li>Tritt ein späterer Fehler erst nach Aktivierung des benutzerdefinierten Katalogs auf, sollte man zuerst die Modellmetadaten vergleichen, statt den API-Key erneut infrage zu stellen.</li>
+</ul>
+<h3 id="warum-das-minimale-json-scheiterte">Warum das minimale JSON scheiterte</h3>
+<p>Zunächst versuchte ich, einen Katalog von Hand zu schreiben, der nur Name, Kontext und Reasoning-Stufe enthält. Codex lehnte ihn beim Parsen direkt ab:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>failed to parse model_catalog_json:</span></span>
+<span class="line"><span>missing field `base_instructions`</span></span></code></pre>
+<p>Das zeigt: <code>model_catalog_json</code> ist keine einfache Liste für die Modellauswahl. Er enthält zusätzlich die Base Instructions, Nachrichtenvorlagen, Kürzungsstrategien und Tool-Fähigkeiten, die Codex zum Betrieb benötigt.</p>
+<p>Von Hand Dutzende versionsabhängige Felder zu schreiben, erzeugt schnell neue Kompatibilitätsprobleme. Deshalb habe ich stattdessen einen vollständigen Eintrag aus der aktuellen <code>models_cache.json</code> geklont und die DeepSeek-Fähigkeiten anschließend bewusst eingeschränkt.</p>
+<p>Damit Codex Modellname, Kontextfenster und Reasoning-Stufe kennt, lässt sich aus dem aktuellen Codex-Modellcache ein benutzerdefinierter Katalog erzeugen. Das folgende Kommando nutzt einen vorhandenen Modelleintrag als Strukturvorlage und ersetzt nur die DeepSeek-relevanten Fähigkeitsfelder:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">mkdir</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -p</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ~/.codex/model-catalogs</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">jq</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> '{</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  models: [</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">    (.models[] | select(.slug == "gpt-5.6-luna")</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      | .slug = "deepseek-v4-flash"</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      | .display_name = "DeepSeek V4 Flash (OpenCode Go)"</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      | .description = "通过 OpenCode Go 使用的 DeepSeek V4 Flash"</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      | .context_window = 1000000</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      | .max_context_window = 1000000</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      | .effective_context_window_percent = 95</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      | .default_reasoning_level = "high"</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      | .supported_reasoning_levels = [</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">          {"effort": "high", "description": "适合日常编程与复杂任务"},</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">          {"effort": "max", "description": "为最困难任务提供最大推理强度"}</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">        ]</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      | .tool_mode = null</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      | .input_modalities = ["text"]</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      | .supports_image_detail_original = false</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      | .supports_search_tool = false</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      | .use_responses_lite = false)</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  ]</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">}'</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ~/.codex/models_cache.json</span><span style="color:#D73A49;--shiki-dark:#F97583"> ></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ~/.codex/model-catalogs/opencode-go.json</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">chmod</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 600</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ~/.codex/model-catalogs/opencode-go.json</span></span></code></pre>
+<p>Das ist kein beliebig zusammengebautes Minimal-JSON. Das Schema des Modellkatalogs entwickelt sich mit den Codex-Versionen weiter. Wer den vollständigen Eintrag aus dem Cache der installierten Version wiederverwendet, behält die von dieser Version verlangten Base Instructions und Pflichtfelder. Diese Konfiguration wurde mit Codex <code>0.145.0</code> verifiziert; nach einem Upgrade sollten Parsing- und End-to-End-Tests erneut laufen.</p>
+<p>Nach der Erzeugung werden zuerst die Berechtigungen eingeschränkt und die wichtigsten Felder geprüft – die langen Base Instructions müssen nicht ausgegeben werden:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">chmod</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 600</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ~/.codex/model-catalogs/opencode-go.json</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">jq</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> '.models[] | {</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  slug,</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  display_name,</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  context_window,</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  max_context_window,</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  default_reasoning_level,</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  tool_mode,</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  input_modalities</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">}'</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ~/.codex/model-catalogs/opencode-go.json</span></span></code></pre>
+<p>Erwartete Schlüsselwerte:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "slug"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"deepseek-v4-flash"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "display_name"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"DeepSeek V4 Flash (OpenCode Go)"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "context_window"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1000000</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "max_context_window"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1000000</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "default_reasoning_level"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"high"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "tool_mode"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">null</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "input_modalities"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"text"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
+<h2 id="das-unscheinbarste-problem-der-modellkatalog-verändert-das-tool-protokoll">Das unscheinbarste Problem: Der Modellkatalog verändert das Tool-Protokoll</h2>
+<p>Beim ersten Erzeugen des Katalogs habe ich die Fähigkeitsdeklaration des OpenAI-Modells vollständig übernommen, darunter:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "tool_mode"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"code_mode_only"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "shell_type"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"shell_command"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "apply_patch_tool_type"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"freeform"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
+<p>Der Modellkatalog ließ sich fehlerfrei parsen, auch <code>codex doctor</code> meldete nichts, aber der echte Aufruf schlug fehl:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>Unsupported custom tool: 'exec'. Only 'apply_patch' is supported.</span></span></code></pre>
+<p>Der Grund: <code>tool_mode = "code_mode_only"</code> ist nicht nur ein UI-Label. Es veranlasst Codex, im Responses-Request das Custom Tool <code>exec</code> zu deklarieren, während der OpenCode-Go-Upstream damals nur <code>apply_patch</code> als Custom Tool akzeptierte.</p>
+<p>Der Tool-Modus des DeepSeek-Eintrags wird auf den Standardmodus geändert:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "tool_mode"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">null</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
+<p>Dieselbe native Codex-Anfrage lieferte anschließend erfolgreich <code>DEEPSEEK_OK</code>.</p>
+<h3 id="warum-das-abschalten-von-featuresunified_exec-nicht-half">Warum das Abschalten von <code>features.unified_exec</code> nicht half</h3>
+<p>Bei der Fehlersuche probierte ich zusätzlich eine Kommandozeilen-Override aus:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> exec</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  -p</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> deepseek</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  -c</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> features.unified_exec=</span><span style="color:#005CC5;--shiki-dark:#79B8FF">false</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  -s</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> read-only</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --ephemeral</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  "Reply exactly DEEPSEEK_OK. Do not use tools."</span></span></code></pre>
+<p>Die Anfrage meldete weiterhin denselben <code>Unsupported custom tool: 'exec'</code>. Das zeigt: Das Problem ist nicht nur ein globales Feature-Flag; der <code>tool_mode = "code_mode_only"</code> im Modelleintrag bestimmt weiterhin das Laufzeit-Tool-Protokoll.</p>
+<p>Der wirklich aussagekräftige Kontrollversuch war: alle anderen Konfigurationen unverändert lassen und nur <code>tool_mode</code> im Modellkatalog auf <code>null</code> setzen. Vorher Fehler, nachher Erfolg – erst das ergibt einen klaren Kausalzusammenhang.</p>
+<h3 id="echte-dateiänderung-als-beleg-für-funktionierende-agent-tools">Echte Dateiänderung als Beleg für funktionierende Agent-Tools</h3>
+<p>Eine exakte Antwort belegt nur, dass das Modell Text erzeugen kann. Um sicherzugehen, dass Codex nicht bloß „chatten, aber keinen Code ändern“ kann, habe ich in einem separaten temporären Verzeichnis eine minimale Schreibaufgabe ausgeführt:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> exec</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  -p</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> deepseek</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  -C</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /private/tmp/codex-deepseek-agent-test</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  -s</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> workspace-write</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --ephemeral</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --skip-git-repo-check</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  "Use apply_patch to create result.txt containing exactly DEEPSEEK_TOOL_OK followed by a newline. Then stop."</span></span></code></pre>
+<p>Die Laufzeitausgabe bestätigte:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>model: deepseek-v4-flash</span></span>
+<span class="line"><span>provider: opencode-go</span></span>
+<span class="line"><span>sandbox: workspace-write</span></span>
+<span class="line"><span>reasoning effort: high</span></span></code></pre>
+<p>Das Modell rief anschließend <code>apply_patch</code> auf, und Codex zeigte:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>apply patch</span></span>
+<span class="line"><span>patch: completed</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>--- /dev/null</span></span>
+<span class="line"><span>+++ b/result.txt</span></span>
+<span class="line"><span>@@ -0,0 +1 @@</span></span>
+<span class="line"><span>+DEEPSEEK_TOOL_OK</span></span></code></pre>
+<p>Die byte-genaue Prüfung ergab 17 Bytes; das letzte Byte ist <code>0a</code>:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>44 45 45 50 53 45 45 4b 5f 54 4f 4f 4c 5f 4f 4b 0a</span></span>
+<span class="line"><span>D  E  E  P  S  E  E  K  _  T  O  O  L  _  O  K  \n</span></span></code></pre>
+<p>Nach dem Test wurden Datei und temporäres Verzeichnis gelöscht; es blieb kein Testartefakt im Produktiv-Repository zurück.</p>
+<p>Dieser Fall zeigt:</p>
+<ul>
+<li>Responses-API-Unterstützung bedeutet nicht, dass alle erweiterten Codex-Tools unterstützt werden.</li>
+<li>Der Modellkatalog ist keine reine Anzeigedatenquelle; er kann die Anfrage-Struktur verändern.</li>
+<li>Ein erfolgreicher <code>doctor</code> und erfolgreiches JSON-Parsing belegen nur eine statisch gültige Konfiguration und ersetzen keine echten Anfragen.</li>
+<li>Wer Metadaten von einem anderen Modell übernimmt, muss Tool-, Bild-, Such- und Reasoning-Fähigkeiten Punkt für Punkt abgleichen.</li>
+</ul>
+<p>Sollte das Gateway künftig <code>exec</code> nativ unterstützen, kann der Tool-Modus neu bewertet werden. Fähigkeiten sollten erst nach einem Protokolltest deklariert werden, nicht im Voraus.</p>
+<h2 id="schneller-provider-wechsel-über-profile">Schneller Provider-Wechsel über Profile</h2>
+<p><code>/model</code> in einer interaktiven Codex-Session eignet sich, um Modell und Reasoning-Stufe innerhalb des aktuellen Providers zu wechseln. OpenAI und OpenCode Go sind aber zwei verschiedene Provider. Nur den Modellnamen zu ändern, kann Anfragen an den falschen Dienst schicken. Deshalb sollte <a href="https://learn.chatgpt.com/docs/config-file/config-advanced#profiles">Codex Profile</a> genutzt werden, um Modell, Provider und Modellkatalog gemeinsam zu überschreiben.</p>
+<p>Der aktuelle Codex verwendet separate Profildateien:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>$CODEX_HOME/deepseek.config.toml</span></span>
+<span class="line"><span>$CODEX_HOME/openai.config.toml</span></span></code></pre>
+<p>Nicht mehr die alte Schreibweise verwenden:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="toml"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">profile = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"deepseek"</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">[</span><span style="color:#6F42C1;--shiki-dark:#B392F0">profiles</span><span style="color:#24292E;--shiki-dark:#E1E4E8">.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">deepseek</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">model = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"deepseek-v4-flash"</span></span></code></pre>
+<p>Seit Codex <code>0.134.0</code> liest <code>--profile</code> nicht mehr aus <code>[profiles.&#x3C;name>]</code> in der Hauptkonfiguration, sondern lädt <code>&#x3C;name>.config.toml</code> aus demselben Verzeichnis.</p>
+<p>DeepSeek-Profil (Dateiname <code>~/.codex/deepseek.config.toml</code>):</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="toml"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">model = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"deepseek-v4-flash"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">model_provider = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"opencode-go"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">model_context_window = </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1000000</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">model_catalog_json = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"/Users/you/.codex/model-catalogs/opencode-go.json"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">model_reasoning_effort = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"high"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">plan_mode_reasoning_effort = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"max"</span></span></code></pre>
+<p>OpenAI-Profil (Dateiname <code>~/.codex/openai.config.toml</code>):</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="toml"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">model = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"gpt-5.6-luna"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">model_provider = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"openai"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">model_context_window = </span><span style="color:#005CC5;--shiki-dark:#79B8FF">272000</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">model_catalog_json = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"/Users/you/.codex/models_cache.json"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">model_reasoning_effort = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"high"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">plan_mode_reasoning_effort = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"xhigh"</span></span></code></pre>
+<p><code>/Users/you</code> muss an das eigene System angepasst werden. Kontextfenster und Reasoning-Stufen sollten sich ebenfalls am aktuellen Modellkatalog orientieren und nicht dauerhaft aus diesem Artikel übernommen werden.</p>
+<p>Umschalten beim Start:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -p</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> deepseek</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -p</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> openai</span></span></code></pre>
+<p>Auch für nicht-interaktive Aufgaben gilt:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> exec</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -p</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> deepseek</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> "检查当前代码"</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> exec</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -p</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> openai</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> "检查当前代码"</span></span></code></pre>
+<p>Profile werden beim Start einer neuen Session geladen. Eine bereits laufende Session lässt sich nicht verlustfrei durch Änderungen an der Disk-Konfiguration auf einen anderen Provider umstellen; sicherer ist es, nach Abschluss der aktuellen Aufgabe eine neue Session zu starten.</p>
+<h3 id="override-reihenfolge-der-konfiguration">Override-Reihenfolge der Konfiguration</h3>
+<p>Profile sind keine völlig eigenständige Konfiguration, sondern liegen über der Hauptkonfiguration des Benutzers. Die für diesen Artikel relevante Priorität lässt sich so vereinfachen:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>用户 ~/.codex/config.toml</span></span>
+<span class="line"><span>  &#x3C; 启动时选择的 Profile</span></span>
+<span class="line"><span>  &#x3C; 项目 .codex/config.toml</span></span>
+<span class="line"><span>  &#x3C; CLI 专用参数或 -c/--config 覆盖</span></span></code></pre>
+<p>Das bedeutet:</p>
+<ul>
+<li><code>deepseek.config.toml</code> muss Base URL und Authentifizierung des Providers nicht wiederholen; es erbt sie aus der Hauptkonfiguration.</li>
+<li>Ist <code>model_provider</code> projektseitig festgelegt, kann das das persönliche Profil überschreiben; zur Bestätigung dienen <code>/status</code> oder die Startausgabe.</li>
+<li>Für kurzfristige Diagnosen eignet sich <code>-c</code>; erst nach erfolgreicher Prüfung entscheiden, ob die Änderung dauerhaft übernommen wird.</li>
+</ul>
+<h3 id="abgrenzung-von-model---model-und---profile">Abgrenzung von <code>/model</code>, <code>--model</code> und <code>--profile</code></h3>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Weg</th><th>Neue Session</th><th>Geeignet für</th></tr></thead><tbody><tr><td><code>/model</code></td><td>Nein</td><td>Modell oder Reasoning-Stufe innerhalb des aktuellen Providers wechseln</td></tr><tr><td><code>codex -m &#x3C;model></code></td><td>Ja</td><td>Einmaliges Überschreiben des Modellnamens</td></tr><tr><td><code>codex -p &#x3C;profile></code></td><td>Ja</td><td>Modell, Provider, Katalog und Strategie gemeinsam wechseln</td></tr><tr><td><code>codex -c key=value</code></td><td>Ja</td><td>Beliebige Konfigurationseinträge temporär untersuchen</td></tr></tbody></table>
+<p>Beim Wechsel zwischen Providern sind Profile vorzuziehen, denn <code>-m</code> wählt nicht automatisch die andere Authentifizierung und Base URL.</p>
+<p>Bei häufigem täglichem Wechsel lassen sich optionale Aliase in der persönlichen Shell-Konfiguration anlegen:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">alias</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> cdx-ds</span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#032F62;--shiki-dark:#9ECBFF">'codex -p deepseek'</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">alias</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> cdx-openai</span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#032F62;--shiki-dark:#9ECBFF">'codex -p openai'</span></span></code></pre>
+<p>Aliase verkürzen nur den Startbefehl, sie ändern nichts an der Semantik der Codex-Konfiguration. Die Modellauswahl im Desktop-Client und die CLI-Profile sind ebenfalls nicht dasselbe; dieser Artikel verifiziert die lokale Codex CLI.</p>
+<h2 id="die-verifikation-braucht-mehrere-ebenen">Die Verifikation braucht mehrere Ebenen</h2>
+<p>Abschließend wurde in fünf Ebenen verifiziert. Jede Ebene schließt andere Probleme aus; keine ersetzt die andere.</p>
+<h3 id="ebene-1-roh-anfrage-an-die-responses-api">Ebene 1: Roh-Anfrage an die Responses API</h3>
+<p>Bestätigt, dass der OpenCode-Go-Endpunkt <code>deepseek-v4-flash</code> akzeptiert und <code>completed</code> zurückgibt. Diese Ebene schließt Probleme mit URL, Authentifizierung, Modellname und Basisprotokoll aus.</p>
+<h3 id="ebene-2-modellkatalog-parsing">Ebene 2: Modellkatalog-Parsing</h3>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> debug</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> models</span></span></code></pre>
+<p>Die Ausgabe sollte enthalten:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>deepseek-v4-flash</span></span>
+<span class="line"><span>DeepSeek V4 Flash (OpenCode Go)</span></span>
+<span class="line"><span>context_window: 1000000</span></span>
+<span class="line"><span>default_reasoning_level: high</span></span>
+<span class="line"><span>tool_mode: null</span></span></code></pre>
+<p>Die aktuelle Version von <code>codex debug models</code> akzeptiert kein <code>--profile</code>; Profile gelten nur für Laufzeitbefehle und einige Unterbefehle. Um zu prüfen, ob ein Profil tatsächlich greift, schaut man in die Startausgabe von <code>codex exec</code> oder führt eine minimale Anfrage aus.</p>
+<p>Bei der Fehlersuche lief einmal:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -p</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> deepseek</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> debug</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> models</span><span style="color:#D73A49;--shiki-dark:#F97583"> |</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> jq</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ...</span></span></code></pre>
+<p>Codex meldete eindeutig <code>--profile only applies to runtime commands</code>, aber da die Shell standardmäßig den Exit-Code des letzten Pipe-Segments (<code>jq</code>) zurückgibt, wirkte die gesamte Kommandozeile wie <code>exit=0</code>. Automatisierte Skripte sollten <code>pipefail</code> aktivieren, sonst wird der Fehler im ersten Teil leicht als Erfolg fehlinterpretiert:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">set</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -o</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> pipefail</span></span></code></pre>
+<h3 id="ebene-3-codex-health-check">Ebene 3: Codex-Health-Check</h3>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> doctor</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --summary</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --no-color</span></span></code></pre>
+<p>Das Ergebnis diesmal:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>17 ok · 1 idle · 1 notes · 0 warn · 0 fail</span></span></code></pre>
+<p>Er bestätigt, dass die Konfiguration lädt, der Provider keine OpenAI-Authentifizierung benötigt und der Ziel-HTTP-Endpunkt erreichbar ist – einen nicht passenden Tool-Protokollvertrag deckt er aber nicht auf.</p>
+<h3 id="ebene-4-echte-anfragen-mit-beiden-profilen">Ebene 4: Echte Anfragen mit beiden Profilen</h3>
+<p>Minimaler End-to-End-Test mit Read-only-Sandbox und temporärer Session:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> exec</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -p</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> deepseek</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  -s</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> read-only</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --ephemeral</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  "Reply exactly DEEPSEEK_OK. Do not use tools."</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> exec</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -p</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> openai</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  -s</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> read-only</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --ephemeral</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  "Reply exactly OPENAI_OK. Do not use tools."</span></span></code></pre>
+<p>Am Ende lieferten sie:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>DEEPSEEK_OK</span></span>
+<span class="line"><span>OPENAI_OK</span></span></code></pre>
+<p>Die Startausgaben sollten außerdem zeigen:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>model: deepseek-v4-flash</span></span>
+<span class="line"><span>provider: opencode-go</span></span></code></pre>
+<p>sowie:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>model: gpt-5.6-luna</span></span>
+<span class="line"><span>provider: openai</span></span></code></pre>
+<p>Dieser Schritt verifiziert zugleich die Profil-Override-Reihenfolge, Authentifizierung, Modellkatalog, Provider-Routing und die Responses-Anfragen.</p>
+<h3 id="ebene-5-datei-tools-des-agents">Ebene 5: Datei-Tools des Agents</h3>
+<p>Mit der <code>workspace-write</code>-Sandbox wird in einem isolierten Verzeichnis ein echter <code>apply_patch</code> ausgeführt; anschließend werden Dateilänge und letztes Zeilenumbruch-Byte geprüft. Verifiziert wird nicht die Texterzeugung, sondern:</p>
+<ul>
+<li>Das Modell kann die von Codex angebotenen Tools auswählen.</li>
+<li>OpenCode Go akzeptiert die Tool-Deklaration.</li>
+<li>Codex kann den Patch ausführen und das Ergebnis zurückgeben.</li>
+<li>Der Inhalt der Zieldatei entspricht exakt der Vorgabe.</li>
+</ul>
+<p>Erst wenn auch Ebene 5 besteht, kann man der Kette eine minimale Coding-Agent-Fähigkeit zusprechen. Komplexere Shell-Aufgaben, parallele Tools, MCP, Bilder und Websuche müssen weiterhin separat verifiziert werden; ein einzelner <code>apply_patch</code> rechtfertigt keine Verallgemeinerung auf alle Fähigkeiten.</p>
+<h2 id="häufige-irrtümer">Häufige Irrtümer</h2>
+<h3 id="modellwechsel-mit-providerwechsel-gleichsetzen">Modellwechsel mit Providerwechsel gleichsetzen</h3>
+<p><code>/model</code> oder <code>--model</code> überschreiben hauptsächlich den Modellnamen. Beim Wechsel zwischen Diensten müssen auch <code>model_provider</code>, Authentifizierungsmethode und Modellkatalog mitgewechselt werden. Ein Profil ist hier die verlässlichere atomare Konfigurationseinheit.</p>
+<h3 id="api-key-direkt-in-configtoml-schreiben">API-Key direkt in config.toml schreiben</h3>
+<p>Das erhöht das Leckrisiko bei Backups, Screenshots, Logs und versehentlichen Commits. Vorzuziehen sind <code>bearer_token_env_var</code> oder das Laufzeit-Authentifizierungskommando des Providers, ergänzt um restriktive Berechtigungen für die Datei mit den Zugangsdaten.</p>
+<h3 id="nur-doctor-ausführen-keine-echten-anfragen">Nur doctor ausführen, keine echten Anfragen</h3>
+<p>Der Health-Check findet Probleme beim Konfigurations-Parsing und bei der Konnektivität, aber er löst nicht unbedingt die vollständige Validierung der Tool-Schemas durch das Modell-Gateway aus. Mindestens eine echte Read-only-Session mit temporärem Charakter gehört dazu.</p>
+<h3 id="offizielle-modellmetadaten-blind-kopieren">Offizielle Modellmetadaten blind kopieren</h3>
+<p>Kontextfenster, Tool-Modus, Bildeingabe, Websuche und Reasoning-Stufen können das Laufzeitverhalten beeinflussen. Kopieren ist nur ein Ausgangspunkt zum Erzeugen eines Schemas, keine Garantie für identische Fähigkeiten.</p>
+<h3 id="einen-überflüssigen-proxy-für-ein-bereits-unterstütztes-protokoll-behalten">Einen überflüssigen Proxy für ein bereits unterstütztes Protokoll behalten</h3>
+<p>Wenn der Ziel-Endpunkt die Responses API bereits direkt unterstützt, bringt ein zusätzlicher Proxy nur weitere Ebenen bei Logs, Zugangsdaten, Retries und Fehlerlokalisierung. Erst die Direktverbindung verifizieren, dann entscheiden, ob wirklich eine Konvertierungsschicht nötig ist.</p>
+<h2 id="fehlerdiagnose-matrix">Fehlerdiagnose-Matrix</h2>
+<p>Bei Problemen zuerst die Ebene des Fehlers bestimmen – nicht gleichzeitig URL, Key, Modellkatalog und Profile verändern.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Symptom</th><th>Zuerst prüfen</th><th>Was man nicht zuerst tun sollte</th></tr></thead><tbody><tr><td><code>/responses</code> liefert 401</td><td>Gültigkeit des Keys, Format des Authorization-Headers</td><td>Modellkatalog neu schreiben</td></tr><tr><td><code>/responses</code> liefert 404</td><td><code>base_url</code>, <code>/v1</code> und tatsächliche Gateway-Route</td><td>Retry-Zähler erhöhen</td></tr><tr><td>Modell existiert nicht</td><td><code>model</code>-String und aktuelle Modellliste von OpenCode Go</td><td><code>tool_mode</code> wechseln</td></tr><tr><td><code>missing field models</code></td><td><code>/models</code> gegen das Codex-Katalogschema</td><td>Den Textgenerierungs-Endpunkt für unbrauchbar erklären</td></tr><tr><td><code>Model metadata ... not found</code></td><td>Pfad und Slug von <code>model_catalog_json</code></td><td>Key in die Konfiguration schreiben</td></tr><tr><td><code>missing field base_instructions</code></td><td>Ob der benutzerdefinierte Katalog das vollständige Schema nutzt</td><td>Weitere Felder erraten</td></tr><tr><td><code>Unsupported custom tool: exec</code></td><td><code>tool_mode</code> und Custom-Tool-Unterstützung des Upstreams</td><td>Key mehrfach erneuern</td></tr><tr><td><code>--profile only applies to runtime commands</code></td><td>Ob der Unterbefehl Profile unterstützt</td><td>Anhand des letzten Pipe-Exit-Codes Erfolg behaupten</td></tr><tr><td>Profil startet trotzdem mit anderem Modell</td><td>Ob Projektkonfiguration oder CLI-Parameter das persönliche Profil überschreiben</td><td>Alle Codex-Konfiguration löschen</td></tr><tr><td><code>doctor</code> ok, echter Request schlägt fehl</td><td>Request-Body, Tool-Schemas, Modellparameter</td><td><code>doctor</code> als End-to-End-Test behandeln</td></tr></tbody></table>
+<p>Empfohlen sind Ein-Variablen-Experimente: pro Versuch nur ein Feld ändern und den vollständigen Fehler vor und nach der Änderung festhalten. Beim <code>tool_mode</code>-Problem hier hätte ein gleichzeitiges Ändern von Feature-Flag, Modellkatalog und Provider kaum einen belastbaren Kausalzusammenhang ergeben.</p>
+<h2 id="checkliste-reproduktion-von-grund-auf">Checkliste: Reproduktion von Grund auf</h2>
+<p>Für die Konfiguration auf einer anderen Entwicklungsmaschine lässt sich die folgende Reihenfolge verwenden.</p>
+<h3 id="1-version-und-zugangsdaten-prüfen">1. Version und Zugangsdaten prüfen</h3>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --version</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">jq</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -e</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  '.["opencode-go"].key | type == "string" and length > 0'</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  ~/.local/share/opencode/auth.json</span><span style="color:#D73A49;--shiki-dark:#F97583"> ></span><span style="color:#032F62;--shiki-dark:#9ECBFF">/dev/null</span></span></code></pre>
+<h3 id="2-konfiguration-sichern">2. Konfiguration sichern</h3>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">cp</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ~/.codex/config.toml</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ~/.codex/config.toml.before-opencode-go</span></span></code></pre>
+<h3 id="3-responses-mit-einer-roh-anfrage-verifizieren">3. <code>/responses</code> mit einer Roh-Anfrage verifizieren</h3>
+<p>Nur einen kurzen Text senden, keine Tools anhängen. HTTP-Status, <code>status</code>, <code>model</code> und <code>output_text</code> prüfen.</p>
+<h3 id="4-provider-und-laufzeit-authentifizierung-hinzufügen">4. Provider und Laufzeit-Authentifizierung hinzufügen</h3>
+<p>Zunächst nur <code>model_provider</code>, <code>base_url</code>, <code>wire_api</code> und die Authentifizierung konfigurieren und die Zahl der Variablen so klein wie möglich halten.</p>
+<h3 id="5-erste-codex-anfrage-mit-fallback-metadaten">5. Erste Codex-Anfrage mit Fallback-Metadaten</h3>
+<p>Gelingt die Anfrage, erscheint aber eine Warnung zu den Modellmetadaten, ist die Laufzeitkette aufgebaut; der Katalog wird anschließend separat behandelt.</p>
+<h3 id="6-lokalen-katalog-aus-dem-aktuellen-modellcache-erzeugen">6. Lokalen Katalog aus dem aktuellen Modellcache erzeugen</h3>
+<p>Den vollständigen Eintrag klonen, Kontext, Eingabemodalitäten, Such- und Tool-Fähigkeiten einschränken und sicherstellen, dass <code>tool_mode = null</code> gesetzt ist.</p>
+<h3 id="7-beide-profile-getrennt-anlegen">7. Beide Profile getrennt anlegen</h3>
+<p>Das DeepSeek-Profil zeigt auf OpenCode Go; das OpenAI-Profil auf OpenAI und den nativen Modellcache.</p>
+<h3 id="8-statische-und-echte-verifikation-nacheinander">8. Statische und echte Verifikation nacheinander</h3>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> debug</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> models</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> doctor</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --summary</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --no-color</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> exec</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -p</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> deepseek</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -s</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> read-only</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --ephemeral</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> "Reply exactly DEEPSEEK_OK."</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> exec</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -p</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> openai</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -s</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> read-only</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --ephemeral</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> "Reply exactly OPENAI_OK."</span></span></code></pre>
+<h3 id="9-apply_patch-in-einem-isolierten-verzeichnis-verifizieren">9. <code>apply_patch</code> in einem isolierten Verzeichnis verifizieren</h3>
+<p>Der erste Tool-Test gehört nicht direkt in ein wichtiges Repository. Nach der Prüfung des Dateiinhalts das temporäre Verzeichnis aufräumen.</p>
+<h3 id="10-versionen-dokumentieren-und-rollback-punkt-sichern">10. Versionen dokumentieren und Rollback-Punkt sichern</h3>
+<p>Codex, Gateway und Modellfähigkeiten ändern sich. Testdatum, Codex-Version, Modell-Slug und verifizierte Tools in die Dokumentation aufnehmen; nach einem Upgrade dieselben Prüfungen erneut ausführen.</p>
+<h2 id="derzeit-verifizierte-und-nicht-verallgemeinerte-grenzen">Derzeit verifizierte und nicht verallgemeinerte Grenzen</h2>
+<p>Stand 2026-08-06 wurden mit dieser Konfiguration real verifiziert:</p>
+<ul>
+<li>Nicht-streaming-minimale Anfragen gegen OpenCode Go <code>/v1/responses</code>.</li>
+<li>Native Responses-Aufrufe von Codex.</li>
+<li>Exakte Textantworten auf der Reasoning-Stufe <code>high</code>.</li>
+<li>Die beiden CLI-Profile DeepSeek und OpenAI.</li>
+<li>DeepSeek wählt <code>apply_patch</code> aus und führt ihn aus.</li>
+<li>Codex-Health-Check, Modellkatalog-Parsing und Provider-Konnektivität.</li>
+</ul>
+<p>Nicht als belegt gelten in diesem Artikel:</p>
+<ul>
+<li>Grenzwerte für 1-Millionen-Kontext und die Grenzen der automatischen Komprimierung.</li>
+<li>Bildeingabe, Original-Bilddetails und multimodale Ausgabe.</li>
+<li>Erweiterte Tools wie Web Search, MCP, Browser und Computer Use.</li>
+<li>Das Custom Tool <code>exec</code> und das vereinheitlichte PTY-Ausführungsprotokoll.</li>
+<li>Wiederherstellung nach langen SSE-Unterbrechungen, parallele Tool-Aufrufe und Rate-Limit-Backoff.</li>
+<li>Provider-Wechsel mit benutzerdefinierten Providern in Codex-Desktop- oder Cloud-Sessions.</li>
+</ul>
+<p>Diese Grenzziehung ist keine vorsichtige Formulierung, sondern verhindert, aus „die API gibt einen Satz zurück“ fälschlich „alle Codex-Fähigkeiten entsprechen dem OpenAI-Provider“ zu machen.</p>
+<h2 id="rollback">Rollback</h2>
+<p>Zur vollständigen Wiederherstellung der vorherigen Codex-Standardkonfiguration:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">cp</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ~/.codex/config.toml.before-opencode-go</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ~/.codex/config.toml</span></span></code></pre>
+<p>Profildateien sind eine separate Override-Ebene und berühren das Backup nicht. Wenn sie nicht mehr gebraucht werden, zuerst aus <code>~/.codex</code> verschieben und erst nach einem erfolgreichen Codex-Start löschen.</p>
+<h2 id="fazit">Fazit</h2>
+<p>Der wirklich schwierige Teil dieser Integration war nicht, <code>model</code> auf <code>deepseek-v4-flash</code> zu setzen, sondern die Fähigkeitsgrenzen der gesamten Kette zu ermitteln:</p>
+<ol>
+<li>Die Endpunkte von DeepSeek und OpenCode Go akzeptieren die Responses API.</li>
+<li>Der Codex-Provider nutzt Laufzeit-Authentifizierung, ohne Klartext-Zugangsdaten zu duplizieren.</li>
+<li>Der benutzerdefinierte Modellkatalog ergänzt Kontext und Reasoning-Stufen.</li>
+<li><code>tool_mode</code> muss zum Custom-Tool-Protokoll des Gateways passen.</li>
+<li>Profile wechseln Modell, Provider und Katalog gemeinsam.</li>
+<li>Roh-API, statische Diagnose und native Codex-Anfragen müssen getrennt verifiziert werden.</li>
+<li>Erst nach einem echten <code>apply_patch</code> ist die minimale Coding-Agent-Kette belegt.</li>
+</ol>
+<p>Die größte Lehre ist kein einzelnes TOML-Snippet, sondern die Reihenfolge der Fehlersuche: <strong>Erst das minimale Protokoll verifizieren, dann Codex anbinden; erst mit Fallback-Metadaten die Hauptkette belegen, dann den Modellkatalog ergänzen; nach der statischen Prüfung unbedingt eine echte Tool-Aufgabe ausführen.</strong> So hat jeder Schritt genau eine Hauptvariable, und bei einem Fehler kehrt man schnell zur richtigen Ebene zurück.</p>
+<p>Weitere Referenzen: <a href="https://learn.chatgpt.com/docs/config-file/config-reference">Codex-Konfigurationsreferenz</a>, <a href="https://learn.chatgpt.com/docs/config-file/config-advanced#profiles">Codex-Erweiterte Konfiguration und Profile</a>, <a href="https://opencode.ai/docs/go/">OpenCode-Go-Dokumentation</a> und <a href="https://api-docs.deepseek.com/zh-cn/api/create-response">DeepSeek-Responses-API</a>.</p> </div> <aside class="table-of-contents" aria-label="Inhaltsverzeichnis" data-pagefind-ignore> <p>ON THIS PAGE</p> <ol> <li> <a href="#anforderungen-randbedingungen-und-abnahmekriterien" data-analytics-event="toc_click" data-analytics-target="anforderungen-randbedingungen-und-abnahmekriterien"> Anforderungen, Randbedingungen und Abnahmekriterien </a> </li><li> <a href="#die-vollständige-timeline-der-fehlersuche" data-analytics-event="toc_click" data-analytics-target="die-vollständige-timeline-der-fehlersuche"> Die vollständige Timeline der Fehlersuche </a> </li><li> <a href="#endgültige-architektur" data-analytics-event="toc_click" data-analytics-target="endgültige-architektur"> Endgültige Architektur </a> </li><li> <a href="#erst-die-responses-api-verifizieren-nicht-aus-alten-unterlagen-ableiten" data-analytics-event="toc_click" data-analytics-target="erst-die-responses-api-verifizieren-nicht-aus-alten-unterlagen-ableiten"> Erst die Responses API verifizieren, nicht aus alten Unterlagen ableiten </a> </li><li class="nested"> <a href="#dokumentation-modellservice-und-gateway-drei-fähigkeitsebenen" data-analytics-event="toc_click" data-analytics-target="dokumentation-modellservice-und-gateway-drei-fähigkeitsebenen"> Dokumentation, Modellservice und Gateway: drei Fähigkeitsebenen </a> </li><li> <a href="#erster-umweg-warum-der-proxy-installiert-und-wieder-entfernt-wurde" data-analytics-event="toc_click" data-analytics-target="erster-umweg-warum-der-proxy-installiert-und-wieder-entfernt-wurde"> Erster Umweg: Warum der Proxy installiert und wieder entfernt wurde </a> </li><li> <a href="#vor-der-konfiguration-lokalen-zustand-erfassen" data-analytics-event="toc_click" data-analytics-target="vor-der-konfiguration-lokalen-zustand-erfassen"> Vor der Konfiguration: lokalen Zustand erfassen </a> </li><li> <a href="#den-opencode-go-provider-konfigurieren" data-analytics-event="toc_click" data-analytics-target="den-opencode-go-provider-konfigurieren"> Den OpenCode-Go-Provider konfigurieren </a> </li><li class="nested"> <a href="#wofür-jedes-feld-steht" data-analytics-event="toc_click" data-analytics-target="wofür-jedes-feld-steht"> Wofür jedes Feld steht </a> </li><li class="nested"> <a href="#warum-der-key-nicht-über-eine-umgebungsvariable-dupliziert-wurde" data-analytics-event="toc_click" data-analytics-target="warum-der-key-nicht-über-eine-umgebungsvariable-dupliziert-wurde"> Warum der Key nicht über eine Umgebungsvariable dupliziert wurde </a> </li><li> <a href="#eine-antwort-von-models-heißt-noch-nicht-dass-codex-sie-verarbeiten-kann" data-analytics-event="toc_click" data-analytics-target="eine-antwort-von-models-heißt-noch-nicht-dass-codex-sie-verarbeiten-kann"> Eine Antwort von /models heißt noch nicht, dass Codex sie verarbeiten kann </a> </li><li> <a href="#authentifizierung-zur-laufzeit-statt-klartext-key-kopie" data-analytics-event="toc_click" data-analytics-target="authentifizierung-zur-laufzeit-statt-klartext-key-kopie"> Authentifizierung zur Laufzeit statt Klartext-Key-Kopie </a> </li><li> <a href="#warum-ein-benutzerdefinierter-modellkatalog-nötig-ist" data-analytics-event="toc_click" data-analytics-target="warum-ein-benutzerdefinierter-modellkatalog-nötig-ist"> Warum ein benutzerdefinierter Modellkatalog nötig ist </a> </li><li class="nested"> <a href="#warum-das-minimale-json-scheiterte" data-analytics-event="toc_click" data-analytics-target="warum-das-minimale-json-scheiterte"> Warum das minimale JSON scheiterte </a> </li><li> <a href="#das-unscheinbarste-problem-der-modellkatalog-verändert-das-tool-protokoll" data-analytics-event="toc_click" data-analytics-target="das-unscheinbarste-problem-der-modellkatalog-verändert-das-tool-protokoll"> Das unscheinbarste Problem: Der Modellkatalog verändert das Tool-Protokoll </a> </li><li class="nested"> <a href="#warum-das-abschalten-von-featuresunified_exec-nicht-half" data-analytics-event="toc_click" data-analytics-target="warum-das-abschalten-von-featuresunified_exec-nicht-half"> Warum das Abschalten von features.unified_exec nicht half </a> </li><li class="nested"> <a href="#echte-dateiänderung-als-beleg-für-funktionierende-agent-tools" data-analytics-event="toc_click" data-analytics-target="echte-dateiänderung-als-beleg-für-funktionierende-agent-tools"> Echte Dateiänderung als Beleg für funktionierende Agent-Tools </a> </li><li> <a href="#schneller-provider-wechsel-über-profile" data-analytics-event="toc_click" data-analytics-target="schneller-provider-wechsel-über-profile"> Schneller Provider-Wechsel über Profile </a> </li><li class="nested"> <a href="#override-reihenfolge-der-konfiguration" data-analytics-event="toc_click" data-analytics-target="override-reihenfolge-der-konfiguration"> Override-Reihenfolge der Konfiguration </a> </li><li class="nested"> <a href="#abgrenzung-von-model---model-und---profile" data-analytics-event="toc_click" data-analytics-target="abgrenzung-von-model---model-und---profile"> Abgrenzung von /model, --model und --profile </a> </li><li> <a href="#die-verifikation-braucht-mehrere-ebenen" data-analytics-event="toc_click" data-analytics-target="die-verifikation-braucht-mehrere-ebenen"> Die Verifikation braucht mehrere Ebenen </a> </li><li class="nested"> <a href="#ebene-1-roh-anfrage-an-die-responses-api" data-analytics-event="toc_click" data-analytics-target="ebene-1-roh-anfrage-an-die-responses-api"> Ebene 1: Roh-Anfrage an die Responses API </a> </li><li class="nested"> <a href="#ebene-2-modellkatalog-parsing" data-analytics-event="toc_click" data-analytics-target="ebene-2-modellkatalog-parsing"> Ebene 2: Modellkatalog-Parsing </a> </li><li class="nested"> <a href="#ebene-3-codex-health-check" data-analytics-event="toc_click" data-analytics-target="ebene-3-codex-health-check"> Ebene 3: Codex-Health-Check </a> </li><li class="nested"> <a href="#ebene-4-echte-anfragen-mit-beiden-profilen" data-analytics-event="toc_click" data-analytics-target="ebene-4-echte-anfragen-mit-beiden-profilen"> Ebene 4: Echte Anfragen mit beiden Profilen </a> </li><li class="nested"> <a href="#ebene-5-datei-tools-des-agents" data-analytics-event="toc_click" data-analytics-target="ebene-5-datei-tools-des-agents"> Ebene 5: Datei-Tools des Agents </a> </li><li> <a href="#häufige-irrtümer" data-analytics-event="toc_click" data-analytics-target="häufige-irrtümer"> Häufige Irrtümer </a> </li><li class="nested"> <a href="#modellwechsel-mit-providerwechsel-gleichsetzen" data-analytics-event="toc_click" data-analytics-target="modellwechsel-mit-providerwechsel-gleichsetzen"> Modellwechsel mit Providerwechsel gleichsetzen </a> </li><li class="nested"> <a href="#api-key-direkt-in-configtoml-schreiben" data-analytics-event="toc_click" data-analytics-target="api-key-direkt-in-configtoml-schreiben"> API-Key direkt in config.toml schreiben </a> </li><li class="nested"> <a href="#nur-doctor-ausführen-keine-echten-anfragen" data-analytics-event="toc_click" data-analytics-target="nur-doctor-ausführen-keine-echten-anfragen"> Nur doctor ausführen, keine echten Anfragen </a> </li><li class="nested"> <a href="#offizielle-modellmetadaten-blind-kopieren" data-analytics-event="toc_click" data-analytics-target="offizielle-modellmetadaten-blind-kopieren"> Offizielle Modellmetadaten blind kopieren </a> </li><li class="nested"> <a href="#einen-überflüssigen-proxy-für-ein-bereits-unterstütztes-protokoll-behalten" data-analytics-event="toc_click" data-analytics-target="einen-überflüssigen-proxy-für-ein-bereits-unterstütztes-protokoll-behalten"> Einen überflüssigen Proxy für ein bereits unterstütztes Protokoll behalten </a> </li><li> <a href="#fehlerdiagnose-matrix" data-analytics-event="toc_click" data-analytics-target="fehlerdiagnose-matrix"> Fehlerdiagnose-Matrix </a> </li><li> <a href="#checkliste-reproduktion-von-grund-auf" data-analytics-event="toc_click" data-analytics-target="checkliste-reproduktion-von-grund-auf"> Checkliste: Reproduktion von Grund auf </a> </li><li class="nested"> <a href="#1-version-und-zugangsdaten-prüfen" data-analytics-event="toc_click" data-analytics-target="1-version-und-zugangsdaten-prüfen"> 1. Version und Zugangsdaten prüfen </a> </li><li class="nested"> <a href="#2-konfiguration-sichern" data-analytics-event="toc_click" data-analytics-target="2-konfiguration-sichern"> 2. Konfiguration sichern </a> </li><li class="nested"> <a href="#3-responses-mit-einer-roh-anfrage-verifizieren" data-analytics-event="toc_click" data-analytics-target="3-responses-mit-einer-roh-anfrage-verifizieren"> 3. /responses mit einer Roh-Anfrage verifizieren </a> </li><li class="nested"> <a href="#4-provider-und-laufzeit-authentifizierung-hinzufügen" data-analytics-event="toc_click" data-analytics-target="4-provider-und-laufzeit-authentifizierung-hinzufügen"> 4. Provider und Laufzeit-Authentifizierung hinzufügen </a> </li><li class="nested"> <a href="#5-erste-codex-anfrage-mit-fallback-metadaten" data-analytics-event="toc_click" data-analytics-target="5-erste-codex-anfrage-mit-fallback-metadaten"> 5. Erste Codex-Anfrage mit Fallback-Metadaten </a> </li><li class="nested"> <a href="#6-lokalen-katalog-aus-dem-aktuellen-modellcache-erzeugen" data-analytics-event="toc_click" data-analytics-target="6-lokalen-katalog-aus-dem-aktuellen-modellcache-erzeugen"> 6. Lokalen Katalog aus dem aktuellen Modellcache erzeugen </a> </li><li class="nested"> <a href="#7-beide-profile-getrennt-anlegen" data-analytics-event="toc_click" data-analytics-target="7-beide-profile-getrennt-anlegen"> 7. Beide Profile getrennt anlegen </a> </li><li class="nested"> <a href="#8-statische-und-echte-verifikation-nacheinander" data-analytics-event="toc_click" data-analytics-target="8-statische-und-echte-verifikation-nacheinander"> 8. Statische und echte Verifikation nacheinander </a> </li><li class="nested"> <a href="#9-apply_patch-in-einem-isolierten-verzeichnis-verifizieren" data-analytics-event="toc_click" data-analytics-target="9-apply_patch-in-einem-isolierten-verzeichnis-verifizieren"> 9. apply_patch in einem isolierten Verzeichnis verifizieren </a> </li><li class="nested"> <a href="#10-versionen-dokumentieren-und-rollback-punkt-sichern" data-analytics-event="toc_click" data-analytics-target="10-versionen-dokumentieren-und-rollback-punkt-sichern"> 10. Versionen dokumentieren und Rollback-Punkt sichern </a> </li><li> <a href="#derzeit-verifizierte-und-nicht-verallgemeinerte-grenzen" data-analytics-event="toc_click" data-analytics-target="derzeit-verifizierte-und-nicht-verallgemeinerte-grenzen"> Derzeit verifizierte und nicht verallgemeinerte Grenzen </a> </li><li> <a href="#rollback" data-analytics-event="toc_click" data-analytics-target="rollback"> Rollback </a> </li><li> <a href="#fazit" data-analytics-event="toc_click" data-analytics-target="fazit"> Fazit </a> </li> </ol> </aside> </div> <script type="module" src="/_astro/MermaidEnhancer.astro_astro_type_script_index_0_lang.DnWaDEwA.js"></script> <dialog class="image-lightbox" data-image-lightbox data-locale="de" aria-labelledby="lightbox-caption"> <div class="image-lightbox-inner"> <button type="button" class="image-lightbox-close" aria-label="Bildvorschau schließen">
+×
+</button> <img alt="" decoding="async"> <p id="lightbox-caption" hidden></p> </div> </dialog> <script type="module" src="/_astro/ImageLightbox.astro_astro_type_script_index_0_lang.Db8U22Iw.js"></script> <div class="reading-progress" aria-hidden="true"><span></span></div> <div class="article-actions" data-reading-tools data-locale="de" data-title="DeepSeek V4 Flash über OpenCode Go in Codex einbinden: Responses API, Modellkatalog und Profilwechsel" data-href="https://lucaslz.com/de/tools/codex-opencode-go-deepseek-v4-flash/"> <button type="button" data-share aria-label="Teilen"> Teilen </button> <button type="button" data-copy-link aria-label="Link kopieren"> Link kopieren </button> <button type="button" data-bookmark aria-label="Lesezeichen" aria-pressed="false"> Lesezeichen </button> </div> <button class="back-to-top" type="button" aria-label="Nach oben" hidden>↑</button> <div class="reading-toast" role="status" aria-live="polite"></div> <script type="module" src="/_astro/ReadingTools.astro_astro_type_script_index_0_lang.CXpXB1Lm.js"></script> <footer class="post-footer page-shell narrow-shell" data-pagefind-ignore> <div class="post-end-mark"><span>END</span></div> <p>Danke fürs Lesen. Sie können den Artikel teilen, als Lesezeichen speichern oder unten an der Diskussion teilnehmen.</p>  <div class="post-navigation"> <a href="/de/blog/astro-react-mdx-cloudflare-pages/" class="previous-post" data-analytics-event="article_click" data-analytics-target="/de/blog/astro-react-mdx-cloudflare-pages/">  <small>← Vorheriger</small> <strong>Mein Blog von Grund auf neu aufgebaut: Astro + React + MDX + Cloudflare Pages</strong>  </a> <a href="/de/kubernetes/spring-boot-2-3-nacos-redis-property-postmortem/" class="next-post" data-analytics-event="article_click" data-analytics-target="/de/kubernetes/spring-boot-2-3-nacos-redis-property-postmortem/">  <small>Nächster →</small> <strong>Spring Boot 2 und 3 im Mischbetrieb: Warum die Nacos-Redis-Konfiguration auf localhost zurückfällt</strong>  </a> </div> </footer> </article> <div class="page-shell narrow-shell" data-pagefind-ignore> <section class="comments-section" aria-labelledby="comments-title" data-giscus-comments data-repo="lucaslz2020/lucasleelz.github.io" data-repo-id="MDEwOlJlcG9zaXRvcnkyNzcxNjkwNw==" data-category="Announcements" data-category-id="DIC_kwDOAabtK84DCw-x" data-discussion-path="/tools/codex-opencode-go-deepseek-v4-flash/" data-giscus-language="de"> <div class="comments-heading"> <p class="eyebrow"> <span></span>
+DISCUSSION
+</p> <h2 id="comments-title">Diskussion &amp; Feedback</h2> </div> <div class="giscus" aria-live="polite"></div> </section> <script type="module">var e=()=>document.documentElement.dataset.theme===`dark`?`noborder_dark`:`noborder_light`,t=t=>{if(t.dataset.loaded===`true`)return;let n=t.querySelector(`.giscus`);if(!n)return;let r=document.createElement(`script`);r.src=`https://giscus.app/client.js`,r.async=!0,r.crossOrigin=`anonymous`,r.dataset.repo=t.dataset.repo??``,r.dataset.repoId=t.dataset.repoId??``,r.dataset.category=t.dataset.category??``,r.dataset.categoryId=t.dataset.categoryId??``,r.dataset.mapping=`specific`,r.dataset.term=t.dataset.discussionPath??window.location.pathname,r.dataset.strict=`1`,r.dataset.reactionsEnabled=`1`,r.dataset.emitMetadata=`0`,r.dataset.inputPosition=`top`,r.dataset.theme=e(),r.dataset.lang=t.dataset.giscusLanguage??`zh-CN`,r.dataset.loading=`lazy`,t.dataset.loaded=`true`,n.append(r)},n=document.querySelector(`[data-giscus-comments]`);if(n){if(`IntersectionObserver`in window){let e=new IntersectionObserver(r=>{r.some(e=>e.isIntersecting)&&(t(n),e.disconnect())},{rootMargin:`500px 0px`});e.observe(n)}else t(n)}window.addEventListener(`theme-change`,()=>{document.querySelector(`iframe.giscus-frame`)?.contentWindow?.postMessage({giscus:{setConfig:{theme:e()}}},`https://giscus.app`)});</script> </div>  </main> <footer class="site-footer"> <div class="footer-inner"> <div class="footer-brand"> <img class="brand-mark" src="/brand/avatar.svg" alt="" width="42" height="42" loading="lazy" decoding="async"> <div> <strong>lucaslz</strong> <p>Langfristige technische Notizen zu Softwareentwicklung, Web, Java und kontinuierlichem Lernen.</p> </div> </div> <div class="footer-links"> <a href="/de/rss.xml">RSS</a> <a href="/de/archive/">Archiv</a> <a href="/de/tags/">Tags</a> <a href="https://github.com/lucaslz2020" target="_blank" rel="noreferrer">GitHub</a> </div> </div> <div class="footer-bottom"> <span>© 2013 ~ 2026 lucaslz</span> <span>Built with Astro + React · Deployed on Cloudflare Pages</span> </div> </footer> <script type="module" src="/_astro/Analytics.astro_astro_type_script_index_0_lang.EOcdV3vz.js"></script> <aside class="pwa-notice" data-pwa-notice data-locale="de" data-mode="status" aria-label="App-Status" aria-live="polite" aria-atomic="true" hidden> <span class="pwa-notice-icon" data-pwa-icon aria-hidden="true">↧</span> <p> <strong data-pwa-title>Bereit für Offline-Lesen</strong> <small data-pwa-message>Besuchte Artikel können auch ohne Internetverbindung gelesen werden.</small> </p> <div class="pwa-notice-actions"> <button type="button" data-pwa-action hidden> Jetzt installieren </button> <button type="button" data-pwa-dismiss>Verstanden</button> </div> </aside> <script type="module" src="/_astro/Pwa.astro_astro_type_script_index_0_lang.goX2jG5I.js"></script> </body> </html>

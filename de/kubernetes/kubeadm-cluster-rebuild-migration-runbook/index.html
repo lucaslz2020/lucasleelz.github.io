@@ -1,0 +1,350 @@
+<!DOCTYPE html><html lang="de" data-theme="light" data-locale="de"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="generator" content="Astro v7.2.0"><meta name="author" content="lucaslz"><meta name="theme-color" content="#f5f1e8" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)"><meta name="description" content="Ein ausführbares Runbook für die Neuaufbau-Migration eines kubeadm-Clusters, das die eingefrorene Basislinie, Backup und Wiederherstellung, Knoten-Initialisierung, Netzwerk, Daten, Nacos, Geschäftsabnahme, Abbruchkriterien und Rollback abdeckt."><meta name="google-site-verification" content="o_QOQN3-adA79KPRfqy1wAj9zviE8hyD5jvfdQEMVco"><meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"><meta name="keywords" content="Kubernetes, Runbook, kubeadm, Disaster Recovery, DevOps, Kubernetes Runbook, Cluster-Neuaufbau, kubeadm-Migration, Go No-Go, Betriebs-Runbook"><link rel="canonical" href="https://lucaslz.com/de/kubernetes/kubeadm-cluster-rebuild-migration-runbook/"><link rel="alternate" hreflang="zh-CN" href="https://lucaslz.com/kubernetes/kubeadm-cluster-rebuild-migration-runbook/"><link rel="alternate" hreflang="en" href="https://lucaslz.com/en/kubernetes/kubeadm-cluster-rebuild-migration-runbook/"><link rel="alternate" hreflang="zh-Hant-TW" href="https://lucaslz.com/zh-tw/kubernetes/kubeadm-cluster-rebuild-migration-runbook/"><link rel="alternate" hreflang="x-default" href="https://lucaslz.com/kubernetes/kubeadm-cluster-rebuild-migration-runbook/"><link rel="author" href="https://github.com/lucaslz2020"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon.ico" sizes="any"><link rel="apple-touch-icon" href="/icons/apple-touch-icon.png"><link rel="alternate" type="application/rss+xml" title="lucaslz · Technische Notizen" href="/de/rss.xml"><link rel="manifest" href="/site.webmanifest"><title>Kubernetes-Neuaufbau-Runbook: Ad-hoc-Feuerwehr durch stufenweise Abnahme ersetzen · lucaslz</title><meta property="og:type" content="article"><meta property="og:site_name" content="lucaslz · Technische Notizen"><meta property="og:title" content="Kubernetes-Neuaufbau-Runbook: Ad-hoc-Feuerwehr durch stufenweise Abnahme ersetzen · lucaslz"><meta property="og:description" content="Ein ausführbares Runbook für die Neuaufbau-Migration eines kubeadm-Clusters, das die eingefrorene Basislinie, Backup und Wiederherstellung, Knoten-Initialisierung, Netzwerk, Daten, Nacos, Geschäftsabnahme, Abbruchkriterien und Rollback abdeckt."><meta property="og:url" content="https://lucaslz.com/de/kubernetes/kubeadm-cluster-rebuild-migration-runbook/"><meta property="og:image" content="https://lucaslz.com/og/de/kubernetes/kubeadm-cluster-rebuild-migration-runbook.png"><meta property="og:image:type" content="image/png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="Teilen-Bild für Kubernetes-Neuaufbau-Runbook: Ad-hoc-Feuerwehr durch stufenweise Abnahme ersetzen"><meta property="og:locale" content="de_DE"><meta property="article:published_time" content="2026-07-05T00:00:00.000Z"><meta property="article:author" content="https://github.com/lucaslz2020"><meta property="article:tag" content="Kubernetes"><meta property="article:tag" content="Runbook"><meta property="article:tag" content="kubeadm"><meta property="article:tag" content="Disaster Recovery"><meta property="article:tag" content="DevOps"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="Kubernetes-Neuaufbau-Runbook: Ad-hoc-Feuerwehr durch stufenweise Abnahme ersetzen · lucaslz"><meta name="twitter:description" content="Ein ausführbares Runbook für die Neuaufbau-Migration eines kubeadm-Clusters, das die eingefrorene Basislinie, Backup und Wiederherstellung, Knoten-Initialisierung, Netzwerk, Daten, Nacos, Geschäftsabnahme, Abbruchkriterien und Rollback abdeckt."><meta name="twitter:image" content="https://lucaslz.com/og/de/kubernetes/kubeadm-cluster-rebuild-migration-runbook.png"><script>
+      (() => {
+        const saved = localStorage.getItem("theme");
+        const dark = saved
+          ? saved === "dark"
+          : matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+      })();
+    </script><script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Person","@id":"https://lucaslz.com/#person","name":"lucaslz","url":"https://lucaslz.com","sameAs":["https://github.com/lucaslz2020"]},{"@type":"WebSite","@id":"https://lucaslz.com/#website","name":"lucaslz · Technische Notizen","alternateName":"lucaslz","description":"Langfristige technische Notizen zu Softwareentwicklung, Web, Java und kontinuierlichem Lernen.","url":"https://lucaslz.com","inLanguage":"de","publisher":{"@id":"https://lucaslz.com/#person"}},{"@type":"BlogPosting","@id":"https://lucaslz.com/de/kubernetes/kubeadm-cluster-rebuild-migration-runbook/#article","url":"https://lucaslz.com/de/kubernetes/kubeadm-cluster-rebuild-migration-runbook/","headline":"Kubernetes-Neuaufbau-Runbook: Ad-hoc-Feuerwehr durch stufenweise Abnahme ersetzen","description":"Ein ausführbares Runbook für die Neuaufbau-Migration eines kubeadm-Clusters, das die eingefrorene Basislinie, Backup und Wiederherstellung, Knoten-Initialisierung, Netzwerk, Daten, Nacos, Geschäftsabnahme, Abbruchkriterien und Rollback abdeckt.","inLanguage":"de","datePublished":"2026-07-05T00:00:00.000Z","dateModified":"2026-07-05T00:00:00.000Z","author":{"@id":"https://lucaslz.com/#person","name":"lucaslz"},"publisher":{"@id":"https://lucaslz.com/#person"},"isPartOf":{"@id":"https://lucaslz.com/#website"},"mainEntityOfPage":{"@type":"WebPage","@id":"https://lucaslz.com/de/kubernetes/kubeadm-cluster-rebuild-migration-runbook/"},"image":{"@type":"ImageObject","url":"https://lucaslz.com/og/de/kubernetes/kubeadm-cluster-rebuild-migration-runbook.png","width":1200,"height":630},"articleSection":["Kubernetes","Runbook","kubeadm","Disaster Recovery","DevOps"],"keywords":"Kubernetes, Runbook, kubeadm, Disaster Recovery, DevOps, Kubernetes Runbook, Cluster-Neuaufbau, kubeadm-Migration, Go No-Go, Betriebs-Runbook","wordCount":1667},{"@type":"BreadcrumbList","@id":"https://lucaslz.com/de/kubernetes/kubeadm-cluster-rebuild-migration-runbook/#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"Startseite","item":"https://lucaslz.com/de/"},{"@type":"ListItem","position":2,"name":"Kubernetes-Neuaufbau-Runbook: Ad-hoc-Feuerwehr durch stufenweise Abnahme ersetzen","item":"https://lucaslz.com/de/kubernetes/kubeadm-cluster-rebuild-migration-runbook/"}]}]}</script><style>@layer astro.images{:where([data-astro-image]){height:auto}:where([data-astro-image=full-width]){width:100%}:where([data-astro-image=constrained]){max-width:100%}[data-astro-image-fit=fill]{object-fit:fill}[data-astro-image-fit=contain]{object-fit:contain}[data-astro-image-fit=cover]{object-fit:cover}[data-astro-image-fit=scale-down]{object-fit:scale-down}[data-astro-image-pos=top]{object-position:top}[data-astro-image-pos=bottom]{object-position:bottom}[data-astro-image-pos=left]{object-position:left}[data-astro-image-pos=right]{object-position:right}[data-astro-image-pos=center]{object-position:center}[data-astro-image-pos=top-bottom]{object-position:top bottom}[data-astro-image-pos=top-left]{object-position:top left}[data-astro-image-pos=top-right]{object-position:top right}[data-astro-image-pos=top-center]{object-position:top center}[data-astro-image-pos=bottom-top]{object-position:bottom top}[data-astro-image-pos=bottom-left]{object-position:bottom left}[data-astro-image-pos=bottom-right]{object-position:bottom right}[data-astro-image-pos=bottom-center]{object-position:bottom center}[data-astro-image-pos=left-top]{object-position:left top}[data-astro-image-pos=left-bottom]{object-position:left bottom}[data-astro-image-pos=left-right]{object-position:left right}[data-astro-image-pos=left-center]{object-position:left center}[data-astro-image-pos=right-top]{object-position:right top}[data-astro-image-pos=right-bottom]{object-position:right bottom}[data-astro-image-pos=right-left]{object-position:right left}[data-astro-image-pos=right-center]{object-position:right center}[data-astro-image-pos=center-top]{object-position:center top}[data-astro-image-pos=center-bottom]{object-position:center bottom}[data-astro-image-pos=center-left]{object-position:center left}[data-astro-image-pos=center-right]{object-position:center right}}
+</style><link rel="stylesheet" href="/_astro/BaseLayout.sWFOg0EP.css"><script type="module" src="/_astro/page.CQWjsXKf.js"></script></head> <body> <a class="skip-link" href="#main-content">Zum Hauptinhalt springen</a> <header class="site-header"> <div class="header-inner"> <a class="brand" href="/de/" title="Startseite" data-analytics-event="nav_click" data-analytics-target="home"> <img class="brand-mark" src="/brand/avatar.svg" alt="" width="42" height="42" decoding="async"> <span class="brand-copy"> <strong>lucaslz</strong> <small>ENGINEERING NOTES</small> </span> </a> <nav class="desktop-nav" aria-label="Hauptnavigation"> <a href="/de/" data-analytics-event="nav_click" data-analytics-target="Startseite" aria-current="page"> Startseite </a><a href="/de/archive/" data-analytics-event="nav_click" data-analytics-target="Archiv"> Archiv </a><a href="/de/tags/" data-analytics-event="nav_click" data-analytics-target="Tags"> Tags </a> <a href="https://github.com/lucaslz2020" target="_blank" rel="noreferrer">GitHub ↗</a> </nav> <style>astro-island,astro-slot,astro-static-slot{display:contents}</style><script>(()=>{var e=async t=>{await(await t())()};(self.Astro||(self.Astro={})).load=e;window.dispatchEvent(new Event("astro:load"));})();</script><script>(()=>{var g=Object.defineProperty;var w=(a,s,c)=>s in a?g(a,s,{enumerable:!0,configurable:!0,writable:!0,value:c}):a[s]=c;var l=(a,s,c)=>w(a,typeof s!="symbol"?s+"":s,c);var E=new Set(["__proto__","constructor","prototype"]);{let a={0:t=>y(t),1:t=>c(t),2:t=>new RegExp(t),3:t=>new Date(t),4:t=>new Map(c(t)),5:t=>new Set(c(t)),6:t=>BigInt(t),7:t=>new URL(t),8:t=>new Uint8Array(t),9:t=>new Uint16Array(t),10:t=>new Uint32Array(t),11:t=>Number.POSITIVE_INFINITY*t},s=t=>{let[p,e]=t;return p in a?a[p](e):void 0},c=t=>t.map(s),y=t=>typeof t!="object"||t===null?t:Object.fromEntries(Object.entries(t).map(([p,e])=>[p,s(e)]));class f extends HTMLElement{constructor(){super(...arguments);l(this,"Component");l(this,"hydrator");l(this,"hydrate",async()=>{var b;if(!this.hydrator||!this.isConnected)return;let e=(b=this.parentElement)==null?void 0:b.closest("astro-island[ssr]");if(e){e.addEventListener("astro:hydrate",this.hydrate,{once:!0});return}let r=this.querySelectorAll("astro-slot"),n={},d=this.querySelectorAll("template[data-astro-template]");for(let o of d){let i=o.closest(this.tagName);i!=null&&i.isSameNode(this)&&(n[o.getAttribute("data-astro-template")||"default"]=o.innerHTML,o.remove())}for(let o of r){let i=o.closest(this.tagName);i!=null&&i.isSameNode(this)&&(n[o.getAttribute("name")||"default"]=o.innerHTML)}let u;try{u=this.hasAttribute("props")?y(JSON.parse(this.getAttribute("props"))):{}}catch(o){let i=this.getAttribute("component-url")||"<unknown>",v=this.getAttribute("component-export");throw v&&(i+=` (export ${v})`),console.error(`[hydrate] Error parsing props for component ${i}`,this.getAttribute("props"),o),o}let h;await this.hydrator(this)(this.Component,u,n,{client:this.getAttribute("client")}),this.removeAttribute("ssr"),this.dispatchEvent(new CustomEvent("astro:hydrate"))});l(this,"unmount",()=>{this.isConnected||this.dispatchEvent(new CustomEvent("astro:unmount"))})}disconnectedCallback(){document.removeEventListener("astro:after-swap",this.unmount),document.addEventListener("astro:after-swap",this.unmount,{once:!0})}connectedCallback(){if(!this.hasAttribute("await-children")||document.readyState==="interactive"||document.readyState==="complete")this.childrenConnectedCallback();else{let e=()=>{document.removeEventListener("DOMContentLoaded",e),r.disconnect(),this.childrenConnectedCallback()},r=new MutationObserver(()=>{var n;((n=this.lastChild)==null?void 0:n.nodeType)===Node.COMMENT_NODE&&this.lastChild.nodeValue==="astro:end"&&(this.lastChild.remove(),e())});r.observe(this,{childList:!0}),document.addEventListener("DOMContentLoaded",e)}}async childrenConnectedCallback(){let e=this.getAttribute("before-hydration-url");e&&await import(e),this.start()}getRetryImportUrl(e){let r=new URL(e,document.baseURI);return r.searchParams.set("astro-retry",Date.now().toString()),r.toString()}async importWithRetry(e){try{return await import(e)}catch(r){return await new Promise(n=>setTimeout(n,1e3)),import(this.getRetryImportUrl(e))}}handleHydrationError(e){let r=this.getAttribute("component-url"),n=new CustomEvent("astro:hydration-error",{cancelable:!0,bubbles:!0,composed:!0,detail:{error:e,componentUrl:r}});this.dispatchEvent(n)&&console.error(`[astro-island] Error hydrating ${r}`,e)}async start(){let e=JSON.parse(this.getAttribute("opts")),r=this.getAttribute("client");if(Astro[r]===void 0){window.addEventListener(`astro:${r}`,()=>this.start(),{once:!0});return}try{await Astro[r](async()=>{let n=this.getAttribute("renderer-url");try{let[d,{default:u}]=await Promise.all([this.importWithRetry(this.getAttribute("component-url")),n?this.importWithRetry(n):Promise.resolve({default:()=>()=>{}})]),h=this.getAttribute("component-export")||"default";if(h.includes(".")){this.Component=d;for(let m of h.split(".")){if(E.has(m)||!this.Component||typeof this.Component!="object"&&typeof this.Component!="function"||!Object.hasOwn(this.Component,m))throw new Error(`Invalid component export path: ${h}`);this.Component=this.Component[m]}}else{if(E.has(h))throw new Error(`Invalid component export path: ${h}`);this.Component=d[h]}return this.hydrator=u,this.hydrate}catch(d){return this.handleHydrationError(d),()=>{}}},e,this)}catch(n){this.handleHydrationError(n)}}attributeChangedCallback(){this.hydrate()}}l(f,"observedAttributes",["props"]),customElements.get("astro-island")||customElements.define("astro-island",f)}})();</script><astro-island uid="Z1ngL0E" prefix="r1" component-url="/_astro/HeaderControls.sXhIZxRm.js" component-export="default" renderer-url="/_astro/client.BvqO7VYE.js" props="{&quot;githubUrl&quot;:[0,&quot;https://github.com/lucaslz2020&quot;],&quot;locale&quot;:[0,&quot;de&quot;],&quot;languageTargets&quot;:[0,{&quot;zh-CN&quot;:[0,&quot;/kubernetes/kubeadm-cluster-rebuild-migration-runbook/&quot;],&quot;en&quot;:[0,&quot;/en/kubernetes/kubeadm-cluster-rebuild-migration-runbook/&quot;],&quot;zh-TW&quot;:[0,&quot;/zh-tw/kubernetes/kubeadm-cluster-rebuild-migration-runbook/&quot;],&quot;de&quot;:[0,&quot;/de/&quot;],&quot;zh-HK&quot;:[0,&quot;/zh-hk/&quot;]}]}" ssr client="load" opts="{&quot;name&quot;:&quot;HeaderControls&quot;,&quot;value&quot;:true}" await-children><div class="header-controls"><div class="language-switcher"><button type="button" class="language-switcher-trigger" aria-haspopup="menu" aria-expanded="false" aria-label="Sprache"><span aria-hidden="true">DE</span><span class="language-switcher-caret" aria-hidden="true">▾</span></button></div><button class="icon-button search-trigger" type="button" aria-label="Suche"><span aria-hidden="true">⌕</span><span class="search-label">Suche</span><kbd>⌘K</kbd></button><button class="icon-button theme-trigger" type="button" aria-label="Zum dunklen Modus wechseln"><span aria-hidden="true">◐</span></button><button class="icon-button menu-trigger" type="button" aria-label="Navigation öffnen"><span aria-hidden="true">☰</span></button></div><!--astro:end--></astro-island> </div> </header> <main id="main-content">  <article class="post-page" data-pagefind-body> <meta data-pagefind-filter="locale[content]" content="de"> <header class="post-header page-shell narrow-shell"> <a class="back-link" href="/de/">← Zurück zur Artikelliste</a> <p class="eyebrow"> <span></span>ENGINEERING NOTE · 5. Juli 2026 </p> <h1 data-pagefind-meta="title">Kubernetes-Neuaufbau-Runbook: Ad-hoc-Feuerwehr durch stufenweise Abnahme ersetzen</h1> <p class="post-description" data-pagefind-meta="description"> Ein ausführbares Runbook für die Neuaufbau-Migration eines kubeadm-Clusters, das die eingefrorene Basislinie, Backup und Wiederherstellung, Knoten-Initialisierung, Netzwerk, Daten, Nacos, Geschäftsabnahme, Abbruchkriterien und Rollback abdeckt. </p> <meta data-pagefind-meta="date" content="2026-07-05"> <meta data-pagefind-meta="tags" content="Kubernetes, Runbook, kubeadm, Disaster Recovery, DevOps"> <div class="post-meta-row"> <div class="post-author"> <img class="mini-avatar" src="/brand/avatar.svg" alt="" width="36" height="36" decoding="async"> <span><strong>lucaslz</strong><small>Autor</small></span> </div> <div class="post-facts"> <time datetime="2026-07-05T00:00:00.000Z">5. Juli 2026</time>  <span>9 Min. Lesezeit</span> <span class="post-view-count" data-page-views hidden></span> </div> </div> <div class="post-tag-row"> <a href="/de/tags/kubernetes/" data-analytics-event="tag_click" data-analytics-target="Kubernetes">
+#Kubernetes </a><a href="/de/tags/runbook/" data-analytics-event="tag_click" data-analytics-target="Runbook">
+#Runbook </a><a href="/de/tags/kubeadm/" data-analytics-event="tag_click" data-analytics-target="kubeadm">
+#kubeadm </a><a href="/de/tags/disaster-recovery/" data-analytics-event="tag_click" data-analytics-target="Disaster Recovery">
+#Disaster Recovery </a><a href="/de/tags/devops/" data-analytics-event="tag_click" data-analytics-target="DevOps">
+#DevOps </a> </div>    </header> <div class="post-divider"> <span></span><b>&#123; &#125;</b><span></span> </div> <div class="post-layout page-shell"> <div class="post-content prose">  <blockquote>
+<p>Die in diesem Artikel genannten Knoten, Adressen, Domains, Umgebungsnamen und Kapazitätswerte sind anonymisierte Beispiele. Secrets, Datenbank-Backups, Tokens und Informationen über interne Repositories sind nicht veröffentlichbar.</p>
+</blockquote>
+<blockquote>
+<p>Reihennavigation: <a href="/de/kubernetes/kubernetes-migration-series/">Kubernetes-Neuaufbau-Migrationsreihe</a>. Dieser Beitrag behandelt die Ausführung am Migrationstag, die Abbruchkriterien und den Rollback.</p>
+</blockquote>
+<p>Der vorherige Beitrag hat die Probleme der Neuaufbau-Migration aufgearbeitet. Dieser Beitrag erzählt nicht erneut die Unfall-Chronologie, sondern verdichtet die Erfahrungen zu einem Runbook, das sich Phase für Phase ausführen lässt.</p>
+<p>„Alles auf einmal“ heißt nicht, dass ein einziger Befehl alle Knoten und Geschäftsanwendungen startet. Es heißt: Innerhalb des Migrationsfensters werden ausschließlich verifizierte, versionierte Artefakte ausgeführt – YAML, Nacos, Service-IPs, Knoten-Taints und Firewalls werden nicht mehr ad hoc geändert.</p>
+<h2 id="grundprinzip-bei-einem-fehlschlag-in-der-vorherigen-phase-stoppen">Grundprinzip: Bei einem Fehlschlag in der vorherigen Phase stoppen</h2>
+<pre><code class="language-mermaid">flowchart LR
+  A["Design einfrieren"] --> B["Backup- und Wiederherstellungsübung"]
+  B --> C["Betriebssystem-Basislinie"]
+  C --> D["Hochverfügbare Control Plane"]
+  D --> E["CNI und Infrastruktur"]
+  E --> F["Predeployment mit null Replicas"]
+  F --> G["Datenwiederherstellung"]
+  G --> H["Nacos und Plattform-Abhängigkeiten"]
+  H --> I["Geschäftsstart in Batches"]
+  I --> J["Reale Geschäftsabnahme"]
+  J --> K["Ingress-Umschaltung"]
+</code></pre>
+<p>Jeder Pfeil ist eine harte Hürde. Bei einem Fehlschlag sind nur diese Schritte erlaubt:</p>
+<ol>
+<li>Den aktuellen Batch zurückrollen.</li>
+<li>Die Quellkonfiguration in Git korrigieren.</li>
+<li>Den Dry-Run erneut durchführen und das Review wiederholen.</li>
+<li>Ab der fehlgeschlagenen Phase neu ausführen.</li>
+</ol>
+<p>Konfigurationsfehler dürfen nicht mit <code>kubectl edit</code>, temporären Patches, festen Sleeps oder Pod-Neustarts übertüncht werden.</p>
+<h2 id="phase-0-die-unveränderliche-basislinie-einfrieren">Phase 0: Die unveränderliche Basislinie einfrieren</h2>
+<p>Vor der Erstellung des ersten Control-Plane-Knotens einfrieren:</p>
+<ul>
+<li>Versionen von Kubernetes, kubeadm, kubelet und kubectl.</li>
+<li>Versionen von Betriebssystem und containerd.</li>
+<li>Control-Plane-Knoten und die API-VIP.</li>
+<li>Pod CIDR, Service CIDR und Cluster-DNS-Domain.</li>
+<li>Auswahl von CNI, Ingress, StorageClass und metrics-server.</li>
+<li>Nacos-Version und Cluster-Modus.</li>
+<li>Image-Quellen und Digests.</li>
+<li>Node-Pools, Labels, Taints und Tolerations.</li>
+</ul>
+<p>Die drei Netzarten müssen klar voneinander abgegrenzt sein:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Netz</th><th>Verwendung</th><th>In die Anwendungskonfiguration schreiben?</th></tr></thead><tbody><tr><td>Knotennetz</td><td>VMs, Knoten und wenige externe Abhängigkeiten</td><td>Nur wenn wirklich nötig</td></tr><tr><td>Pod CIDR</td><td>Von der CNI vergebene Pod-IPs</td><td>Nein</td></tr><tr><td>Service CIDR</td><td>ClusterIP</td><td>Nur in der Kompatibilitäts-Whitelist</td></tr></tbody></table>
+<p>Anwendungen verwenden intern standardmäßig:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>&#x3C;service>.&#x3C;namespace>.svc.cluster.local:&#x3C;port></span></span></code></pre>
+<h2 id="phase-1-alle-eingaben-vorbereiten">Phase 1: Alle Eingaben vorbereiten</h2>
+<p>Vor der Ausführung muss Folgendes vorliegen:</p>
+<ul>
+<li>Inventar von Servern, VMs, Festplatten und Node-Pools.</li>
+<li>Zuordnung von alten zu neuen Hostnamen.</li>
+<li>etcd-Snapshot und Archiv der Kubernetes-Ressourcen.</li>
+<li>Backups von Datenbanken, Messaging-Systemen und Dateispeichern.</li>
+<li>Nacos-Namespaces, Groups, DataIds, Inhalte und Prüfwerte.</li>
+<li>Inventar von Images und Digests.</li>
+<li>Ersetzungstabelle für Service-DNS und Whitelist der festen ClusterIPs.</li>
+<li>Zuordnung von Domains, Zertifikaten, Ingress und dem äußeren Einstiegspunkt.</li>
+<li>Verantwortliche für das Rollback, Abbruchkriterien und Wiederherstellungsbefehle.</li>
+</ul>
+<p>Fehlt eine dieser Eingaben, darf ein alter Knoten, der noch Daten trägt, nicht neu installiert werden.</p>
+<h2 id="phase-2-die-wiederherstellungsübung-abschließen">Phase 2: Die Wiederherstellungsübung abschließen</h2>
+<p>Die Backup-Matrix lässt sich wie folgt aufbauen:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Dienst</th><th>Backup</th><th>Abnahme</th></tr></thead><tbody><tr><td>etcd</td><td>snapshot</td><td>Isolierte Wiederherstellung; API-Objekte lesbar</td></tr><tr><td>MySQL</td><td>Vollbackup, Benutzerrechte, Binlog</td><td>Wichtige Tabellen, Zeilenzahlen, Abfragen mit Anwendungskonto</td></tr><tr><td>PostgreSQL</td><td>dump/base backup, Rollen, WAL</td><td>Schema, Erweiterungen, Anwendungsabfragen</td></tr><tr><td>MongoDB</td><td>dump/snapshot, Authentifizierungsdatenbank</td><td>Collections, Indizes, Geschäftsabfragen</td></tr><tr><td>Redis</td><td>RDB/AOF, Konfiguration</td><td>PING, Stichproben wichtiger Keys, TTL-Stichproben</td></tr><tr><td>Kafka</td><td>Topic, Partition, Offset</td><td>Broker, ISR, Consumer Groups</td></tr><tr><td>RabbitMQ</td><td>Definitions, Vhosts, Benutzer</td><td>Exchanges, Queues, Bindings</td></tr><tr><td>NFS/hostPath</td><td>Datei- oder Speicher-Snapshots</td><td>Dateianzahl, Kapazität, Checksummen-Stichproben</td></tr></tbody></table>
+<p>Dass die Backup-Datei existiert, ist noch kein Abschluss. Erst die Wiederherstellungsübung ist die Hürde.</p>
+<h2 id="phase-3-alle-konfigurationsänderungen-zuerst-in-git">Phase 3: Alle Konfigurationsänderungen zuerst in Git</h2>
+<p>Vor der Migration folgende statische Governance abschließen:</p>
+<ul>
+<li>Interne URLs auf Service-DNS umstellen.</li>
+<li>Pod-IP-Referenzen auf null reduzieren.</li>
+<li>Feste ClusterIPs nur noch in der Whitelist belassen.</li>
+<li>Kafka advertised listener einzeln prüfen, keine String-Ersetzung.</li>
+<li>Ressourcen, Probes, Scheduling, DNS und Graceful Shutdown der Deployments vereinheitlichen.</li>
+<li>Exportierte Objekte von Nur-Lese-Feldern und Alt-Metadaten der Verwaltungsplattform bereinigen.</li>
+<li>Deployments und StatefulSets starten mit 0 Replicas.</li>
+<li>CronJobs starten mit <code>suspend=true</code>.</li>
+</ul>
+<p>Häufige statische Scans:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">rg</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> '&#x3C;pod-cidr-pattern>'</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> config/</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> manifests/</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">rg</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> '&#x3C;service-cidr-pattern>'</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> config/</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> manifests/</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">rg</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'node[0-9]+'</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> manifests/</span></span></code></pre>
+<p>Scan-Ergebnisse dürfen nicht pauschal ersetzt werden. Jeder Treffer muss als Service, Knoten, externe Abhängigkeit oder Alt-Konfiguration eingeordnet werden.</p>
+<h2 id="phase-4-einheitliche-knoten-basislinie">Phase 4: Einheitliche Knoten-Basislinie</h2>
+<p>Nach der Neuinstallation läuft auf jedem Knoten dasselbe Skript:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">swapoff</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -a</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">modprobe</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> overlay</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">modprobe</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> br_netfilter</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">sysctl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --system</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">systemctl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> enable</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --now</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> containerd</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">systemctl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> enable</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> kubelet</span></span></code></pre>
+<p>Abnahme Knoten für Knoten:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">hostnamectl</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">ip</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> address</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">ip</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> route</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">timedatectl</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">swapon</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --show</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">systemctl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> is-active</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> containerd</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">crictl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> info</span></span></code></pre>
+<p>firewalld-Regeln müssen vor kubeadm gesetzt sein. Alle Knoten müssen das Weiterleiten der Pod CIDR erlauben; für <code>hostNetwork</code>-Dienste werden minimal gehaltene Freigaberegeln für die tatsächlichen Ports ergänzt.</p>
+<h2 id="phase-5-control-plane-erstellen">Phase 5: Control Plane erstellen</h2>
+<p>Die Reihenfolge ist fest vorgegeben:</p>
+<ol>
+<li>Den ersten Control-Plane-Knoten initialisieren.</li>
+<li>kube-vip bereitstellen und die API-VIP verifizieren.</li>
+<li>Die übrigen Control-Plane-Knoten beitreten lassen.</li>
+<li>Die etcd-Mitglieder prüfen.</li>
+<li>Den VIP-Leader-Failover testen.</li>
+<li>Die Worker-Join-Befehle erzeugen und sicher aufbewahren.</li>
+</ol>
+<p>Abnahme der Control Plane:</p>
+<ul>
+<li>Die API-VIP ist durchgehend erreichbar.</li>
+<li>Alle drei Control-Plane-Knoten sind Ready.</li>
+<li>Alle drei etcd-Mitglieder sind gesund.</li>
+<li>Die kubeconfig zeigt auf die VIP und nicht auf einen einzelnen Host.</li>
+<li>Das Zertifikats-SAN enthält die tatsächlichen Zugriffsadressen.</li>
+</ul>
+<h2 id="phase-6-netzwerk-und-infrastruktur-installieren">Phase 6: Netzwerk und Infrastruktur installieren</h2>
+<p>Nach der CNI-Installation zuerst Pod-IPs über Knotengrenzen hinweg, CoreDNS, Service-ClusterIPs und externe DNS verifizieren.</p>
+<p>Danach in dieser Reihenfolge installieren:</p>
+<ol>
+<li>Die Standard-StorageClass.</li>
+<li>metrics-server.</li>
+<li>Den Ingress Controller.</li>
+<li>Logging und Monitoring.</li>
+</ol>
+<p>Pro Node-Pool mindestens einmal einen PVC-Smoke-Test ausführen; das Metriksystem gilt erst als nutzbar, wenn <code>kubectl top nodes</code> und <code>kubectl top pods -A</code> Daten liefern.</p>
+<h2 id="phase-7-labels-taints-und-predeployment-mit-null-replicas">Phase 7: Labels, Taints und Predeployment mit null Replicas</h2>
+<p>Nach dem Beitritt eines Knotens sofort die Ziel-Labels und Taints setzen, damit nicht markierte Knoten nicht am Scheduling teilnehmen.</p>
+<p>Für zustandsbehaftete Dienste mit mehreren Replicas required Pod Anti-Affinity verwenden:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">podAntiAffinity</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  requiredDuringSchedulingIgnoredDuringExecution</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    - </span><span style="color:#22863A;--shiki-dark:#85E89D">topologyKey</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">kubernetes.io/hostname</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">      labelSelector</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">        matchLabels</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">          app</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">zookeeper</span></span></code></pre>
+<p>Harte Prüfungen nach dem Predeployment:</p>
+<ul>
+<li>PVCs sind Bound oder haben einen expliziten Wiederherstellungsplan.</li>
+<li>Service-Selektoren stimmen exakt mit den Pod-Labels überein.</li>
+<li>Feste ClusterIPs kollidieren nicht.</li>
+<li>Alle Images sind pullbar.</li>
+<li>Es existieren keine alten Hostnamen.</li>
+<li>Deaktivierte Umgebungen bleiben bei 0 Replicas.</li>
+</ul>
+<h2 id="phase-8-datenwiederherstellung">Phase 8: Datenwiederherstellung</h2>
+<p>Feste Reihenfolge:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>存储</span></span>
+<span class="line"><span>→ 基础数据库与消息组件</span></span>
+<span class="line"><span>→ Kafka</span></span>
+<span class="line"><span>→ PostgreSQL 与辅助服务</span></span>
+<span class="line"><span>→ Nacos 数据库</span></span>
+<span class="line"><span>→ Nacos</span></span></code></pre>
+<p>Jeder Dienst muss über drei Einstiegspunkte verifiziert werden: Pod auf demselben Knoten, Pod auf einem anderen Knoten und Service-DNS. Wer nur auf den Pod-Status Ready schaut, erkennt weder kube-proxy-, firewalld- noch DNS-Probleme.</p>
+<h2 id="phase-9-nacos-cluster-abnehmen">Phase 9: Nacos-Cluster abnehmen</h2>
+<p>Die drei Nacos-Pods benötigen zwei Arten von Services:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Service</th><th>Typ</th><th>Verwendung</th></tr></thead><tbody><tr><td><code>nacos-hs</code></td><td>Headless</td><td>Stabile DNS der Mitglieder und Cluster-Kommunikation</td></tr><tr><td><code>nacos-cs</code></td><td>ClusterIP</td><td>Einheitlicher Einstiegspunkt für Clients</td></tr></tbody></table>
+<p>Abnahme auf drei Ebenen:</p>
+<ol>
+<li>Alle drei Mitglieder sind gesund.</li>
+<li>Der Laufmodus-Schalter ist auf allen drei Knoten identisch.</li>
+<li>Nach der Registrierung eines Test-Clients finden alle drei Knoten dieselbe Instanz.</li>
+</ol>
+<p>Erst danach die Nacos-Konfiguration importieren und Namespace, Group, DataId und Prüfwert einzeln zurücklesen.</p>
+<h2 id="phase-10-plattform-abhängigkeiten-und-gestaffelter-geschäftsstart">Phase 10: Plattform-Abhängigkeiten und gestaffelter Geschäftsstart</h2>
+<p>Zuerst Plattform-Abhängigkeiten starten – Authentifizierung, Wörterbuch, Dateien, Workflows –, danach OAuth, Gateway und DevOps. Der erste Authentifizierungsdienst ist eine harte Hürde:</p>
+<ul>
+<li>Deployment Ready.</li>
+<li>Der Service hat Endpoints.</li>
+<li>Die Instanzen sind auf den drei Nacos-Knoten identisch.</li>
+<li>OAuth ist über Service-DNS erreichbar.</li>
+<li>Ein ungültiger Login liefert einen klaren Geschäftsfehler statt „keine verfügbaren Instanzen“.</li>
+</ul>
+<p>Es wird immer nur ein Geschäfts-Namespace gleichzeitig gestartet. Erst wenn der gesamte Batch bestanden ist, geht es mit dem nächsten weiter.</p>
+<h2 id="phase-11-ingress-und-reale-geschäftsabnahme">Phase 11: Ingress und reale Geschäftsabnahme</h2>
+<p>Zuerst den äußeren Einstiegspunkt umgehen und den Ingress direkt ansprechen:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">curl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --resolve</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> app.example.com:443:</span><span style="color:#D73A49;--shiki-dark:#F97583">&#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">ingress-addres</span><span style="color:#24292E;--shiki-dark:#E1E4E8">s</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  https://app.example.com/</span></span></code></pre>
+<p>Nach dem Erfolg im Cluster die Host/SNI-Weiterleitung auf Router-, NLB- oder Proxy-Ebene konfigurieren. Liefert die Anwendung im Cluster 200, schlägt aber der Zugriff über das öffentliche Netz fehl, dürfen die Kubernetes-Geschäftsressourcen nicht verändert werden.</p>
+<p>Die reale Abnahme deckt mindestens ab:</p>
+<ul>
+<li>Erfolgreichen Login, fehlgeschlagenen Login und Token-Refresh.</li>
+<li>Berechtigungen, Dateien und Session.</li>
+<li>Datenbank-Lesen und -Schreiben.</li>
+<li>Kafka/RabbitMQ produzieren und konsumieren.</li>
+<li>WebSocket.</li>
+<li>CI/CD-Upload und -Release.</li>
+</ul>
+<h2 id="automatische-abbruchkriterien">Automatische Abbruchkriterien</h2>
+<p>In folgenden Situationen sofort stoppen:</p>
+<ul>
+<li>etcd- oder Datenbank-Backup kann nicht wiederhergestellt werden.</li>
+<li>Netz-CIDRs kollidieren.</li>
+<li>Der API-VIP-Failover schlägt fehl.</li>
+<li>CNI oder kube-proxy ist nicht vollständig bereit.</li>
+<li>Die Datenprüfung ist inkonsistent.</li>
+<li>Die Nacos-Instanzen sind auf den drei Knoten inkonsistent.</li>
+<li>Die zentrale Authentifizierungskette ist nicht verfügbar.</li>
+<li>Nicht akzeptable Daten-Schreibfehler treten auf.</li>
+<li>Ein Fehler im öffentlichen Netz ließe sich nur durch Änderungen an Geschäfts-Pods umgehen.</li>
+</ul>
+<h2 id="go-no-go-checkliste">Go-/No-Go-Checkliste</h2>
+<ul class="contains-task-list">
+<li class="task-list-item"><input type="checkbox" disabled> Server- und Node-Pool-Inventar ohne Duplikate und Lücken.</li>
+<li class="task-list-item"><input type="checkbox" disabled> Versionen, Netzwerk und Images eingefroren.</li>
+<li class="task-list-item"><input type="checkbox" disabled> etcd- und Datenbank-Wiederherstellungsübung abgeschlossen.</li>
+<li class="task-list-item"><input type="checkbox" disabled> Dateispeicher gesichert.</li>
+<li class="task-list-item"><input type="checkbox" disabled> Nacos-Konfiguration exportiert, auf DNS umgestellt und zurückgelesen.</li>
+<li class="task-list-item"><input type="checkbox" disabled> Whitelist der festen ClusterIPs geprüft.</li>
+<li class="task-list-item"><input type="checkbox" disabled> Labels, Taints und Tolerations paarweise validiert.</li>
+<li class="task-list-item"><input type="checkbox" disabled> Firewall-Initialisierungsskript verifiziert.</li>
+<li class="task-list-item"><input type="checkbox" disabled> Inventar der beiden Nacos-Service-Typen vollständig.</li>
+<li class="task-list-item"><input type="checkbox" disabled> Domains, Zertifikate und Einstiegs-Zuordnungen vorbereitet.</li>
+<li class="task-list-item"><input type="checkbox" disabled> Alle Ressourcen können mit null Replicas vorbereitet werden.</li>
+<li class="task-list-item"><input type="checkbox" disabled> Reale Abnahme-Anfragen und erwartete Ergebnisse vorbereitet.</li>
+<li class="task-list-item"><input type="checkbox" disabled> Rollback-Einstiegspunkte, Verantwortliche und Abbruchkriterien bestätigt.</li>
+</ul>
+<h2 id="definition-of-done">Definition of Done</h2>
+<p>Die Migration ist erst abgeschlossen, wenn alle folgenden Punkte gleichzeitig erfüllt sind:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>全部节点 Ready</span></span>
+<span class="line"><span>+ 基础组件健康</span></span>
+<span class="line"><span>+ 数据恢复并通过应用查询</span></span>
+<span class="line"><span>+ Nacos 三节点一致</span></span>
+<span class="line"><span>+ Service DNS 与 Endpoint 正常</span></span>
+<span class="line"><span>+ 活跃业务全部 Ready</span></span>
+<span class="line"><span>+ 登录与核心业务成功</span></span>
+<span class="line"><span>+ 公网入口成功</span></span>
+<span class="line"><span>+ 配置和脚本已进入 Git</span></span>
+<span class="line"><span>+ 旧集群经过观察窗口后下线</span></span></code></pre>
+<p>Der wahre Wert eines Runbooks liegt nicht darin, den Betrieb „mechanischer“ zu machen, sondern Ad-hoc-Entscheidungen, die vom persönlichen Gedächtnis abhingen, in einen technischen Prozess zu überführen, der geprüft, pausiert, zurückgerollt und reproduziert werden kann.</p> </div> <aside class="table-of-contents" aria-label="Inhaltsverzeichnis" data-pagefind-ignore> <p>ON THIS PAGE</p> <ol> <li> <a href="#grundprinzip-bei-einem-fehlschlag-in-der-vorherigen-phase-stoppen" data-analytics-event="toc_click" data-analytics-target="grundprinzip-bei-einem-fehlschlag-in-der-vorherigen-phase-stoppen"> Grundprinzip: Bei einem Fehlschlag in der vorherigen Phase stoppen </a> </li><li> <a href="#phase-0-die-unveränderliche-basislinie-einfrieren" data-analytics-event="toc_click" data-analytics-target="phase-0-die-unveränderliche-basislinie-einfrieren"> Phase 0: Die unveränderliche Basislinie einfrieren </a> </li><li> <a href="#phase-1-alle-eingaben-vorbereiten" data-analytics-event="toc_click" data-analytics-target="phase-1-alle-eingaben-vorbereiten"> Phase 1: Alle Eingaben vorbereiten </a> </li><li> <a href="#phase-2-die-wiederherstellungsübung-abschließen" data-analytics-event="toc_click" data-analytics-target="phase-2-die-wiederherstellungsübung-abschließen"> Phase 2: Die Wiederherstellungsübung abschließen </a> </li><li> <a href="#phase-3-alle-konfigurationsänderungen-zuerst-in-git" data-analytics-event="toc_click" data-analytics-target="phase-3-alle-konfigurationsänderungen-zuerst-in-git"> Phase 3: Alle Konfigurationsänderungen zuerst in Git </a> </li><li> <a href="#phase-4-einheitliche-knoten-basislinie" data-analytics-event="toc_click" data-analytics-target="phase-4-einheitliche-knoten-basislinie"> Phase 4: Einheitliche Knoten-Basislinie </a> </li><li> <a href="#phase-5-control-plane-erstellen" data-analytics-event="toc_click" data-analytics-target="phase-5-control-plane-erstellen"> Phase 5: Control Plane erstellen </a> </li><li> <a href="#phase-6-netzwerk-und-infrastruktur-installieren" data-analytics-event="toc_click" data-analytics-target="phase-6-netzwerk-und-infrastruktur-installieren"> Phase 6: Netzwerk und Infrastruktur installieren </a> </li><li> <a href="#phase-7-labels-taints-und-predeployment-mit-null-replicas" data-analytics-event="toc_click" data-analytics-target="phase-7-labels-taints-und-predeployment-mit-null-replicas"> Phase 7: Labels, Taints und Predeployment mit null Replicas </a> </li><li> <a href="#phase-8-datenwiederherstellung" data-analytics-event="toc_click" data-analytics-target="phase-8-datenwiederherstellung"> Phase 8: Datenwiederherstellung </a> </li><li> <a href="#phase-9-nacos-cluster-abnehmen" data-analytics-event="toc_click" data-analytics-target="phase-9-nacos-cluster-abnehmen"> Phase 9: Nacos-Cluster abnehmen </a> </li><li> <a href="#phase-10-plattform-abhängigkeiten-und-gestaffelter-geschäftsstart" data-analytics-event="toc_click" data-analytics-target="phase-10-plattform-abhängigkeiten-und-gestaffelter-geschäftsstart"> Phase 10: Plattform-Abhängigkeiten und gestaffelter Geschäftsstart </a> </li><li> <a href="#phase-11-ingress-und-reale-geschäftsabnahme" data-analytics-event="toc_click" data-analytics-target="phase-11-ingress-und-reale-geschäftsabnahme"> Phase 11: Ingress und reale Geschäftsabnahme </a> </li><li> <a href="#automatische-abbruchkriterien" data-analytics-event="toc_click" data-analytics-target="automatische-abbruchkriterien"> Automatische Abbruchkriterien </a> </li><li> <a href="#go-no-go-checkliste" data-analytics-event="toc_click" data-analytics-target="go-no-go-checkliste"> Go-/No-Go-Checkliste </a> </li><li> <a href="#definition-of-done" data-analytics-event="toc_click" data-analytics-target="definition-of-done"> Definition of Done </a> </li> </ol> </aside> </div> <script type="module" src="/_astro/MermaidEnhancer.astro_astro_type_script_index_0_lang.DnWaDEwA.js"></script> <dialog class="image-lightbox" data-image-lightbox data-locale="de" aria-labelledby="lightbox-caption"> <div class="image-lightbox-inner"> <button type="button" class="image-lightbox-close" aria-label="Bildvorschau schließen">
+×
+</button> <img alt="" decoding="async"> <p id="lightbox-caption" hidden></p> </div> </dialog> <script type="module" src="/_astro/ImageLightbox.astro_astro_type_script_index_0_lang.Db8U22Iw.js"></script> <div class="reading-progress" aria-hidden="true"><span></span></div> <div class="article-actions" data-reading-tools data-locale="de" data-title="Kubernetes-Neuaufbau-Runbook: Ad-hoc-Feuerwehr durch stufenweise Abnahme ersetzen" data-href="https://lucaslz.com/de/kubernetes/kubeadm-cluster-rebuild-migration-runbook/"> <button type="button" data-share aria-label="Teilen"> Teilen </button> <button type="button" data-copy-link aria-label="Link kopieren"> Link kopieren </button> <button type="button" data-bookmark aria-label="Lesezeichen" aria-pressed="false"> Lesezeichen </button> </div> <button class="back-to-top" type="button" aria-label="Nach oben" hidden>↑</button> <div class="reading-toast" role="status" aria-live="polite"></div> <script type="module" src="/_astro/ReadingTools.astro_astro_type_script_index_0_lang.CXpXB1Lm.js"></script> <footer class="post-footer page-shell narrow-shell" data-pagefind-ignore> <div class="post-end-mark"><span>END</span></div> <p>Danke fürs Lesen. Sie können den Artikel teilen, als Lesezeichen speichern oder unten an der Diskussion teilnehmen.</p> <section class="related-posts" aria-labelledby="related-title"> <div class="related-heading"> <span>CONTINUE READING</span> <h2 id="related-title">Verwandte Artikel</h2> </div> <div class="related-grid"> <article class="article-card compact"> <a class="article-card-link" href="/de/nexus/nexus3-kubernetes-cutover-runbook/" data-analytics-event="article_click" data-analytics-impression="article_impression" data-analytics-target="/de/nexus/nexus3-kubernetes-cutover-runbook/"> <div class="article-card-top"> <span class="article-index">01</span> <span class="article-date">05.08.2026</span> </div> <h3>Nexus3 Kubernetes-Migrations-Runbook: H2, PostgreSQL, Probes und nahtloser Wechsel</h3> <p>Ein ausführbares Kubernetes-Runbook für die Migration von Nexus2 auf Nexus3, das Ressourcen-Erstellung, Upgrade Wizard, H2-Upgrade, Database Migrator, Verifikation und VIP-Rollback abdeckt.</p> <div class="article-card-bottom"> <div class="article-tags"> <span data-href="/de/tags/nexus/">
+#Nexus </span><span data-href="/de/tags/kubernetes/">
+#Kubernetes </span><span data-href="/de/tags/runbook/">
+#Runbook </span> </div> <span class="read-time">7 Min. Lesezeit <b>↗</b></span> </div> </a> </article><article class="article-card compact"> <a class="article-card-link" href="/de/nexus/nexus2-to-nexus3-kubernetes-postgresql/" data-analytics-event="article_click" data-analytics-impression="article_impression" data-analytics-target="/de/nexus/nexus2-to-nexus3-kubernetes-postgresql/"> <div class="article-card-top"> <span class="article-index">02</span> <span class="article-date">12.07.2026</span> </div> <h3>Reibungslose Migration von Nexus Repository 2 zu Nexus 3: Kubernetes, PostgreSQL und VIP-Wechsel</h3> <p>Der komplette Migrationspfad von Nexus2 zu Nexus3: offizieller Upgrade-Wizard, H2-Versionsupgrade, PostgreSQL-Datenmigration, Kubernetes-StatefulSet, Kompatibilität der alten Pfade und VIP-Rollback.</p> <div class="article-card-bottom"> <div class="article-tags"> <span data-href="/de/tags/nexus/">
+#Nexus </span><span data-href="/de/tags/kubernetes/">
+#Kubernetes </span><span data-href="/de/tags/postgresql/">
+#PostgreSQL </span> </div> <span class="read-time">9 Min. Lesezeit <b>↗</b></span> </div> </a> </article><article class="article-card compact"> <a class="article-card-link" href="/de/kubernetes/kubeadm-cluster-rebuild-migration-retrospective/" data-analytics-event="article_click" data-analytics-impression="article_impression" data-analytics-target="/de/kubernetes/kubeadm-cluster-rebuild-migration-retrospective/"> <div class="article-card-top"> <span class="article-index">03</span> <span class="article-date">30.05.2026</span> </div> <h3>Kubernetes v1.36.3 von Grund auf aufbauen: Vollständiges kubeadm-Tutorial mit Rocky Linux</h3> <p>Ausgehend von Netzwerkplanung und Rocky-Linux-Initialisierung einen kubeadm-Hochverfügbarkeits-Cluster Schritt für Schritt aufbauen, kube-vip, Calico, Metriken, Storage und Ingress installieren und den Cluster abschließend abnehmen.</p> <div class="article-card-bottom"> <div class="article-tags"> <span data-href="/de/tags/kubernetes/">
+#Kubernetes </span><span data-href="/de/tags/kubeadm/">
+#kubeadm </span><span data-href="/de/tags/rocky-linux/">
+#Rocky Linux </span> </div> <span class="read-time">17 Min. Lesezeit <b>↗</b></span> </div> </a> </article> </div> </section> <div class="post-navigation"> <a href="/de/kubernetes/kubernetes-stateful-services-migration/" class="previous-post" data-analytics-event="article_click" data-analytics-target="/de/kubernetes/kubernetes-stateful-services-migration/">  <small>← Vorheriger</small> <strong>MySQL, Redis, Kafka, RabbitMQ und Zookeeper bei einem Kubernetes-Cluster-Neuaufbau migrieren</strong>  </a> <a href="/de/nexus/nexus3-kubernetes-deployment/" class="next-post" data-analytics-event="article_click" data-analytics-target="/de/nexus/nexus3-kubernetes-deployment/">  <small>Nächster →</small> <strong>Nexus Repository 3 von Grund auf in Kubernetes deployen: PostgreSQL, PVC und Ingress</strong>  </a> </div> </footer> </article> <div class="page-shell narrow-shell" data-pagefind-ignore> <section class="comments-section" aria-labelledby="comments-title" data-giscus-comments data-repo="lucaslz2020/lucasleelz.github.io" data-repo-id="MDEwOlJlcG9zaXRvcnkyNzcxNjkwNw==" data-category="Announcements" data-category-id="DIC_kwDOAabtK84DCw-x" data-discussion-path="/kubernetes/kubeadm-cluster-rebuild-migration-runbook/" data-giscus-language="de"> <div class="comments-heading"> <p class="eyebrow"> <span></span>
+DISCUSSION
+</p> <h2 id="comments-title">Diskussion &amp; Feedback</h2> </div> <div class="giscus" aria-live="polite"></div> </section> <script type="module">var e=()=>document.documentElement.dataset.theme===`dark`?`noborder_dark`:`noborder_light`,t=t=>{if(t.dataset.loaded===`true`)return;let n=t.querySelector(`.giscus`);if(!n)return;let r=document.createElement(`script`);r.src=`https://giscus.app/client.js`,r.async=!0,r.crossOrigin=`anonymous`,r.dataset.repo=t.dataset.repo??``,r.dataset.repoId=t.dataset.repoId??``,r.dataset.category=t.dataset.category??``,r.dataset.categoryId=t.dataset.categoryId??``,r.dataset.mapping=`specific`,r.dataset.term=t.dataset.discussionPath??window.location.pathname,r.dataset.strict=`1`,r.dataset.reactionsEnabled=`1`,r.dataset.emitMetadata=`0`,r.dataset.inputPosition=`top`,r.dataset.theme=e(),r.dataset.lang=t.dataset.giscusLanguage??`zh-CN`,r.dataset.loading=`lazy`,t.dataset.loaded=`true`,n.append(r)},n=document.querySelector(`[data-giscus-comments]`);if(n){if(`IntersectionObserver`in window){let e=new IntersectionObserver(r=>{r.some(e=>e.isIntersecting)&&(t(n),e.disconnect())},{rootMargin:`500px 0px`});e.observe(n)}else t(n)}window.addEventListener(`theme-change`,()=>{document.querySelector(`iframe.giscus-frame`)?.contentWindow?.postMessage({giscus:{setConfig:{theme:e()}}},`https://giscus.app`)});</script> </div>  </main> <footer class="site-footer"> <div class="footer-inner"> <div class="footer-brand"> <img class="brand-mark" src="/brand/avatar.svg" alt="" width="42" height="42" loading="lazy" decoding="async"> <div> <strong>lucaslz</strong> <p>Langfristige technische Notizen zu Softwareentwicklung, Web, Java und kontinuierlichem Lernen.</p> </div> </div> <div class="footer-links"> <a href="/de/rss.xml">RSS</a> <a href="/de/archive/">Archiv</a> <a href="/de/tags/">Tags</a> <a href="https://github.com/lucaslz2020" target="_blank" rel="noreferrer">GitHub</a> </div> </div> <div class="footer-bottom"> <span>© 2013 ~ 2026 lucaslz</span> <span>Built with Astro + React · Deployed on Cloudflare Pages</span> </div> </footer> <script type="module" src="/_astro/Analytics.astro_astro_type_script_index_0_lang.EOcdV3vz.js"></script> <aside class="pwa-notice" data-pwa-notice data-locale="de" data-mode="status" aria-label="App-Status" aria-live="polite" aria-atomic="true" hidden> <span class="pwa-notice-icon" data-pwa-icon aria-hidden="true">↧</span> <p> <strong data-pwa-title>Bereit für Offline-Lesen</strong> <small data-pwa-message>Besuchte Artikel können auch ohne Internetverbindung gelesen werden.</small> </p> <div class="pwa-notice-actions"> <button type="button" data-pwa-action hidden> Jetzt installieren </button> <button type="button" data-pwa-dismiss>Verstanden</button> </div> </aside> <script type="module" src="/_astro/Pwa.astro_astro_type_script_index_0_lang.goX2jG5I.js"></script> </body> </html>
