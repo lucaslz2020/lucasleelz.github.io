@@ -1,0 +1,277 @@
+<!DOCTYPE html><html lang="zh-Hant-TW" data-theme="light" data-locale="zh-TW"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="generator" content="Astro v7.1.6"><meta name="author" content="lucaslz"><meta name="theme-color" content="#f5f1e8" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)"><meta name="description" content="記錄 Nexus2 到 Nexus3 的完整遷移路徑：官方 Upgrade Wizard、H2 版本升級、PostgreSQL 資料遷移、Kubernetes StatefulSet、舊路徑相容與 VIP 回滾。"><meta name="google-site-verification" content="o_QOQN3-adA79KPRfqy1wAj9zviE8hyD5jvfdQEMVco"><meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"><meta name="keywords" content="Nexus, Kubernetes, PostgreSQL, Maven, DevOps, Nexus2 升級 Nexus3, Nexus Kubernetes, Nexus PostgreSQL, Database Migrator, Maven 私服"><link rel="canonical" href="https://lucaslz.com/zh-tw/nexus/nexus2-to-nexus3-kubernetes-postgresql/"><link rel="alternate" hreflang="zh-CN" href="https://lucaslz.com/nexus/nexus2-to-nexus3-kubernetes-postgresql/"><link rel="alternate" hreflang="en" href="https://lucaslz.com/en/nexus/nexus2-to-nexus3-kubernetes-postgresql/"><link rel="alternate" hreflang="zh-Hant-TW" href="https://lucaslz.com/zh-tw/nexus/nexus2-to-nexus3-kubernetes-postgresql/"><link rel="alternate" hreflang="x-default" href="https://lucaslz.com/nexus/nexus2-to-nexus3-kubernetes-postgresql/"><link rel="author" href="https://github.com/lucaslz2020"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon.ico" sizes="any"><link rel="apple-touch-icon" href="/icons/apple-touch-icon.png"><link rel="alternate" type="application/rss+xml" title="lucaslz · 工程筆記" href="/zh-tw/rss.xml"><link rel="manifest" href="/site.webmanifest"><title>從 Nexus Repository 2 平滑遷移到 Nexus 3：Kubernetes、PostgreSQL 與 VIP 切換 · lucaslz</title><meta property="og:type" content="article"><meta property="og:site_name" content="lucaslz · 工程筆記"><meta property="og:title" content="從 Nexus Repository 2 平滑遷移到 Nexus 3：Kubernetes、PostgreSQL 與 VIP 切換 · lucaslz"><meta property="og:description" content="記錄 Nexus2 到 Nexus3 的完整遷移路徑：官方 Upgrade Wizard、H2 版本升級、PostgreSQL 資料遷移、Kubernetes StatefulSet、舊路徑相容與 VIP 回滾。"><meta property="og:url" content="https://lucaslz.com/zh-tw/nexus/nexus2-to-nexus3-kubernetes-postgresql/"><meta property="og:image" content="https://lucaslz.com/og/zh-tw/nexus/nexus2-to-nexus3-kubernetes-postgresql.png"><meta property="og:image:type" content="image/png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="從 Nexus Repository 2 平滑遷移到 Nexus 3：Kubernetes、PostgreSQL 與 VIP 切換 的分享圖片"><meta property="og:locale" content="zh_TW"><meta property="article:published_time" content="2026-07-12T00:00:00.000Z"><meta property="article:author" content="https://github.com/lucaslz2020"><meta property="article:tag" content="Nexus"><meta property="article:tag" content="Kubernetes"><meta property="article:tag" content="PostgreSQL"><meta property="article:tag" content="Maven"><meta property="article:tag" content="DevOps"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="從 Nexus Repository 2 平滑遷移到 Nexus 3：Kubernetes、PostgreSQL 與 VIP 切換 · lucaslz"><meta name="twitter:description" content="記錄 Nexus2 到 Nexus3 的完整遷移路徑：官方 Upgrade Wizard、H2 版本升級、PostgreSQL 資料遷移、Kubernetes StatefulSet、舊路徑相容與 VIP 回滾。"><meta name="twitter:image" content="https://lucaslz.com/og/zh-tw/nexus/nexus2-to-nexus3-kubernetes-postgresql.png"><script>
+      (() => {
+        const saved = localStorage.getItem("theme");
+        const dark = saved
+          ? saved === "dark"
+          : matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+      })();
+    </script><script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Person","@id":"https://lucaslz.com/#person","name":"lucaslz","url":"https://lucaslz.com","sameAs":["https://github.com/lucaslz2020"]},{"@type":"WebSite","@id":"https://lucaslz.com/#website","name":"lucaslz · 工程筆記","alternateName":"lucaslz","description":"關於軟體工程、Web、Java 與持續學習的長期技術筆記。","url":"https://lucaslz.com","inLanguage":"zh-Hant-TW","publisher":{"@id":"https://lucaslz.com/#person"}},{"@type":"BlogPosting","@id":"https://lucaslz.com/zh-tw/nexus/nexus2-to-nexus3-kubernetes-postgresql/#article","url":"https://lucaslz.com/zh-tw/nexus/nexus2-to-nexus3-kubernetes-postgresql/","headline":"從 Nexus Repository 2 平滑遷移到 Nexus 3：Kubernetes、PostgreSQL 與 VIP 切換","description":"記錄 Nexus2 到 Nexus3 的完整遷移路徑：官方 Upgrade Wizard、H2 版本升級、PostgreSQL 資料遷移、Kubernetes StatefulSet、舊路徑相容與 VIP 回滾。","inLanguage":"zh-Hant-TW","datePublished":"2026-07-12T00:00:00.000Z","dateModified":"2026-07-12T00:00:00.000Z","author":{"@id":"https://lucaslz.com/#person","name":"lucaslz"},"publisher":{"@id":"https://lucaslz.com/#person"},"isPartOf":{"@id":"https://lucaslz.com/#website"},"mainEntityOfPage":{"@type":"WebPage","@id":"https://lucaslz.com/zh-tw/nexus/nexus2-to-nexus3-kubernetes-postgresql/"},"image":{"@type":"ImageObject","url":"https://lucaslz.com/og/zh-tw/nexus/nexus2-to-nexus3-kubernetes-postgresql.png","width":1200,"height":630},"articleSection":["Nexus","Kubernetes","PostgreSQL","Maven","DevOps"],"keywords":"Nexus, Kubernetes, PostgreSQL, Maven, DevOps, Nexus2 升級 Nexus3, Nexus Kubernetes, Nexus PostgreSQL, Database Migrator, Maven 私服","wordCount":2289},{"@type":"BreadcrumbList","@id":"https://lucaslz.com/zh-tw/nexus/nexus2-to-nexus3-kubernetes-postgresql/#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"首頁","item":"https://lucaslz.com/zh-tw"},{"@type":"ListItem","position":2,"name":"從 Nexus Repository 2 平滑遷移到 Nexus 3：Kubernetes、PostgreSQL 與 VIP 切換","item":"https://lucaslz.com/zh-tw/nexus/nexus2-to-nexus3-kubernetes-postgresql/"}]}]}</script><style>@layer astro.images{:where([data-astro-image]){height:auto}:where([data-astro-image=full-width]){width:100%}:where([data-astro-image=constrained]){max-width:100%}[data-astro-image-fit=fill]{object-fit:fill}[data-astro-image-fit=contain]{object-fit:contain}[data-astro-image-fit=cover]{object-fit:cover}[data-astro-image-fit=scale-down]{object-fit:scale-down}[data-astro-image-pos=top]{object-position:top}[data-astro-image-pos=bottom]{object-position:bottom}[data-astro-image-pos=left]{object-position:left}[data-astro-image-pos=right]{object-position:right}[data-astro-image-pos=center]{object-position:center}[data-astro-image-pos=top-bottom]{object-position:top bottom}[data-astro-image-pos=top-left]{object-position:top left}[data-astro-image-pos=top-right]{object-position:top right}[data-astro-image-pos=top-center]{object-position:top center}[data-astro-image-pos=bottom-top]{object-position:bottom top}[data-astro-image-pos=bottom-left]{object-position:bottom left}[data-astro-image-pos=bottom-right]{object-position:bottom right}[data-astro-image-pos=bottom-center]{object-position:bottom center}[data-astro-image-pos=left-top]{object-position:left top}[data-astro-image-pos=left-bottom]{object-position:left bottom}[data-astro-image-pos=left-right]{object-position:left right}[data-astro-image-pos=left-center]{object-position:left center}[data-astro-image-pos=right-top]{object-position:right top}[data-astro-image-pos=right-bottom]{object-position:right bottom}[data-astro-image-pos=right-left]{object-position:right left}[data-astro-image-pos=right-center]{object-position:right center}[data-astro-image-pos=center-top]{object-position:center top}[data-astro-image-pos=center-bottom]{object-position:center bottom}[data-astro-image-pos=center-left]{object-position:center left}[data-astro-image-pos=center-right]{object-position:center right}}
+</style><link rel="stylesheet" href="/_astro/BaseLayout.BkQFXu0L.css"><script type="module" src="/_astro/page.BS6wqQC3.js"></script></head> <body> <a class="skip-link" href="#main-content">跳至主要內容</a> <header class="site-header"> <div class="header-inner"> <a class="brand" href="/zh-tw/" title="首頁" data-analytics-event="nav_click" data-analytics-target="home"> <img class="brand-mark" src="/brand/avatar.svg" alt="" width="42" height="42" decoding="async"> <span class="brand-copy"> <strong>lucaslz</strong> <small>ENGINEERING NOTES</small> </span> </a> <nav class="desktop-nav" aria-label="主要導覽"> <a href="/zh-tw/" data-analytics-event="nav_click" data-analytics-target="首頁" aria-current="page"> 首頁 </a><a href="/zh-tw/archive/" data-analytics-event="nav_click" data-analytics-target="彙整"> 彙整 </a><a href="/zh-tw/tags/" data-analytics-event="nav_click" data-analytics-target="標籤"> 標籤 </a> <a href="https://github.com/lucaslz2020" target="_blank" rel="noreferrer">GitHub ↗</a> </nav> <style>astro-island,astro-slot,astro-static-slot{display:contents}</style><script>(()=>{var e=async t=>{await(await t())()};(self.Astro||(self.Astro={})).load=e;window.dispatchEvent(new Event("astro:load"));})();</script><script>(()=>{var g=Object.defineProperty;var w=(a,s,c)=>s in a?g(a,s,{enumerable:!0,configurable:!0,writable:!0,value:c}):a[s]=c;var l=(a,s,c)=>w(a,typeof s!="symbol"?s+"":s,c);var E=new Set(["__proto__","constructor","prototype"]);{let a={0:t=>y(t),1:t=>c(t),2:t=>new RegExp(t),3:t=>new Date(t),4:t=>new Map(c(t)),5:t=>new Set(c(t)),6:t=>BigInt(t),7:t=>new URL(t),8:t=>new Uint8Array(t),9:t=>new Uint16Array(t),10:t=>new Uint32Array(t),11:t=>Number.POSITIVE_INFINITY*t},s=t=>{let[p,e]=t;return p in a?a[p](e):void 0},c=t=>t.map(s),y=t=>typeof t!="object"||t===null?t:Object.fromEntries(Object.entries(t).map(([p,e])=>[p,s(e)]));class f extends HTMLElement{constructor(){super(...arguments);l(this,"Component");l(this,"hydrator");l(this,"hydrate",async()=>{var b;if(!this.hydrator||!this.isConnected)return;let e=(b=this.parentElement)==null?void 0:b.closest("astro-island[ssr]");if(e){e.addEventListener("astro:hydrate",this.hydrate,{once:!0});return}let r=this.querySelectorAll("astro-slot"),n={},d=this.querySelectorAll("template[data-astro-template]");for(let o of d){let i=o.closest(this.tagName);i!=null&&i.isSameNode(this)&&(n[o.getAttribute("data-astro-template")||"default"]=o.innerHTML,o.remove())}for(let o of r){let i=o.closest(this.tagName);i!=null&&i.isSameNode(this)&&(n[o.getAttribute("name")||"default"]=o.innerHTML)}let u;try{u=this.hasAttribute("props")?y(JSON.parse(this.getAttribute("props"))):{}}catch(o){let i=this.getAttribute("component-url")||"<unknown>",v=this.getAttribute("component-export");throw v&&(i+=` (export ${v})`),console.error(`[hydrate] Error parsing props for component ${i}`,this.getAttribute("props"),o),o}let h;await this.hydrator(this)(this.Component,u,n,{client:this.getAttribute("client")}),this.removeAttribute("ssr"),this.dispatchEvent(new CustomEvent("astro:hydrate"))});l(this,"unmount",()=>{this.isConnected||this.dispatchEvent(new CustomEvent("astro:unmount"))})}disconnectedCallback(){document.removeEventListener("astro:after-swap",this.unmount),document.addEventListener("astro:after-swap",this.unmount,{once:!0})}connectedCallback(){if(!this.hasAttribute("await-children")||document.readyState==="interactive"||document.readyState==="complete")this.childrenConnectedCallback();else{let e=()=>{document.removeEventListener("DOMContentLoaded",e),r.disconnect(),this.childrenConnectedCallback()},r=new MutationObserver(()=>{var n;((n=this.lastChild)==null?void 0:n.nodeType)===Node.COMMENT_NODE&&this.lastChild.nodeValue==="astro:end"&&(this.lastChild.remove(),e())});r.observe(this,{childList:!0}),document.addEventListener("DOMContentLoaded",e)}}async childrenConnectedCallback(){let e=this.getAttribute("before-hydration-url");e&&await import(e),this.start()}getRetryImportUrl(e){let r=new URL(e,document.baseURI);return r.searchParams.set("astro-retry",Date.now().toString()),r.toString()}async importWithRetry(e){try{return await import(e)}catch(r){return await new Promise(n=>setTimeout(n,1e3)),import(this.getRetryImportUrl(e))}}handleHydrationError(e){let r=this.getAttribute("component-url"),n=new CustomEvent("astro:hydration-error",{cancelable:!0,bubbles:!0,composed:!0,detail:{error:e,componentUrl:r}});this.dispatchEvent(n)&&console.error(`[astro-island] Error hydrating ${r}`,e)}async start(){let e=JSON.parse(this.getAttribute("opts")),r=this.getAttribute("client");if(Astro[r]===void 0){window.addEventListener(`astro:${r}`,()=>this.start(),{once:!0});return}try{await Astro[r](async()=>{let n=this.getAttribute("renderer-url");try{let[d,{default:u}]=await Promise.all([this.importWithRetry(this.getAttribute("component-url")),n?this.importWithRetry(n):Promise.resolve({default:()=>()=>{}})]),h=this.getAttribute("component-export")||"default";if(h.includes(".")){this.Component=d;for(let m of h.split(".")){if(E.has(m)||!this.Component||typeof this.Component!="object"&&typeof this.Component!="function"||!Object.hasOwn(this.Component,m))throw new Error(`Invalid component export path: ${h}`);this.Component=this.Component[m]}}else{if(E.has(h))throw new Error(`Invalid component export path: ${h}`);this.Component=d[h]}return this.hydrator=u,this.hydrate}catch(d){return this.handleHydrationError(d),()=>{}}},e,this)}catch(n){this.handleHydrationError(n)}}attributeChangedCallback(){this.hydrate()}}l(f,"observedAttributes",["props"]),customElements.get("astro-island")||customElements.define("astro-island",f)}})();</script><astro-island uid="ZlT0CL" prefix="r1" component-url="/_astro/HeaderControls.B1MD04oD.js" component-export="default" renderer-url="/_astro/client.2oQR4HXa.js" props="{&quot;githubUrl&quot;:[0,&quot;https://github.com/lucaslz2020&quot;],&quot;locale&quot;:[0,&quot;zh-TW&quot;],&quot;languageTargets&quot;:[0,{&quot;zh-CN&quot;:[0,&quot;/nexus/nexus2-to-nexus3-kubernetes-postgresql/&quot;],&quot;en&quot;:[0,&quot;/en/nexus/nexus2-to-nexus3-kubernetes-postgresql/&quot;],&quot;zh-TW&quot;:[0,&quot;/zh-tw/nexus/nexus2-to-nexus3-kubernetes-postgresql/&quot;]}]}" ssr client="load" opts="{&quot;name&quot;:&quot;HeaderControls&quot;,&quot;value&quot;:true}" await-children><div class="header-controls"><div class="language-switcher" aria-label="語言"><a href="/nexus/nexus2-to-nexus3-kubernetes-postgresql/">简</a><a href="/en/nexus/nexus2-to-nexus3-kubernetes-postgresql/">EN</a><a href="/zh-tw/nexus/nexus2-to-nexus3-kubernetes-postgresql/" aria-current="page">繁</a></div><button class="icon-button search-trigger" type="button" aria-label="搜尋"><span aria-hidden="true">⌕</span><span class="search-label">搜尋</span><kbd>⌘K</kbd></button><button class="icon-button theme-trigger" type="button" aria-label="切換至深色模式"><span aria-hidden="true">◐</span></button><button class="icon-button menu-trigger" type="button" aria-label="開啟導覽"><span aria-hidden="true">☰</span></button></div><!--astro:end--></astro-island> </div> </header> <main id="main-content">  <article class="post-page" data-pagefind-body> <meta data-pagefind-filter="locale[content]" content="zh-TW"> <header class="post-header page-shell narrow-shell"> <a class="back-link" href="/zh-tw/">← 返回文章列表</a> <p class="eyebrow"> <span></span>ENGINEERING NOTE · 2026年7月12日 </p> <h1 data-pagefind-meta="title">從 Nexus Repository 2 平滑遷移到 Nexus 3：Kubernetes、PostgreSQL 與 VIP 切換</h1> <p class="post-description" data-pagefind-meta="description"> 記錄 Nexus2 到 Nexus3 的完整遷移路徑：官方 Upgrade Wizard、H2 版本升級、PostgreSQL 資料遷移、Kubernetes StatefulSet、舊路徑相容與 VIP 回滾。 </p> <meta data-pagefind-meta="date" content="2026-07-12"> <meta data-pagefind-meta="tags" content="Nexus, Kubernetes, PostgreSQL, Maven, DevOps"> <div class="post-meta-row"> <div class="post-author"> <img class="mini-avatar" src="/brand/avatar.svg" alt="" width="36" height="36" decoding="async"> <span><strong>lucaslz</strong><small>作者</small></span> </div> <div class="post-facts"> <time datetime="2026-07-12T00:00:00.000Z">2026年7月12日</time>  <span>12 分鐘閱讀</span> <span class="post-view-count" data-page-views hidden></span> </div> </div> <div class="post-tag-row"> <a href="/zh-tw/tags/nexus/" data-analytics-event="tag_click" data-analytics-target="Nexus">
+#Nexus </a><a href="/zh-tw/tags/kubernetes/" data-analytics-event="tag_click" data-analytics-target="Kubernetes">
+#Kubernetes </a><a href="/zh-tw/tags/postgresql/" data-analytics-event="tag_click" data-analytics-target="PostgreSQL">
+#PostgreSQL </a><a href="/zh-tw/tags/maven/" data-analytics-event="tag_click" data-analytics-target="Maven">
+#Maven </a><a href="/zh-tw/tags/devops/" data-analytics-event="tag_click" data-analytics-target="DevOps">
+#DevOps </a> </div>    </header> <div class="post-divider"> <span></span><b>&#123; &#125;</b><span></span> </div> <div class="post-layout page-shell"> <div class="post-content prose">  <blockquote>
+<p>本文來自一次真實遷移。伺服器、位址、網域、倉庫數量、元件數量和企業設定均已脫敏。範例 Secret 和密碼均為佔位符。</p>
+</blockquote>
+<blockquote>
+<p>系列導覽：<a href="/zh-tw/kubernetes/kubernetes-migration-series/">Kubernetes 重建遷移教學系列</a>。建議先完成「在 Kubernetes 從零部署 Nexus Repository 3」。</p>
+</blockquote>
+<p>一套運行多年的 Nexus Repository 2，通常已經被 Maven、Jenkins、開發機和發布腳本深度依賴。真正困難的不是啟動 Nexus3，而是在不丟製品、不破壞權限、不過度修改用戶端的前提下遷移。</p>
+<p>這次遷移的最終目標是：</p>
+<ul>
+<li>Nexus2 的倉庫、使用者、角色和設定進入 Nexus3。</li>
+<li>Nexus3 以單複本 StatefulSet 運行在 Kubernetes。</li>
+<li>Blob Store 使用獨立持久磁碟區。</li>
+<li>中繼資料從 H2 遷移到 PostgreSQL。</li>
+<li>保留原有網域、VIP、連接埠和 <code>/nexus</code> 上下文路徑。</li>
+<li>舊 Maven URL 在過渡期繼續相容。</li>
+<li>遷移失敗時能快速切回 Nexus2。</li>
+</ul>
+<p>Sonatype 已在 2025 年 6 月 30 日停止維護 Nexus Repository 2，不再提供新功能和缺陷修復，並建議盡快遷移到 Nexus3。參見 <a href="https://help.sonatype.com/en/sonatype-nexus-repository-2-version-status.html">Nexus Repository 2 Version Status</a>。</p>
+<h2 id="最終遷移路徑">最終遷移路徑</h2>
+<pre><code class="language-mermaid">flowchart LR
+  A["Nexus2 最終版&#x3C;br/>舊伺服器"] -->|"官方 Upgrade"| B["Nexus3 中繼版&#x3C;br/>H2 / Kubernetes"]
+  B -->|"原地版本升級"| C["Nexus3 目標版&#x3C;br/>H2 / Kubernetes"]
+  C -->|"Database Migrator"| D["Nexus3 目標版&#x3C;br/>PostgreSQL / Kubernetes"]
+  E["Maven / Jenkins"] --> F["原網域或 VIP"]
+  F --> D
+  D --> G["Blob Store PV"]
+  D --> H["PostgreSQL"]
+</code></pre>
+<p>最關鍵的設計是把遷移拆成兩個階段：</p>
+<ol>
+<li>Nexus2 → Nexus3，並繼續使用 H2。</li>
+<li>Nexus3 升到目標版本後，再做 H2 → PostgreSQL。</li>
+</ol>
+<p>不要把倉庫轉換、版本升級、資料庫遷移和流量切換混成一個步驟。</p>
+<h2 id="為什麼-nexus2-資料目錄不能直接掛給-nexus3">為什麼 Nexus2 資料目錄不能直接掛給 Nexus3</h2>
+<p>Nexus3 重新設計了元件中繼資料和 Blob Store。Nexus2 的工作目錄不是 Nexus3 可直接讀取的資料磁碟區。</p>
+<p>正確路徑是：</p>
+<ul>
+<li>把 Nexus2 升到官方支援的最終版本。</li>
+<li>使用 Nexus2 Upgrade Agent 和 Nexus3 Upgrade Capability。</li>
+<li>遷移倉庫內容和伺服器設定。</li>
+<li>等同步完成後執行 Finalize。</li>
+</ul>
+<p>官方流程見 <a href="https://help.sonatype.com/en/upgrade-from-nexus-repository-2.html">Upgrade from Nexus Repository 2</a>。中繼版本與目標版本必須根據執行當下的官方升級矩陣確認，不能把某次成功的組合當作永久規則。</p>
+<h2 id="遷移前盤點">遷移前盤點</h2>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>類別</th><th>需要記錄</th></tr></thead><tbody><tr><td>執行環境</td><td>Nexus、Java、作業系統、安裝目錄和工作目錄</td></tr><tr><td>倉庫</td><td>Hosted、Proxy、Group、格式、遠端位址和成員順序</td></tr><tr><td>資料</td><td>元件、資產、Blob 容量和 checksum 抽樣</td></tr><tr><td>權限</td><td>使用者、角色、Realm、匿名存取</td></tr><tr><td>用戶端</td><td>Maven settings、Jenkins Credential、上傳 URL</td></tr><tr><td>網路</td><td>網域、VIP、連接埠、上下文路徑、代理規則</td></tr><tr><td>任務</td><td>清理、索引、備份任務</td></tr><tr><td>擴充</td><td>外掛、指令碼、自訂 Realm</td></tr></tbody></table>
+<p>尤其要掃描 Nexus2 舊路徑：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>/nexus/content/repositories/releases/</span></span>
+<span class="line"><span>/nexus/content/groups/public/</span></span></code></pre>
+<p>Nexus3 的現代路徑通常是：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>/nexus/repository/releases/</span></span>
+<span class="line"><span>/nexus/repository/public/</span></span></code></pre>
+<p>用戶端無法一次全部修改時，應在外層代理加上明確的重寫，並為舊路徑設定移除日期。</p>
+<h2 id="完整備份-nexus2">完整備份 Nexus2</h2>
+<p>至少保留：</p>
+<ol>
+<li>Nexus2 程式目錄。</li>
+<li>Nexus2 工作目錄。</li>
+<li>倉庫儲存和校驗記錄。</li>
+</ol>
+<p>在寫入凍結後執行檔案系統備份：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">systemctl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> stop</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> nexus</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">tar</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -C</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /opt</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -czf</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /backup/nexus2-program.tar.gz</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> nexus-2</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">tar</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -C</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /data</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -czf</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /backup/nexus2-work.tar.gz</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> sonatype-work</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">sha256sum</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /backup/nexus2-</span><span style="color:#005CC5;--shiki-dark:#79B8FF">*</span><span style="color:#032F62;--shiki-dark:#9ECBFF">.tar.gz</span><span style="color:#D73A49;--shiki-dark:#F97583"> ></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /backup/SHA256SUMS</span></span></code></pre>
+<p>運行中直接複製目錄，可能產生中繼資料與製品不一致的備份。</p>
+<h2 id="kubernetes-中的儲存設計">Kubernetes 中的儲存設計</h2>
+<p>Nexus 的 Blob Store 讀寫頻繁。本次使用獨立本地 PV，並設定：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">apiVersion</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">v1</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">kind</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">PersistentVolume</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">metadata</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  name</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">nexus-data</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">spec</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  capacity</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    storage</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#x3C;capacity></span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  accessModes</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">ReadWriteOnce</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  persistentVolumeReclaimPolicy</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">Retain</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  storageClassName</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">nexus-local</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  local</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    path</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">/data/nexus</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  nodeAffinity</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    required</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">      nodeSelectorTerms</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">        - </span><span style="color:#22863A;--shiki-dark:#85E89D">matchExpressions</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">            - </span><span style="color:#22863A;--shiki-dark:#85E89D">key</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">kubernetes.io/hostname</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">              operator</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">In</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">              values</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">repo-node</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span></code></pre>
+<p><code>Retain</code> 很重要：誤刪 StatefulSet 或 PVC 時，歷史製品不能跟著自動銷毀。</p>
+<p>本地 PV 會把 Pod 固定在特定節點，因此它不是高可用方案。對單複本社群版而言，這個取捨是以更清晰的故障邊界換取更低的儲存複雜度。</p>
+<h2 id="保持上下文路徑和健康檢查">保持上下文路徑和健康檢查</h2>
+<p>為減少用戶端變更，繼續使用 <code>/nexus</code>：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="properties"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">application-port</span><span style="color:#24292E;--shiki-dark:#E1E4E8">=8081</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">application-host</span><span style="color:#24292E;--shiki-dark:#E1E4E8">=0.0.0.0</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">nexus-context-path</span><span style="color:#24292E;--shiki-dark:#E1E4E8">=/nexus</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">nexus.datastore.enabled</span><span style="color:#24292E;--shiki-dark:#E1E4E8">=true</span></span></code></pre>
+<p>探針使用狀態介面，而不是首頁 HTML：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">startupProbe</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  httpGet</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    path</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">/nexus/service/rest/v1/status</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    port</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">http</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  failureThreshold</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">60</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  periodSeconds</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">10</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  timeoutSeconds</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">5</span></span></code></pre>
+<p>首次升級和索引重建可能持續數分鐘。<code>connection refused</code> 只表示行程尚未監聽連接埠，真正原因要看 <code>nexus.log</code>。</p>
+<h2 id="nexus2--nexus3-的正確順序">Nexus2 → Nexus3 的正確順序</h2>
+<p>先讓 Nexus3 使用 H2：</p>
+<ol>
+<li>建立 Upgrade Agent / Upgrade Capability。</li>
+<li>建立連線並執行預檢查。</li>
+<li>遷移 repository content。</li>
+<li>遷移 server configuration。</li>
+<li>等同步佇列歸零。</li>
+<li>凍結 Nexus2 上傳。</li>
+<li>執行 Finalize 和 Done。</li>
+</ol>
+<p>Finalize 前至少驗證 Hosted 最新版本、Proxy 拉取、Group 順序、匿名存取和真實 Maven 建置。</p>
+<p>Upgrade Wizard 不是雙向同步系統。遷移開始後，不要繼續修改 Nexus2 的使用者、角色和倉庫結構。</p>
+<h2 id="先升級-h2再遷-postgresql">先升級 H2，再遷 PostgreSQL</h2>
+<p>完成 Nexus2 遷移後，仍使用 H2 將 Nexus3 升到目標版本。升級前同時備份 H2 和 Blob Store，確保兩者來自同一個還原點。</p>
+<p>啟動新版本後，等待內部 schema、upgrade、browse 和 search 任務結束。Pod Ready 不等於升級任務完成，任務執行期間不要反覆重啟實例。</p>
+<h2 id="準備-postgresql">準備 PostgreSQL</h2>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="sql"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">CREATE</span><span style="color:#D73A49;--shiki-dark:#F97583"> ROLE</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> nexus </span><span style="color:#D73A49;--shiki-dark:#F97583">LOGIN</span><span style="color:#D73A49;--shiki-dark:#F97583"> PASSWORD</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> '&#x3C;random-password>'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">CREATE</span><span style="color:#D73A49;--shiki-dark:#F97583"> DATABASE</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> nexus</span><span style="color:#D73A49;--shiki-dark:#F97583"> OWNER</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> nexus;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">\</span><span style="color:#D73A49;--shiki-dark:#F97583">connect</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> nexus</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">CREATE</span><span style="color:#D73A49;--shiki-dark:#F97583"> SCHEMA</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> nexus</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> AUTHORIZATION nexus;</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">GRANT</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> USAGE, </span><span style="color:#D73A49;--shiki-dark:#F97583">CREATE</span><span style="color:#D73A49;--shiki-dark:#F97583"> ON</span><span style="color:#D73A49;--shiki-dark:#F97583"> SCHEMA</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> nexus </span><span style="color:#D73A49;--shiki-dark:#F97583">TO</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> nexus;</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">ALTER</span><span style="color:#D73A49;--shiki-dark:#F97583"> ROLE</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> nexus </span><span style="color:#D73A49;--shiki-dark:#F97583">SET</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> search_path </span><span style="color:#D73A49;--shiki-dark:#F97583">TO</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> nexus;</span></span></code></pre>
+<p>密碼只保存在 Kubernetes Secret：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> repository</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> create</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> secret</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> generic</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> nexus-db</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --from-literal=username=nexus</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --from-literal=password=</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"$(</span><span style="color:#6F42C1;--shiki-dark:#B392F0">openssl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> rand </span><span style="color:#005CC5;--shiki-dark:#79B8FF">-base64</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 36</span><span style="color:#032F62;--shiki-dark:#9ECBFF">)"</span></span></code></pre>
+<p>Base64 是編碼，不是加密。Secret 明文和輸出不能進入 Git 或 CI 日誌。</p>
+<h2 id="使用-database-migrator">使用 Database Migrator</h2>
+<p>遷移器版本必須與 Nexus 目標版本相符，並校驗 SHA256。官方說明見 <a href="https://help.sonatype.com/en/migrating-to-a-new-database.html">Migrating to a New Database</a>。</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">sha256sum</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> nexus-db-migrator-</span><span style="color:#D73A49;--shiki-dark:#F97583">&#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">versio</span><span style="color:#24292E;--shiki-dark:#E1E4E8">n</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#032F62;--shiki-dark:#9ECBFF">.jar</span></span></code></pre>
+<p>從 Nexus Repository 3.93.0 起，自建部署需要至少 Java 25，執行遷移器前也要確認執行時期需求。參見 <a href="https://help.sonatype.com/en/nexus-repository-2026-release-notes.html">2026 Release Notes</a>。</p>
+<p>遷移前完全停止 Nexus：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> repository</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> scale</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> statefulset/nexus</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --replicas=0</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> repository</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> wait</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --for=delete</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> pod/nexus-0</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --timeout=180s</span></span></code></pre>
+<p>若密碼包含 <code>+</code>、<code>&#x26;</code>、<code>%</code>、<code>?</code>、<code>#</code> 等字元，寫入 JDBC URL 前必須編碼，而且禁止印出完整 URL。</p>
+<p>遷移 Job <code>Complete</code> 不是唯一標準，還要檢查最終彙總是否存在 skipped 或 failed 記錄。失敗後不能直接對已有資料的 schema 重跑，應先定位原因並還原乾淨目標。</p>
+<p>遷移完成後，在 Nexus 仍停止時執行：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="sql"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">VACUUM (FULL, ANALYZE);</span></span></code></pre>
+<h2 id="連線-postgresql-並啟動最終版本">連線 PostgreSQL 並啟動最終版本</h2>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">env</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  - </span><span style="color:#22863A;--shiki-dark:#85E89D">name</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">NEXUS_DATASTORE_NEXUS_JDBCURL</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    value</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">jdbc:postgresql://postgresql.repository.svc.cluster.local:5432/nexus?currentSchema=nexus</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  - </span><span style="color:#22863A;--shiki-dark:#85E89D">name</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">NEXUS_DATASTORE_NEXUS_USERNAME</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    value</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">nexus</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  - </span><span style="color:#22863A;--shiki-dark:#85E89D">name</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">NEXUS_DATASTORE_NEXUS_PASSWORD</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    valueFrom</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">      secretKeyRef</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">        name</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">nexus-db</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">        key</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">password</span></span></code></pre>
+<p>啟動後等待 Browse/Search 重建任務完成，再驗證搜尋、下載和上傳。</p>
+<h2 id="五層驗收">五層驗收</h2>
+<ol>
+<li><strong>Pod 與日誌</strong>：Ready、重啟穩定、無資料庫和 Blob 錯誤。</li>
+<li><strong>狀態介面</strong>：<code>/nexus/service/rest/v1/status</code> 正常。</li>
+<li><strong>倉庫</strong>：Hosted、Proxy、Group 各自驗證。</li>
+<li><strong>真實建置</strong>：執行 Maven 建置，涵蓋 POM、metadata、checksum 和認證。</li>
+<li><strong>上傳</strong>：用臨時版本驗證 Hosted 上傳並清理。</li>
+</ol>
+<p>只用瀏覽器打開管理頁面，無法證明 Maven 建置鏈路正常。</p>
+<h2 id="vip-無感切換與回滾">VIP 無感切換與回滾</h2>
+<p>大量歷史用戶端依賴固定位址時，可以把舊位址作為 VIP 切到新節點。</p>
+<p>切換前必須滿足：</p>
+<ul>
+<li>舊 Nexus2 已停止。</li>
+<li>舊節點不再持有 VIP。</li>
+<li>新 Nexus3 已透過內部位址驗證。</li>
+<li>加入 VIP 後重新執行下載、上傳和建置。</li>
+</ul>
+<p>任何時刻都不能讓兩台機器同時持有同一個 IP，否則會出現 ARP 抖動和隨機落點。</p>
+<p>回滾順序：凍結新上傳、移除新節點 VIP、確認網路收斂、啟動舊 Nexus2、還原舊入口。新環境一旦接受寫入，回滾還必須處理兩端資料差異。</p>
+<h2 id="社群版用量治理">社群版用量治理</h2>
+<p>截至本文發布時，Nexus Repository Community Edition 的使用限制為 40,000 個元件或每天 100,000 個請求；超限時不能新增元件，指標更新可能延遲約一小時。參見 <a href="https://help.sonatype.com/en/usage-center.html">Usage Center</a>。</p>
+<p>治理原則：</p>
+<ul>
+<li>優先清理長期未使用的 Proxy 快取。</li>
+<li>Hosted releases、snapshots 和內部 third-party 使用獨立保留策略。</li>
+<li>清理前備份 PostgreSQL。</li>
+<li>先軟刪除，過觀察期後再 Compact Blob Store。</li>
+<li>不以頁面短時間未更新判斷清理失敗。</li>
+</ul>
+<p>Proxy 可從上游重新拉取，Hosted 很可能是企業唯一來源，兩者不能使用同一清理策略。</p>
+<h2 id="最容易踩的坑">最容易踩的坑</h2>
+<ul>
+<li>在錯誤版本上遷資料庫。</li>
+<li>Nexus 未停止就執行 Migrator。</li>
+<li>只授權資料庫，沒有授權 schema。</li>
+<li>JDBC 密碼未編碼。</li>
+<li>Job Complete 後立即重啟，忽略索引任務。</li>
+<li>只備份資料庫，不備份 Blob Store。</li>
+<li>只驗證管理頁面。</li>
+<li>提前銷毀舊伺服器和還原點。</li>
+</ul>
+<h2 id="總結">總結</h2>
+<p>Nexus2 升級 Nexus3 的核心不是「換映像」，而是控制四個邊界：</p>
+<ol>
+<li>內容和中繼資料透過受支援的路徑轉換。</li>
+<li>版本升級和資料庫遷移分階段完成。</li>
+<li>資料庫、Blob Store 與用戶端存取路徑共同驗證。</li>
+<li>每個不可逆步驟之前都有獨立還原點。</li>
+</ol>
+<p>堅持先備份、分階段、逐層驗證、最後切流量，才能把停機集中在最終凍結、資料庫遷移和入口切換窗口，而不是讓整個專案長期處於不可用狀態。</p> </div> <aside class="table-of-contents" aria-label="文章目錄" data-pagefind-ignore> <p>ON THIS PAGE</p> <ol> <li> <a href="#最終遷移路徑" data-analytics-event="toc_click" data-analytics-target="最終遷移路徑"> 最終遷移路徑 </a> </li><li> <a href="#為什麼-nexus2-資料目錄不能直接掛給-nexus3" data-analytics-event="toc_click" data-analytics-target="為什麼-nexus2-資料目錄不能直接掛給-nexus3"> 為什麼 Nexus2 資料目錄不能直接掛給 Nexus3 </a> </li><li> <a href="#遷移前盤點" data-analytics-event="toc_click" data-analytics-target="遷移前盤點"> 遷移前盤點 </a> </li><li> <a href="#完整備份-nexus2" data-analytics-event="toc_click" data-analytics-target="完整備份-nexus2"> 完整備份 Nexus2 </a> </li><li> <a href="#kubernetes-中的儲存設計" data-analytics-event="toc_click" data-analytics-target="kubernetes-中的儲存設計"> Kubernetes 中的儲存設計 </a> </li><li> <a href="#保持上下文路徑和健康檢查" data-analytics-event="toc_click" data-analytics-target="保持上下文路徑和健康檢查"> 保持上下文路徑和健康檢查 </a> </li><li> <a href="#nexus2--nexus3-的正確順序" data-analytics-event="toc_click" data-analytics-target="nexus2--nexus3-的正確順序"> Nexus2 → Nexus3 的正確順序 </a> </li><li> <a href="#先升級-h2再遷-postgresql" data-analytics-event="toc_click" data-analytics-target="先升級-h2再遷-postgresql"> 先升級 H2，再遷 PostgreSQL </a> </li><li> <a href="#準備-postgresql" data-analytics-event="toc_click" data-analytics-target="準備-postgresql"> 準備 PostgreSQL </a> </li><li> <a href="#使用-database-migrator" data-analytics-event="toc_click" data-analytics-target="使用-database-migrator"> 使用 Database Migrator </a> </li><li> <a href="#連線-postgresql-並啟動最終版本" data-analytics-event="toc_click" data-analytics-target="連線-postgresql-並啟動最終版本"> 連線 PostgreSQL 並啟動最終版本 </a> </li><li> <a href="#五層驗收" data-analytics-event="toc_click" data-analytics-target="五層驗收"> 五層驗收 </a> </li><li> <a href="#vip-無感切換與回滾" data-analytics-event="toc_click" data-analytics-target="vip-無感切換與回滾"> VIP 無感切換與回滾 </a> </li><li> <a href="#社群版用量治理" data-analytics-event="toc_click" data-analytics-target="社群版用量治理"> 社群版用量治理 </a> </li><li> <a href="#最容易踩的坑" data-analytics-event="toc_click" data-analytics-target="最容易踩的坑"> 最容易踩的坑 </a> </li><li> <a href="#總結" data-analytics-event="toc_click" data-analytics-target="總結"> 總結 </a> </li> </ol> </aside> </div> <script type="module" src="/_astro/MermaidEnhancer.astro_astro_type_script_index_0_lang.DTQ20dni.js"></script> <dialog class="image-lightbox" data-image-lightbox data-locale="zh-TW" aria-labelledby="lightbox-caption"> <div class="image-lightbox-inner"> <button type="button" class="image-lightbox-close" aria-label="關閉圖片預覽">
+×
+</button> <img alt="" decoding="async"> <p id="lightbox-caption" hidden></p> </div> </dialog> <script type="module" src="/_astro/ImageLightbox.astro_astro_type_script_index_0_lang.CmAf__MV.js"></script> <div class="reading-progress" aria-hidden="true"><span></span></div> <div class="article-actions" data-reading-tools data-locale="zh-TW" data-title="從 Nexus Repository 2 平滑遷移到 Nexus 3：Kubernetes、PostgreSQL 與 VIP 切換" data-href="https://lucaslz.com/zh-tw/nexus/nexus2-to-nexus3-kubernetes-postgresql/"> <button type="button" data-share aria-label="分享"> 分享 </button> <button type="button" data-copy-link aria-label="複製連結"> 複製連結 </button> <button type="button" data-bookmark aria-label="收藏" aria-pressed="false"> 收藏 </button> </div> <button class="back-to-top" type="button" aria-label="返回頂端" hidden>↑</button> <div class="reading-toast" role="status" aria-live="polite"></div> <script type="module" src="/_astro/ReadingTools.astro_astro_type_script_index_0_lang.FOex6a9j.js"></script> <footer class="post-footer page-shell narrow-shell" data-pagefind-ignore> <div class="post-end-mark"><span>END</span></div> <p>感謝閱讀。你可以分享、收藏，或在下方參與討論。</p> <section class="related-posts" aria-labelledby="related-title"> <div class="related-heading"> <span>CONTINUE READING</span> <h2 id="related-title">相關文章</h2> </div> <div class="related-grid"> <article class="article-card compact"> <a class="article-card-link" href="/zh-tw/nexus/nexus3-kubernetes-deployment/" data-analytics-event="article_click" data-analytics-impression="article_impression" data-analytics-target="/zh-tw/nexus/nexus3-kubernetes-deployment/"> <div class="article-card-top"> <span class="article-index">01</span> <span class="article-date">2026.07.11</span> </div> <h3>在 Kubernetes 從零部署 Nexus Repository 3：PostgreSQL、PVC 與 Ingress</h3> <p>從命名空間、PostgreSQL、Secret、PVC、StatefulSet、Service 和 Ingress 開始，逐步部署可持久化、可備份、可升級的 Nexus Repository 3。</p> <div class="article-card-bottom"> <div class="article-tags"> <span data-href="/zh-tw/tags/nexus/">
+#Nexus </span><span data-href="/zh-tw/tags/kubernetes/">
+#Kubernetes </span><span data-href="/zh-tw/tags/postgresql/">
+#PostgreSQL </span> </div> <span class="read-time">9 分鐘閱讀 <b>↗</b></span> </div> </a> </article><article class="article-card compact"> <a class="article-card-link" href="/zh-tw/nexus/nexus3-kubernetes-cutover-runbook/" data-analytics-event="article_click" data-analytics-impression="article_impression" data-analytics-target="/zh-tw/nexus/nexus3-kubernetes-cutover-runbook/"> <div class="article-card-top"> <span class="article-index">02</span> <span class="article-date">2026.08.05</span> </div> <h3>Nexus3 Kubernetes 遷移 Runbook：H2、PostgreSQL、探針與無感切換</h3> <p>將 Nexus2 到 Nexus3 的遷移拆成可執行的 Kubernetes Runbook，涵蓋資源建立、Upgrade Wizard、H2 升級、Database Migrator、驗證與 VIP 回滾。</p> <div class="article-card-bottom"> <div class="article-tags"> <span data-href="/zh-tw/tags/nexus/">
+#Nexus </span><span data-href="/zh-tw/tags/kubernetes/">
+#Kubernetes </span><span data-href="/zh-tw/tags/runbook/">
+#Runbook </span> </div> <span class="read-time">9 分鐘閱讀 <b>↗</b></span> </div> </a> </article><article class="article-card compact"> <a class="article-card-link" href="/zh-tw/nexus/nexus-community-edition-usage-cleanup/" data-analytics-event="article_click" data-analytics-impression="article_impression" data-analytics-target="/zh-tw/nexus/nexus-community-edition-usage-cleanup/"> <div class="article-card-top"> <span class="article-index">03</span> <span class="article-date">2026.07.18</span> </div> <h3>Nexus Repository Community Edition 用量限制與儲存清理實戰</h3> <p>解釋元件數、請求量、Blob 空間與 maven-public 的區別，逐步盤點 hosted 與 proxy 倉庫、設定 Cleanup Policy、壓縮 Blob Store，並驗證 CE 用量回落。</p> <div class="article-card-bottom"> <div class="article-tags"> <span data-href="/zh-tw/tags/nexus/">
+#Nexus </span><span data-href="/zh-tw/tags/community-edition/">
+#Community Edition </span><span data-href="/zh-tw/tags/cleanup-policy/">
+#Cleanup Policy </span> </div> <span class="read-time">11 分鐘閱讀 <b>↗</b></span> </div> </a> </article> </div> </section> <div class="post-navigation"> <a href="/zh-tw/nexus/nexus3-kubernetes-deployment/" class="previous-post" data-analytics-event="article_click" data-analytics-target="/zh-tw/nexus/nexus3-kubernetes-deployment/">  <small>← 上一篇</small> <strong>在 Kubernetes 從零部署 Nexus Repository 3：PostgreSQL、PVC 與 Ingress</strong>  </a> <a href="/zh-tw/nexus/nexus-community-edition-usage-cleanup/" class="next-post" data-analytics-event="article_click" data-analytics-target="/zh-tw/nexus/nexus-community-edition-usage-cleanup/">  <small>下一篇 →</small> <strong>Nexus Repository Community Edition 用量限制與儲存清理實戰</strong>  </a> </div> </footer> </article> <div class="page-shell narrow-shell" data-pagefind-ignore> <section class="comments-section" aria-labelledby="comments-title" data-giscus-comments data-repo="lucaslz2020/lucasleelz.github.io" data-repo-id="MDEwOlJlcG9zaXRvcnkyNzcxNjkwNw==" data-category="Announcements" data-category-id="DIC_kwDOAabtK84DCw-x" data-discussion-path="/nexus/nexus2-to-nexus3-kubernetes-postgresql/" data-giscus-language="zh-TW"> <div class="comments-heading"> <p class="eyebrow"> <span></span>
+DISCUSSION
+</p> <h2 id="comments-title">討論與回饋</h2> </div> <div class="giscus" aria-live="polite"></div> </section> <script type="module">var e=()=>document.documentElement.dataset.theme===`dark`?`noborder_dark`:`noborder_light`,t=t=>{if(t.dataset.loaded===`true`)return;let n=t.querySelector(`.giscus`);if(!n)return;let r=document.createElement(`script`);r.src=`https://giscus.app/client.js`,r.async=!0,r.crossOrigin=`anonymous`,r.dataset.repo=t.dataset.repo??``,r.dataset.repoId=t.dataset.repoId??``,r.dataset.category=t.dataset.category??``,r.dataset.categoryId=t.dataset.categoryId??``,r.dataset.mapping=`specific`,r.dataset.term=t.dataset.discussionPath??window.location.pathname,r.dataset.strict=`1`,r.dataset.reactionsEnabled=`1`,r.dataset.emitMetadata=`0`,r.dataset.inputPosition=`top`,r.dataset.theme=e(),r.dataset.lang=t.dataset.giscusLanguage??`zh-CN`,r.dataset.loading=`lazy`,t.dataset.loaded=`true`,n.append(r)},n=document.querySelector(`[data-giscus-comments]`);if(n)if(`IntersectionObserver`in window){let e=new IntersectionObserver(r=>{r.some(e=>e.isIntersecting)&&(t(n),e.disconnect())},{rootMargin:`500px 0px`});e.observe(n)}else t(n);window.addEventListener(`theme-change`,()=>{document.querySelector(`iframe.giscus-frame`)?.contentWindow?.postMessage({giscus:{setConfig:{theme:e()}}},`https://giscus.app`)});</script> </div>  </main> <footer class="site-footer"> <div class="footer-inner"> <div class="footer-brand"> <img class="brand-mark" src="/brand/avatar.svg" alt="" width="42" height="42" loading="lazy" decoding="async"> <div> <strong>lucaslz</strong> <p>關於軟體工程、Web、Java 與持續學習的長期技術筆記。</p> </div> </div> <div class="footer-links"> <a href="/zh-tw/rss.xml">RSS</a> <a href="/zh-tw/archive/">彙整</a> <a href="/zh-tw/tags/">標籤</a> <a href="https://github.com/lucaslz2020" target="_blank" rel="noreferrer">GitHub</a> </div> </div> <div class="footer-bottom"> <span>© 2026 lucaslz</span> <span>Built with Astro + React · Deployed on Cloudflare Pages</span> </div> </footer> <script type="module" src="/_astro/Analytics.astro_astro_type_script_index_0_lang.C6zUefo_.js"></script> <aside class="pwa-notice" data-pwa-notice data-locale="zh-TW" data-mode="status" aria-label="應用狀態" aria-live="polite" aria-atomic="true" hidden> <span class="pwa-notice-icon" data-pwa-icon aria-hidden="true">↧</span> <p> <strong data-pwa-title>離線閱讀已就緒</strong> <small data-pwa-message>造訪過的文章可以在離線時繼續閱讀。</small> </p> <div class="pwa-notice-actions"> <button type="button" data-pwa-action hidden> 立即安裝 </button> <button type="button" data-pwa-dismiss>知道了</button> </div> </aside> <script type="module" src="/_astro/Pwa.astro_astro_type_script_index_0_lang.ErCGOlnE.js"></script> </body> </html>

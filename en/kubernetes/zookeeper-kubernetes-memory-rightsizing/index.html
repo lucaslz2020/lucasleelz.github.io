@@ -1,0 +1,339 @@
+<!DOCTYPE html><html lang="en" data-theme="light" data-locale="en"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="generator" content="Astro v7.1.6"><meta name="author" content="lucaslz"><meta name="theme-color" content="#f5f1e8" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)"><meta name="description" content="Diagnose ZooKeeper's high memory footprint with JVM parameters, mntr, snapshots, and Kubernetes requests, then walk through phased downsizing, monitoring, rolling verification, and a persistence migration plan."><meta name="google-site-verification" content="o_QOQN3-adA79KPRfqy1wAj9zviE8hyD5jvfdQEMVco"><meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"><meta name="keywords" content="Zookeeper, Kubernetes, JVM, Performance Tuning, Observability, ZooKeeper memory optimization, Kubernetes requests, ZOO_HEAP_SIZE, ZooKeeper mntr, StatefulSet persistence"><link rel="canonical" href="https://lucaslz.com/en/kubernetes/zookeeper-kubernetes-memory-rightsizing/"><link rel="alternate" hreflang="zh-CN" href="https://lucaslz.com/kubernetes/zookeeper-kubernetes-memory-rightsizing/"><link rel="alternate" hreflang="en" href="https://lucaslz.com/en/kubernetes/zookeeper-kubernetes-memory-rightsizing/"><link rel="alternate" hreflang="zh-Hant-TW" href="https://lucaslz.com/zh-tw/kubernetes/zookeeper-kubernetes-memory-rightsizing/"><link rel="alternate" hreflang="x-default" href="https://lucaslz.com/kubernetes/zookeeper-kubernetes-memory-rightsizing/"><link rel="author" href="https://github.com/lucaslz2020"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon.ico" sizes="any"><link rel="apple-touch-icon" href="/icons/apple-touch-icon.png"><link rel="alternate" type="application/rss+xml" title="lucaslz · Engineering Notes" href="/en/rss.xml"><link rel="manifest" href="/site.webmanifest"><title>ZooKeeper Pods Near 2G Each: From Fixed Heap to Kubernetes Resource Rightsizing · lucaslz</title><meta property="og:type" content="article"><meta property="og:site_name" content="lucaslz · Engineering Notes"><meta property="og:title" content="ZooKeeper Pods Near 2G Each: From Fixed Heap to Kubernetes Resource Rightsizing · lucaslz"><meta property="og:description" content="Diagnose ZooKeeper's high memory footprint with JVM parameters, mntr, snapshots, and Kubernetes requests, then walk through phased downsizing, monitoring, rolling verification, and a persistence migration plan."><meta property="og:url" content="https://lucaslz.com/en/kubernetes/zookeeper-kubernetes-memory-rightsizing/"><meta property="og:image" content="https://lucaslz.com/og/en/kubernetes/zookeeper-kubernetes-memory-rightsizing.png"><meta property="og:image:type" content="image/png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="Share image for ZooKeeper Pods Near 2G Each: From Fixed Heap to Kubernetes Resource Rightsizing"><meta property="og:locale" content="en_US"><meta property="article:published_time" content="2026-08-09T00:00:00.000Z"><meta property="article:author" content="https://github.com/lucaslz2020"><meta property="article:tag" content="Zookeeper"><meta property="article:tag" content="Kubernetes"><meta property="article:tag" content="JVM"><meta property="article:tag" content="Performance Tuning"><meta property="article:tag" content="Observability"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="ZooKeeper Pods Near 2G Each: From Fixed Heap to Kubernetes Resource Rightsizing · lucaslz"><meta name="twitter:description" content="Diagnose ZooKeeper's high memory footprint with JVM parameters, mntr, snapshots, and Kubernetes requests, then walk through phased downsizing, monitoring, rolling verification, and a persistence migration plan."><meta name="twitter:image" content="https://lucaslz.com/og/en/kubernetes/zookeeper-kubernetes-memory-rightsizing.png"><script>
+      (() => {
+        const saved = localStorage.getItem("theme");
+        const dark = saved
+          ? saved === "dark"
+          : matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+      })();
+    </script><script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Person","@id":"https://lucaslz.com/#person","name":"lucaslz","url":"https://lucaslz.com","sameAs":["https://github.com/lucaslz2020"]},{"@type":"WebSite","@id":"https://lucaslz.com/#website","name":"lucaslz · Engineering Notes","alternateName":"lucaslz","description":"Long-term engineering notes on software, Web, Java, and continuous learning.","url":"https://lucaslz.com","inLanguage":"en","publisher":{"@id":"https://lucaslz.com/#person"}},{"@type":"BlogPosting","@id":"https://lucaslz.com/en/kubernetes/zookeeper-kubernetes-memory-rightsizing/#article","url":"https://lucaslz.com/en/kubernetes/zookeeper-kubernetes-memory-rightsizing/","headline":"ZooKeeper Pods Near 2G Each: From Fixed Heap to Kubernetes Resource Rightsizing","description":"Diagnose ZooKeeper's high memory footprint with JVM parameters, mntr, snapshots, and Kubernetes requests, then walk through phased downsizing, monitoring, rolling verification, and a persistence migration plan.","inLanguage":"en","datePublished":"2026-08-09T00:00:00.000Z","dateModified":"2026-08-09T00:00:00.000Z","author":{"@id":"https://lucaslz.com/#person","name":"lucaslz"},"publisher":{"@id":"https://lucaslz.com/#person"},"isPartOf":{"@id":"https://lucaslz.com/#website"},"mainEntityOfPage":{"@type":"WebPage","@id":"https://lucaslz.com/en/kubernetes/zookeeper-kubernetes-memory-rightsizing/"},"image":{"@type":"ImageObject","url":"https://lucaslz.com/og/en/kubernetes/zookeeper-kubernetes-memory-rightsizing.png","width":1200,"height":630},"articleSection":["Zookeeper","Kubernetes","JVM","Performance Tuning","Observability"],"keywords":"Zookeeper, Kubernetes, JVM, Performance Tuning, Observability, ZooKeeper memory optimization, Kubernetes requests, ZOO_HEAP_SIZE, ZooKeeper mntr, StatefulSet persistence","wordCount":2255},{"@type":"BreadcrumbList","@id":"https://lucaslz.com/en/kubernetes/zookeeper-kubernetes-memory-rightsizing/#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://lucaslz.com/en"},{"@type":"ListItem","position":2,"name":"ZooKeeper Pods Near 2G Each: From Fixed Heap to Kubernetes Resource Rightsizing","item":"https://lucaslz.com/en/kubernetes/zookeeper-kubernetes-memory-rightsizing/"}]}]}</script><style>@layer astro.images{:where([data-astro-image]){height:auto}:where([data-astro-image=full-width]){width:100%}:where([data-astro-image=constrained]){max-width:100%}[data-astro-image-fit=fill]{object-fit:fill}[data-astro-image-fit=contain]{object-fit:contain}[data-astro-image-fit=cover]{object-fit:cover}[data-astro-image-fit=scale-down]{object-fit:scale-down}[data-astro-image-pos=top]{object-position:top}[data-astro-image-pos=bottom]{object-position:bottom}[data-astro-image-pos=left]{object-position:left}[data-astro-image-pos=right]{object-position:right}[data-astro-image-pos=center]{object-position:center}[data-astro-image-pos=top-bottom]{object-position:top bottom}[data-astro-image-pos=top-left]{object-position:top left}[data-astro-image-pos=top-right]{object-position:top right}[data-astro-image-pos=top-center]{object-position:top center}[data-astro-image-pos=bottom-top]{object-position:bottom top}[data-astro-image-pos=bottom-left]{object-position:bottom left}[data-astro-image-pos=bottom-right]{object-position:bottom right}[data-astro-image-pos=bottom-center]{object-position:bottom center}[data-astro-image-pos=left-top]{object-position:left top}[data-astro-image-pos=left-bottom]{object-position:left bottom}[data-astro-image-pos=left-right]{object-position:left right}[data-astro-image-pos=left-center]{object-position:left center}[data-astro-image-pos=right-top]{object-position:right top}[data-astro-image-pos=right-bottom]{object-position:right bottom}[data-astro-image-pos=right-left]{object-position:right left}[data-astro-image-pos=right-center]{object-position:right center}[data-astro-image-pos=center-top]{object-position:center top}[data-astro-image-pos=center-bottom]{object-position:center bottom}[data-astro-image-pos=center-left]{object-position:center left}[data-astro-image-pos=center-right]{object-position:center right}}
+</style><link rel="stylesheet" href="/_astro/BaseLayout.BkQFXu0L.css"><script type="module" src="/_astro/page.BS6wqQC3.js"></script></head> <body> <a class="skip-link" href="#main-content">Skip to main content</a> <header class="site-header"> <div class="header-inner"> <a class="brand" href="/en/" title="Home" data-analytics-event="nav_click" data-analytics-target="home"> <img class="brand-mark" src="/brand/avatar.svg" alt="" width="42" height="42" decoding="async"> <span class="brand-copy"> <strong>lucaslz</strong> <small>ENGINEERING NOTES</small> </span> </a> <nav class="desktop-nav" aria-label="Main navigation"> <a href="/en/" data-analytics-event="nav_click" data-analytics-target="Home" aria-current="page"> Home </a><a href="/en/archive/" data-analytics-event="nav_click" data-analytics-target="Archive"> Archive </a><a href="/en/tags/" data-analytics-event="nav_click" data-analytics-target="Tags"> Tags </a> <a href="https://github.com/lucaslz2020" target="_blank" rel="noreferrer">GitHub ↗</a> </nav> <style>astro-island,astro-slot,astro-static-slot{display:contents}</style><script>(()=>{var e=async t=>{await(await t())()};(self.Astro||(self.Astro={})).load=e;window.dispatchEvent(new Event("astro:load"));})();</script><script>(()=>{var g=Object.defineProperty;var w=(a,s,c)=>s in a?g(a,s,{enumerable:!0,configurable:!0,writable:!0,value:c}):a[s]=c;var l=(a,s,c)=>w(a,typeof s!="symbol"?s+"":s,c);var E=new Set(["__proto__","constructor","prototype"]);{let a={0:t=>y(t),1:t=>c(t),2:t=>new RegExp(t),3:t=>new Date(t),4:t=>new Map(c(t)),5:t=>new Set(c(t)),6:t=>BigInt(t),7:t=>new URL(t),8:t=>new Uint8Array(t),9:t=>new Uint16Array(t),10:t=>new Uint32Array(t),11:t=>Number.POSITIVE_INFINITY*t},s=t=>{let[p,e]=t;return p in a?a[p](e):void 0},c=t=>t.map(s),y=t=>typeof t!="object"||t===null?t:Object.fromEntries(Object.entries(t).map(([p,e])=>[p,s(e)]));class f extends HTMLElement{constructor(){super(...arguments);l(this,"Component");l(this,"hydrator");l(this,"hydrate",async()=>{var b;if(!this.hydrator||!this.isConnected)return;let e=(b=this.parentElement)==null?void 0:b.closest("astro-island[ssr]");if(e){e.addEventListener("astro:hydrate",this.hydrate,{once:!0});return}let r=this.querySelectorAll("astro-slot"),n={},d=this.querySelectorAll("template[data-astro-template]");for(let o of d){let i=o.closest(this.tagName);i!=null&&i.isSameNode(this)&&(n[o.getAttribute("data-astro-template")||"default"]=o.innerHTML,o.remove())}for(let o of r){let i=o.closest(this.tagName);i!=null&&i.isSameNode(this)&&(n[o.getAttribute("name")||"default"]=o.innerHTML)}let u;try{u=this.hasAttribute("props")?y(JSON.parse(this.getAttribute("props"))):{}}catch(o){let i=this.getAttribute("component-url")||"<unknown>",v=this.getAttribute("component-export");throw v&&(i+=` (export ${v})`),console.error(`[hydrate] Error parsing props for component ${i}`,this.getAttribute("props"),o),o}let h;await this.hydrator(this)(this.Component,u,n,{client:this.getAttribute("client")}),this.removeAttribute("ssr"),this.dispatchEvent(new CustomEvent("astro:hydrate"))});l(this,"unmount",()=>{this.isConnected||this.dispatchEvent(new CustomEvent("astro:unmount"))})}disconnectedCallback(){document.removeEventListener("astro:after-swap",this.unmount),document.addEventListener("astro:after-swap",this.unmount,{once:!0})}connectedCallback(){if(!this.hasAttribute("await-children")||document.readyState==="interactive"||document.readyState==="complete")this.childrenConnectedCallback();else{let e=()=>{document.removeEventListener("DOMContentLoaded",e),r.disconnect(),this.childrenConnectedCallback()},r=new MutationObserver(()=>{var n;((n=this.lastChild)==null?void 0:n.nodeType)===Node.COMMENT_NODE&&this.lastChild.nodeValue==="astro:end"&&(this.lastChild.remove(),e())});r.observe(this,{childList:!0}),document.addEventListener("DOMContentLoaded",e)}}async childrenConnectedCallback(){let e=this.getAttribute("before-hydration-url");e&&await import(e),this.start()}getRetryImportUrl(e){let r=new URL(e,document.baseURI);return r.searchParams.set("astro-retry",Date.now().toString()),r.toString()}async importWithRetry(e){try{return await import(e)}catch(r){return await new Promise(n=>setTimeout(n,1e3)),import(this.getRetryImportUrl(e))}}handleHydrationError(e){let r=this.getAttribute("component-url"),n=new CustomEvent("astro:hydration-error",{cancelable:!0,bubbles:!0,composed:!0,detail:{error:e,componentUrl:r}});this.dispatchEvent(n)&&console.error(`[astro-island] Error hydrating ${r}`,e)}async start(){let e=JSON.parse(this.getAttribute("opts")),r=this.getAttribute("client");if(Astro[r]===void 0){window.addEventListener(`astro:${r}`,()=>this.start(),{once:!0});return}try{await Astro[r](async()=>{let n=this.getAttribute("renderer-url");try{let[d,{default:u}]=await Promise.all([this.importWithRetry(this.getAttribute("component-url")),n?this.importWithRetry(n):Promise.resolve({default:()=>()=>{}})]),h=this.getAttribute("component-export")||"default";if(h.includes(".")){this.Component=d;for(let m of h.split(".")){if(E.has(m)||!this.Component||typeof this.Component!="object"&&typeof this.Component!="function"||!Object.hasOwn(this.Component,m))throw new Error(`Invalid component export path: ${h}`);this.Component=this.Component[m]}}else{if(E.has(h))throw new Error(`Invalid component export path: ${h}`);this.Component=d[h]}return this.hydrator=u,this.hydrate}catch(d){return this.handleHydrationError(d),()=>{}}},e,this)}catch(n){this.handleHydrationError(n)}}attributeChangedCallback(){this.hydrate()}}l(f,"observedAttributes",["props"]),customElements.get("astro-island")||customElements.define("astro-island",f)}})();</script><astro-island uid="2iMGvE" prefix="r1" component-url="/_astro/HeaderControls.B1MD04oD.js" component-export="default" renderer-url="/_astro/client.2oQR4HXa.js" props="{&quot;githubUrl&quot;:[0,&quot;https://github.com/lucaslz2020&quot;],&quot;locale&quot;:[0,&quot;en&quot;],&quot;languageTargets&quot;:[0,{&quot;zh-CN&quot;:[0,&quot;/kubernetes/zookeeper-kubernetes-memory-rightsizing/&quot;],&quot;en&quot;:[0,&quot;/en/kubernetes/zookeeper-kubernetes-memory-rightsizing/&quot;],&quot;zh-TW&quot;:[0,&quot;/zh-tw/kubernetes/zookeeper-kubernetes-memory-rightsizing/&quot;]}]}" ssr client="load" opts="{&quot;name&quot;:&quot;HeaderControls&quot;,&quot;value&quot;:true}" await-children><div class="header-controls"><div class="language-switcher" aria-label="Language"><a href="/kubernetes/zookeeper-kubernetes-memory-rightsizing/">简</a><a href="/en/kubernetes/zookeeper-kubernetes-memory-rightsizing/" aria-current="page">EN</a><a href="/zh-tw/kubernetes/zookeeper-kubernetes-memory-rightsizing/">繁</a></div><button class="icon-button search-trigger" type="button" aria-label="Search"><span aria-hidden="true">⌕</span><span class="search-label">Search</span><kbd>⌘K</kbd></button><button class="icon-button theme-trigger" type="button" aria-label="Switch to dark theme"><span aria-hidden="true">◐</span></button><button class="icon-button menu-trigger" type="button" aria-label="Open navigation"><span aria-hidden="true">☰</span></button></div><!--astro:end--></astro-island> </div> </header> <main id="main-content">  <article class="post-page" data-pagefind-body> <meta data-pagefind-filter="locale[content]" content="en"> <header class="post-header page-shell narrow-shell"> <a class="back-link" href="/en/">← Back to articles</a> <p class="eyebrow"> <span></span>ENGINEERING NOTE · August 9, 2026 </p> <h1 data-pagefind-meta="title">ZooKeeper Pods Near 2G Each: From Fixed Heap to Kubernetes Resource Rightsizing</h1> <p class="post-description" data-pagefind-meta="description"> Diagnose ZooKeeper&#39;s high memory footprint with JVM parameters, mntr, snapshots, and Kubernetes requests, then walk through phased downsizing, monitoring, rolling verification, and a persistence migration plan. </p> <meta data-pagefind-meta="date" content="2026-08-09"> <meta data-pagefind-meta="tags" content="Zookeeper, Kubernetes, JVM, Performance Tuning, Observability"> <div class="post-meta-row"> <div class="post-author"> <img class="mini-avatar" src="/brand/avatar.svg" alt="" width="36" height="36" decoding="async"> <span><strong>lucaslz</strong><small>Author</small></span> </div> <div class="post-facts"> <time datetime="2026-08-09T00:00:00.000Z">August 9, 2026</time>  <span>12 min read</span> <span class="post-view-count" data-page-views hidden></span> </div> </div> <div class="post-tag-row"> <a href="/en/tags/zookeeper/" data-analytics-event="tag_click" data-analytics-target="Zookeeper">
+#Zookeeper </a><a href="/en/tags/kubernetes/" data-analytics-event="tag_click" data-analytics-target="Kubernetes">
+#Kubernetes </a><a href="/en/tags/jvm/" data-analytics-event="tag_click" data-analytics-target="JVM">
+#JVM </a><a href="/en/tags/performance-tuning/" data-analytics-event="tag_click" data-analytics-target="Performance Tuning">
+#Performance Tuning </a><a href="/en/tags/observability/" data-analytics-event="tag_click" data-analytics-target="Observability">
+#Observability </a> </div>    </header> <div class="post-divider"> <span></span><b>&#123; &#125;</b><span></span> </div> <div class="post-layout page-shell"> <div class="post-content prose">  <blockquote>
+<p>This post comes from capacity governance work on a three-node ZooKeeper cluster. Namespaces, nodes, service names, and capacities have been generalized; the numbers are only a starting point for workloads of similar scale, not something to copy into production as-is. Series navigation: <a href="/en/kubernetes/kubernetes-migration-series/">Kubernetes Rebuild &#x26; Migration Tutorial Series</a>.</p>
+</blockquote>
+<p>A three-node ZooKeeper cluster has been showing the following resource state for a long time:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Metric</th><th align="right">Node A</th><th align="right">Node B</th><th align="right">Node C</th></tr></thead><tbody><tr><td>Pod memory</td><td align="right">~1.8 GiB</td><td align="right">~1.8 GiB</td><td align="right">~1.4 GiB</td></tr><tr><td>CPU</td><td align="right">~10m</td><td align="right">~9m</td><td align="right">~11m</td></tr><tr><td>memory request</td><td align="right">2 GiB</td><td align="right">2 GiB</td><td align="right">2 GiB</td></tr><tr><td>memory limit</td><td align="right">3 GiB</td><td align="right">3 GiB</td><td align="right">3 GiB</td></tr><tr><td>Restarts</td><td align="right">0</td><td align="right">0</td><td align="right">0</td></tr></tbody></table>
+<p>At first glance this looks like a memory leak: CPU is very low, yet the three Pods are consuming nearly 5 GiB combined. Digging deeper, however, reveals only about 1.2 MiB of business data, and connection and watch counts are low too.</p>
+<p>The real problem isn’t that ZooKeeper stores several GiB of data. The JVM is configured with a fixed 2 GiB heap, and the Chart’s resource preset requests 2 GiB of memory for every Pod.</p>
+<h2 id="first-build-the-diagnostic-chain">First, Build the Diagnostic Chain</h2>
+<pre><code class="language-mermaid">flowchart TD
+  A["kubectl top: Pod near 2G"] --> B["Read the real Java command line"]
+  B --> C["Confirm Xms / Xmx and duplicate flags"]
+  C --> D["Collect mntr, stat, snapshots, and disk"]
+  D --> E{"Are live data and connection pressure high?"}
+  E -- "High" --> F["Remodel around peak capacity"]
+  E -- "Low" --> G["Shrink Heap and requests in phases"]
+  G --> H["Roll Pod by Pod and watch GC / latency"]
+  H --> I["Then handle the emptyDir persistence risk"]
+</code></pre>
+<p>The key here is to first tell apart “large heap upper bound”, “heap committed”, and “many live business objects”. <code>kubectl top</code> alone cannot distinguish the three.</p>
+<h2 id="step-1-read-the-real-jvm-arguments-of-a-running-process">Step 1: Read the Real JVM Arguments of a Running Process</h2>
+<p>Don’t just look at the Helm values. Check the Java process inside the container first:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> infra</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> exec</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> zookeeper-0</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  sh</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -c</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'tr "\0" " " &#x3C; /proc/1/cmdline'</span></span></code></pre>
+<p>The key fragment this time was:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>-Xmx1000m -Xmx2048m -Xms2048m</span></span></code></pre>
+<p>Duplicate <code>-Xmx</code> flags don’t add up; HotSpot generally uses the last occurrence. So the effective configuration is:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>Xms = 2048 MiB</span></span>
+<span class="line"><span>Xmx = 2048 MiB</span></span></code></pre>
+<p>The earlier <code>-Xmx1000m</code> comes from the image script’s default, while the later <code>-Xmx2048m</code> and <code>-Xms2048m</code> come from the Chart’s <code>heapSize</code>. This tells us:</p>
+<ul>
+<li>The default never actually constrained the heap.</li>
+<li>The heap is allowed to commit at a fixed 2 GiB from startup.</li>
+<li>The theoretical fixed-heap budget across the three nodes is already 6 GiB.</li>
+</ul>
+<p>The duplicate flag itself isn’t a 3 GiB heap or evidence of a leak, but it will mislead anyone who only checks environment variables.</p>
+<h2 id="step-2-distinguish-rss-committed-heap-and-live-data">Step 2: Distinguish RSS, Committed Heap, and Live Data</h2>
+<p>The memory of a ZooKeeper Pod can be roughly understood as:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>Pod working set</span></span>
+<span class="line"><span>≈ JVM committed heap</span></span>
+<span class="line"><span>+ Metaspace / Code Cache / GC structures</span></span>
+<span class="line"><span>+ thread stacks / direct buffers / native libraries</span></span>
+<span class="line"><span>+ process working-set file pages</span></span></code></pre>
+<p><code>Xms=2g</code> doesn’t mean the process fills 2 GiB of RSS the moment it starts, but the JVM gradually touches committed pages while running and GCing. Even with very few live objects, the working set the OS sees can stay close to the fixed heap size for a long time.</p>
+<p>So neither of these conclusions holds:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>Pod RSS 接近 2 GiB，所以 ZooKeeper 一定存了 2 GiB 数据</span></span>
+<span class="line"><span>数据只有 1 MiB，所以 Pod RSS 应该只有几十 MiB</span></span></code></pre>
+<p>Business data volume is an important input for sizing the heap, but it isn’t a direct equation for total Pod memory.</p>
+<h2 id="step-3-use-mntr-to-judge-real-load">Step 3: Use mntr to Judge Real Load</h2>
+<p>ZooKeeper’s four-letter words must be allowed in the server-side whitelist. Evaluate the security boundary before enabling them so you don’t expose the admin interface to untrusted networks. The <a href="https://zookeeper.apache.org/doc/current/zookeeperAdmin.html">ZooKeeper admin guide</a> already recommends AdminServer for new systems; <code>mntr</code> is kept here only to match how the existing cluster collects data.</p>
+<p>In an environment where <code>mntr</code> is allowed, you can run:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> infra</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> exec</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> zookeeper-0</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  sh</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -c</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'printf "mntr\n" | nc 127.0.0.1 2181'</span></span></code></pre>
+<p>Collect at least:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>zk_server_state</span></span>
+<span class="line"><span>zk_znode_count</span></span>
+<span class="line"><span>zk_approximate_data_size</span></span>
+<span class="line"><span>zk_num_alive_connections</span></span>
+<span class="line"><span>zk_outstanding_requests</span></span>
+<span class="line"><span>zk_avg_latency</span></span>
+<span class="line"><span>zk_max_latency</span></span>
+<span class="line"><span>zk_watch_count</span></span>
+<span class="line"><span>zk_ephemerals_count</span></span>
+<span class="line"><span>zk_open_file_descriptor_count</span></span>
+<span class="line"><span>zk_max_file_descriptor_count</span></span></code></pre>
+<p>The desensitized data scale this time:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Metric</th><th align="right">Observed value</th><th>Interpretation</th></tr></thead><tbody><tr><td>znode count</td><td align="right">~22,000</td><td>Small scale</td></tr><tr><td>approximate data size</td><td align="right">~1.2 MiB</td><td>Business data is far smaller than the fixed heap</td></tr><tr><td>Global sessions</td><td align="right">~40</td><td>Low client pressure</td></tr><tr><td>Alive connections per node</td><td align="right">10–20</td><td>Low connection pressure</td></tr><tr><td>watch count</td><td align="right">10–20</td><td>No watch storm</td></tr><tr><td>outstanding requests</td><td align="right">0</td><td>Nothing is queued</td></tr><tr><td>Avg latency</td><td align="right">&#x3C;1 ms</td><td>Plenty of performance headroom</td></tr><tr><td>Single snapshot</td><td align="right">~3 MiB</td><td>Consistent with the data scale</td></tr></tbody></table>
+<p>These observations support “heap is oversized” rather than “business objects are growing without bound”.</p>
+<h2 id="step-4-inspect-transaction-logs-and-snapshots">Step 4: Inspect Transaction Logs and Snapshots</h2>
+<p>Continue with the ZooKeeper data directory:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> infra</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> exec</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> zookeeper-0</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  sh</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -c</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'du -sh /bitnami/zookeeper/data /bitnami/zookeeper/logs 2>/dev/null'</span></span></code></pre>
+<p>Transaction logs may use preallocated files. Seeing log files of a few tens of MiB doesn’t mean every byte is valid business data, and it can’t be used directly as a basis for heap size either.</p>
+<p>Also confirm:</p>
+<ul>
+<li><code>snapCount</code>.</li>
+<li><code>autopurge.snapRetainCount</code>.</li>
+<li><code>autopurge.purgeInterval</code>.</li>
+<li>Whether the data directory is on a PVC.</li>
+<li>Whether snapshots and transaction logs on all three nodes keep growing.</li>
+</ul>
+<p>Auto-purge was already enabled and the snapshots are small, so there’s no evidence to support changing <code>snapCount</code> or the purge frequency right now. Performance tuning should only change parameters with supporting evidence.</p>
+<h2 id="step-5-replace-the-charts-resource-preset-with-an-explicit-budget">Step 5: Replace the Chart’s Resource Preset with an Explicit Budget</h2>
+<p>The current configuration looks like:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">heapSize</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2048</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">resourcesPreset</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">large</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">resources</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {}</span></span></code></pre>
+<p><code>resourcesPreset</code> is fine for quick deployment, but not for long-term capacity governance. It hides the actual request and limit, and it can’t express a real model like “low CPU, memory needs JVM headroom”. The <a href="https://github.com/bitnami/charts/blob/main/bitnami/zookeeper/README.md">Bitnami ZooKeeper Chart</a> also recommends <code>resources</code> tuned to the actual scenario for production workloads.</p>
+<p>Don’t cut the heap from 2 GiB to 512 MiB in one shot without monitoring. A two-phase shrink is safer.</p>
+<h3 id="phase-1-drop-to-1536-mib-first">Phase 1: Drop to 1536 MiB First</h3>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">heapSize</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1536</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">resourcesPreset</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">none</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">resources</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  requests</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    cpu</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">250m</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    memory</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">1792Mi</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    ephemeral-storage</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">256Mi</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  limits</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    cpu</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">1500m</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    memory</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">2560Mi</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    ephemeral-storage</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">1Gi</span></span></code></pre>
+<p>This phase keeps roughly 1 GiB of container-level headroom for JVM non-heap, threads, direct memory, shared libraries, and working-set fluctuation.</p>
+<h3 id="phase-2-evaluate-1024-mib-after-it-stabilizes">Phase 2: Evaluate 1024 MiB After It Stabilizes</h3>
+<p>If at least one full business peak has passed and GC, latency, connections, and elections are all stable, you can keep evaluating:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">heapSize</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1024</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">resourcesPreset</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">none</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">resources</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  requests</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    cpu</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">250m</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    memory</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">1280Mi</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    ephemeral-storage</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">256Mi</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  limits</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    cpu</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">1500m</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    memory</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">2Gi</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    ephemeral-storage</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">1Gi</span></span></code></pre>
+<p>In phase 1, the memory requests of the three replicas total 5.25 GiB; after moving to phase 2, they total 3.75 GiB. CPU requests drop from the original 3 cores to 750m. Actual savings should be measured by the requests the scheduler sees, not by an instantaneous <code>kubectl top</code>.</p>
+<h2 id="why-the-heap-shouldnt-sit-at-the-container-limit">Why the Heap Shouldn’t Sit at the Container Limit</h2>
+<p>Even though most of ZooKeeper’s data lives in the Java heap, room must be left for these areas:</p>
+<ul>
+<li>Metaspace and Compressed Class Space.</li>
+<li>JIT Code Cache.</li>
+<li>GC remembered set and other native structures.</li>
+<li>NIO Direct Buffer.</li>
+<li>Thread stacks.</li>
+<li>JNI and compression libraries.</li>
+<li>File pages and process runtime.</li>
+</ul>
+<p>If you set:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>Xmx = container memory limit</span></span></code></pre>
+<p>the container can be killed by cgroup before the JVM heap runs out of memory. Giving a 2 GiB limit to a 1 GiB heap isn’t waste; it first establishes a verifiable safety boundary, and you can decide whether to compress further after observing stability.</p>
+<h2 id="step-6-add-observability-before-shrinking">Step 6: Add Observability Before Shrinking</h2>
+<p>If metrics were disabled in the original configuration, you can only guess through <code>kubectl top</code> after shrinking, which is risky. Turn on the ZooKeeper metrics exporter first and at least monitor:</p>
+<ul>
+<li>Pod working set and RSS.</li>
+<li>JVM heap used, committed, max.</li>
+<li>GC pause, count, and allocation rate.</li>
+<li><code>zk_outstanding_requests</code>.</li>
+<li>avg/max latency.</li>
+<li>Alive connections, watch, znode, and ephemeral counts.</li>
+<li>Leader changes and election time.</li>
+<li>Container restarts, OOMKilled, and probe failures.</li>
+</ul>
+<p>Alerts shouldn’t be limited to “memory above 80%”. A composite judgment is more meaningful:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>heap 持续高位</span></span>
+<span class="line"><span>+ GC 频率升高</span></span>
+<span class="line"><span>+ 请求延迟或 outstanding requests 增长</span></span></code></pre>
+<p>With a fixed heap, a persistently high RSS may simply be expected behavior.</p>
+<h2 id="step-7-roll-by-zookeeper-quorum">Step 7: Roll by ZooKeeper Quorum</h2>
+<p>A three-node cluster must always keep at least two healthy members. Recommended flow:</p>
+<ol>
+<li>Back up the values, ZooKeeper configuration, and critical data.</li>
+<li>Confirm roles, connections, and quorum across the three members.</li>
+<li>Update only one follower at a time.</li>
+<li>Wait for that Pod to become Ready, and verify with <code>ruok</code>, <code>stat</code>, and <code>mntr</code>.</li>
+<li>Observe sync, latency, GC, and connection recovery.</li>
+<li>Update another follower.</li>
+<li>Handle the leader last, or confirm the leader has migrated safely first.</li>
+<li>Move to phase 2 only after a real peak has passed.</li>
+</ol>
+<p>Wait for the StatefulSet to be ready at every step:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> infra</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> rollout</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> status</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> statefulset/zookeeper</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --timeout=15m</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> infra</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> get</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> pod</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -l</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> app.kubernetes.io/name=zookeeper</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -o</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> wide</span></span></code></pre>
+<p>Stop rolling if any of the following happens:</p>
+<ul>
+<li>A member can’t join the quorum.</li>
+<li>Elections happen frequently.</li>
+<li>GC pauses rise noticeably.</li>
+<li>outstanding requests stay non-zero and keep growing.</li>
+<li>Business-side sessions are rebuilt en masse or time out.</li>
+</ul>
+<h2 id="a-bigger-risk-than-memory-the-data-directory-uses-emptydir">A Bigger Risk Than Memory: the Data Directory Uses emptyDir</h2>
+<p>The inspection also found that the StatefulSet has no <code>volumeClaimTemplates</code>, persistence is disabled, and the data directory actually uses <code>emptyDir</code>. The Bitnami Chart’s parameter documentation states it explicitly: <code>persistence.enabled=false</code> uses <code>emptyDir</code>.</p>
+<p>This means:</p>
+<ul>
+<li>If the container restarts but the Pod isn’t recreated, the directory may still exist.</li>
+<li>When the Pod is rescheduled, deleted, or its node fails, local snapshots and transaction logs are lost.</li>
+<li>A single node can resync from other members, but that doesn’t mean the cluster can still recover after all three lose data at once.</li>
+</ul>
+<p>Three replicas are not a substitute for persistence. Replicas handle runtime availability; PVCs and backups handle recoverability.</p>
+<p>Low-latency block storage, such as an SSD StorageClass, fits ZooKeeper better than putting high-frequency transaction logs on shared NFS. A conservative starting point is a 10 GiB PVC per Pod, adjusted by transaction volume and retention policy:</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">persistence</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  enabled</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">true</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  storageClass</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">ssd</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  size</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">10Gi</span></span></code></pre>
+<p>But you can’t just do a normal rolling update here. <code>volumeClaimTemplates</code> in a StatefulSet involves immutable fields and usually requires a dedicated migration design:</p>
+<ol>
+<li>Create and verify backups.</li>
+<li>Confirm the existing ensemble is healthy.</li>
+<li>Prepare a new StatefulSet with PVCs, or rebuild according to the Chart’s upgrade requirements.</li>
+<li>Migrate one member at a time and wait for resync.</li>
+<li>Verify snapshots, transaction logs, and failure recovery.</li>
+<li>Keep a clear rollback window.</li>
+</ol>
+<p>Memory shrinking and storage migration should be two separate changes; otherwise, when something goes wrong you can’t quickly tell whether the JVM capacity or the data directory caused it.</p>
+<h2 id="parameters-you-shouldnt-change-along-the-way">Parameters You Shouldn’t Change Along the Way</h2>
+<p>The current evidence doesn’t point to these parameters, so don’t change them just for the sake of “optimization”:</p>
+<ul>
+<li><code>maxClientCnxns</code>: the current connection count is far below the limit.</li>
+<li><code>snapCount</code>: current snapshot and transaction pressure is low.</li>
+<li>Auto-purge period: existing disk growth is normal.</li>
+<li>Tick and session timeout: no evidence of session churn.</li>
+<li>Replica count: three nodes is the minimum common production quorum.</li>
+</ul>
+<p>Changing only one explainable capacity variable at a time is how you can attribute metric changes to a cause.</p>
+<h2 id="definition-of-done">Definition of Done</h2>
+<p>ZooKeeper memory optimization counts as complete only when all of the following hold:</p>
+<ul>
+<li>No unexplained duplicate heap flags in the JVM command line.</li>
+<li>Heap, request, and limit form a clear three-layer budget.</li>
+<li>The three members keep quorum throughout the rollout.</li>
+<li>At least one business peak passes without obvious GC or latency regression.</li>
+<li>znode, Session, watch, connection, and request backlog are all monitored.</li>
+<li>OOMKilled, frequent elections, and Session rebuilds have alerts.</li>
+<li>The emptyDir risk has an independent SSD PVC migration plan and a recovery drill.</li>
+</ul>
+<h2 id="final-conclusion">Final Conclusion</h2>
+<p>A ZooKeeper Pod near 2 GiB is not a memory leak. A fixed <code>Xms=Xmx=2g</code>, the Chart’s large resource preset, and gradually touched JVM committed pages are enough to produce a stable high working set with very little data.</p>
+<p>The right approach isn’t to halve memory in one shot because CPU is low. Read the real command line first, prove the load scale with <code>mntr</code> and snapshots, declare requests/limits explicitly, then release resources through the two-phase 1536 MiB → 1024 MiB rolling verification.</p>
+<p>The <code>emptyDir</code> found during the inspection is the issue that deserves a higher place on the risk list: over-provisioning wastes capacity, but without persistence you may lose the basis for recovery in a failure.</p> </div> <aside class="table-of-contents" aria-label="On this page" data-pagefind-ignore> <p>ON THIS PAGE</p> <ol> <li> <a href="#first-build-the-diagnostic-chain" data-analytics-event="toc_click" data-analytics-target="first-build-the-diagnostic-chain"> First, Build the Diagnostic Chain </a> </li><li> <a href="#step-1-read-the-real-jvm-arguments-of-a-running-process" data-analytics-event="toc_click" data-analytics-target="step-1-read-the-real-jvm-arguments-of-a-running-process"> Step 1: Read the Real JVM Arguments of a Running Process </a> </li><li> <a href="#step-2-distinguish-rss-committed-heap-and-live-data" data-analytics-event="toc_click" data-analytics-target="step-2-distinguish-rss-committed-heap-and-live-data"> Step 2: Distinguish RSS, Committed Heap, and Live Data </a> </li><li> <a href="#step-3-use-mntr-to-judge-real-load" data-analytics-event="toc_click" data-analytics-target="step-3-use-mntr-to-judge-real-load"> Step 3: Use mntr to Judge Real Load </a> </li><li> <a href="#step-4-inspect-transaction-logs-and-snapshots" data-analytics-event="toc_click" data-analytics-target="step-4-inspect-transaction-logs-and-snapshots"> Step 4: Inspect Transaction Logs and Snapshots </a> </li><li> <a href="#step-5-replace-the-charts-resource-preset-with-an-explicit-budget" data-analytics-event="toc_click" data-analytics-target="step-5-replace-the-charts-resource-preset-with-an-explicit-budget"> Step 5: Replace the Chart’s Resource Preset with an Explicit Budget </a> </li><li class="nested"> <a href="#phase-1-drop-to-1536-mib-first" data-analytics-event="toc_click" data-analytics-target="phase-1-drop-to-1536-mib-first"> Phase 1: Drop to 1536 MiB First </a> </li><li class="nested"> <a href="#phase-2-evaluate-1024-mib-after-it-stabilizes" data-analytics-event="toc_click" data-analytics-target="phase-2-evaluate-1024-mib-after-it-stabilizes"> Phase 2: Evaluate 1024 MiB After It Stabilizes </a> </li><li> <a href="#why-the-heap-shouldnt-sit-at-the-container-limit" data-analytics-event="toc_click" data-analytics-target="why-the-heap-shouldnt-sit-at-the-container-limit"> Why the Heap Shouldn’t Sit at the Container Limit </a> </li><li> <a href="#step-6-add-observability-before-shrinking" data-analytics-event="toc_click" data-analytics-target="step-6-add-observability-before-shrinking"> Step 6: Add Observability Before Shrinking </a> </li><li> <a href="#step-7-roll-by-zookeeper-quorum" data-analytics-event="toc_click" data-analytics-target="step-7-roll-by-zookeeper-quorum"> Step 7: Roll by ZooKeeper Quorum </a> </li><li> <a href="#a-bigger-risk-than-memory-the-data-directory-uses-emptydir" data-analytics-event="toc_click" data-analytics-target="a-bigger-risk-than-memory-the-data-directory-uses-emptydir"> A Bigger Risk Than Memory: the Data Directory Uses emptyDir </a> </li><li> <a href="#parameters-you-shouldnt-change-along-the-way" data-analytics-event="toc_click" data-analytics-target="parameters-you-shouldnt-change-along-the-way"> Parameters You Shouldn’t Change Along the Way </a> </li><li> <a href="#definition-of-done" data-analytics-event="toc_click" data-analytics-target="definition-of-done"> Definition of Done </a> </li><li> <a href="#final-conclusion" data-analytics-event="toc_click" data-analytics-target="final-conclusion"> Final Conclusion </a> </li> </ol> </aside> </div> <script type="module" src="/_astro/MermaidEnhancer.astro_astro_type_script_index_0_lang.DTQ20dni.js"></script> <dialog class="image-lightbox" data-image-lightbox data-locale="en" aria-labelledby="lightbox-caption"> <div class="image-lightbox-inner"> <button type="button" class="image-lightbox-close" aria-label="Close image preview">
+×
+</button> <img alt="" decoding="async"> <p id="lightbox-caption" hidden></p> </div> </dialog> <script type="module" src="/_astro/ImageLightbox.astro_astro_type_script_index_0_lang.CmAf__MV.js"></script> <div class="reading-progress" aria-hidden="true"><span></span></div> <div class="article-actions" data-reading-tools data-locale="en" data-title="ZooKeeper Pods Near 2G Each: From Fixed Heap to Kubernetes Resource Rightsizing" data-href="https://lucaslz.com/en/kubernetes/zookeeper-kubernetes-memory-rightsizing/"> <button type="button" data-share aria-label="Share"> Share </button> <button type="button" data-copy-link aria-label="Copy link"> Copy link </button> <button type="button" data-bookmark aria-label="Bookmark" aria-pressed="false"> Bookmark </button> </div> <button class="back-to-top" type="button" aria-label="Back to top" hidden>↑</button> <div class="reading-toast" role="status" aria-live="polite"></div> <script type="module" src="/_astro/ReadingTools.astro_astro_type_script_index_0_lang.FOex6a9j.js"></script> <footer class="post-footer page-shell narrow-shell" data-pagefind-ignore> <div class="post-end-mark"><span>END</span></div> <p>Thanks for reading. You can share, bookmark, or join the discussion below.</p> <section class="related-posts" aria-labelledby="related-title"> <div class="related-heading"> <span>CONTINUE READING</span> <h2 id="related-title">Related articles</h2> </div> <div class="related-grid"> <article class="article-card compact"> <a class="article-card-link" href="/en/kubernetes/kubernetes-stateful-services-migration/" data-analytics-event="article_click" data-analytics-impression="article_impression" data-analytics-target="/en/kubernetes/kubernetes-stateful-services-migration/"> <div class="article-card-top"> <span class="article-index">01</span> <span class="article-date">07.04.2026</span> </div> <h3>How to Migrate MySQL, Redis, Kafka, RabbitMQ, and Zookeeper During a Kubernetes Cluster Rebuild</h3> <p>Migrate common data services with RPO, backup and restore, zero-replica pre-deployment, and layered acceptance; avoid copying only PVCs, starting an empty database, or scheduling all three replicas onto the same node.</p> <div class="article-card-bottom"> <div class="article-tags"> <span data-href="/en/tags/kubernetes/">
+#Kubernetes </span><span data-href="/en/tags/mysql/">
+#MySQL </span><span data-href="/en/tags/redis/">
+#Redis </span> </div> <span class="read-time">8 min read <b>↗</b></span> </div> </a> </article><article class="article-card compact"> <a class="article-card-link" href="/en/kubernetes/spring-boot-3-kubernetes-deployment-baseline/" data-analytics-event="article_click" data-analytics-impression="article_impression" data-analytics-target="/en/kubernetes/spring-boot-3-kubernetes-deployment-baseline/"> <div class="article-card-top"> <span class="article-index">02</span> <span class="article-date">08.09.2026</span> </div> <h3>How 50 Spring Boot Services Were Unified into a Single Kubernetes Deployment Template</h3> <p>A retrospective on multi-service Deployment governance: consolidating duplicate templates to unify rolling releases, probes, JVM settings, cache directories, security contexts, message concurrency, resource classes, and cross-node scheduling policy.</p> <div class="article-card-bottom"> <div class="article-tags"> <span data-href="/en/tags/kubernetes/">
+#Kubernetes </span><span data-href="/en/tags/spring-boot/">
+#Spring Boot </span><span data-href="/en/tags/deployment/">
+#Deployment </span> </div> <span class="read-time">9 min read <b>↗</b></span> </div> </a> </article><article class="article-card compact"> <a class="article-card-link" href="/en/java/spring-boot-3-container-startup-compatibility-postmortem/" data-analytics-event="article_click" data-analytics-impression="article_impression" data-analytics-target="/en/java/spring-boot-3-container-startup-compatibility-postmortem/"> <div class="article-card-top"> <span class="article-index">03</span> <span class="article-date">08.08.2026</span> </div> <h3>Spring Boot 3 Container Startup Postmortem: Directories, Deprecated Properties, Log Bridges, and Optional Drivers</h3> <p>Tracing an UnsatisfiedDependencyException down to mkdir failed, then systematically handling the Nacos cache directory, server.use-forward-headers, commons-logging, nacos-logback.xml, and an empty Class.forName.</p> <div class="article-card-bottom"> <div class="article-tags"> <span data-href="/en/tags/spring-boot/">
+#Spring Boot </span><span data-href="/en/tags/java/">
+#Java </span><span data-href="/en/tags/nacos/">
+#Nacos </span> </div> <span class="read-time">10 min read <b>↗</b></span> </div> </a> </article> </div> </section> <div class="post-navigation"> <a href="/en/java/spring-boot-3-container-startup-compatibility-postmortem/" class="previous-post" data-analytics-event="article_click" data-analytics-target="/en/java/spring-boot-3-container-startup-compatibility-postmortem/">  <small>← Previous</small> <strong>Spring Boot 3 Container Startup Postmortem: Directories, Deprecated Properties, Log Bridges, and Optional Drivers</strong>  </a> <a href="/en/kubernetes/spring-boot-3-nacos-global-configuration-baseline/" class="next-post" data-analytics-event="article_click" data-analytics-target="/en/kubernetes/spring-boot-3-nacos-global-configuration-baseline/">  <small>Next →</small> <strong>A Complete Spring Boot 3 Nacos Production Baseline: Redis, RabbitMQ, Hikari, and Probes</strong>  </a> </div> </footer> </article> <div class="page-shell narrow-shell" data-pagefind-ignore> <section class="comments-section" aria-labelledby="comments-title" data-giscus-comments data-repo="lucaslz2020/lucasleelz.github.io" data-repo-id="MDEwOlJlcG9zaXRvcnkyNzcxNjkwNw==" data-category="Announcements" data-category-id="DIC_kwDOAabtK84DCw-x" data-discussion-path="/kubernetes/zookeeper-kubernetes-memory-rightsizing/" data-giscus-language="en"> <div class="comments-heading"> <p class="eyebrow"> <span></span>
+DISCUSSION
+</p> <h2 id="comments-title">Discussion &amp; feedback</h2> </div> <div class="giscus" aria-live="polite"></div> </section> <script type="module">var e=()=>document.documentElement.dataset.theme===`dark`?`noborder_dark`:`noborder_light`,t=t=>{if(t.dataset.loaded===`true`)return;let n=t.querySelector(`.giscus`);if(!n)return;let r=document.createElement(`script`);r.src=`https://giscus.app/client.js`,r.async=!0,r.crossOrigin=`anonymous`,r.dataset.repo=t.dataset.repo??``,r.dataset.repoId=t.dataset.repoId??``,r.dataset.category=t.dataset.category??``,r.dataset.categoryId=t.dataset.categoryId??``,r.dataset.mapping=`specific`,r.dataset.term=t.dataset.discussionPath??window.location.pathname,r.dataset.strict=`1`,r.dataset.reactionsEnabled=`1`,r.dataset.emitMetadata=`0`,r.dataset.inputPosition=`top`,r.dataset.theme=e(),r.dataset.lang=t.dataset.giscusLanguage??`zh-CN`,r.dataset.loading=`lazy`,t.dataset.loaded=`true`,n.append(r)},n=document.querySelector(`[data-giscus-comments]`);if(n)if(`IntersectionObserver`in window){let e=new IntersectionObserver(r=>{r.some(e=>e.isIntersecting)&&(t(n),e.disconnect())},{rootMargin:`500px 0px`});e.observe(n)}else t(n);window.addEventListener(`theme-change`,()=>{document.querySelector(`iframe.giscus-frame`)?.contentWindow?.postMessage({giscus:{setConfig:{theme:e()}}},`https://giscus.app`)});</script> </div>  </main> <footer class="site-footer"> <div class="footer-inner"> <div class="footer-brand"> <img class="brand-mark" src="/brand/avatar.svg" alt="" width="42" height="42" loading="lazy" decoding="async"> <div> <strong>lucaslz</strong> <p>Long-term notes on software engineering, Web, Java, and continuous learning.</p> </div> </div> <div class="footer-links"> <a href="/en/rss.xml">RSS</a> <a href="/en/archive/">Archive</a> <a href="/en/tags/">Tags</a> <a href="https://github.com/lucaslz2020" target="_blank" rel="noreferrer">GitHub</a> </div> </div> <div class="footer-bottom"> <span>© 2026 lucaslz</span> <span>Built with Astro + React · Deployed on Cloudflare Pages</span> </div> </footer> <script type="module" src="/_astro/Analytics.astro_astro_type_script_index_0_lang.C6zUefo_.js"></script> <aside class="pwa-notice" data-pwa-notice data-locale="en" data-mode="status" aria-label="App status" aria-live="polite" aria-atomic="true" hidden> <span class="pwa-notice-icon" data-pwa-icon aria-hidden="true">↧</span> <p> <strong data-pwa-title>Ready for offline reading</strong> <small data-pwa-message>Articles you have visited remain readable offline.</small> </p> <div class="pwa-notice-actions"> <button type="button" data-pwa-action hidden> Install now </button> <button type="button" data-pwa-dismiss>Got it</button> </div> </aside> <script type="module" src="/_astro/Pwa.astro_astro_type_script_index_0_lang.ErCGOlnE.js"></script> </body> </html>

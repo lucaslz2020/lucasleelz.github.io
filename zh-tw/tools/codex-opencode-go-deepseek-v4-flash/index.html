@@ -1,0 +1,737 @@
+<!DOCTYPE html><html lang="zh-Hant-TW" data-theme="light" data-locale="zh-TW"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="generator" content="Astro v7.1.6"><meta name="author" content="lucaslz"><meta name="theme-color" content="#f5f1e8" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)"><meta name="description" content="按真實時間線復盤將 DeepSeek V4 Flash 透過 OpenCode Go Responses API 串接到 Codex 的完整過程，包括協定驗證、代理誤判、無明文金鑰認證、模型目錄、雙 Profile 切換、exec 相容性修正與檔案修改實測。"><meta name="google-site-verification" content="o_QOQN3-adA79KPRfqy1wAj9zviE8hyD5jvfdQEMVco"><meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"><meta name="keywords" content="Codex, DeepSeek, OpenCode, Responses API, AI 程式設計, Codex 自訂模型, DeepSeek V4 Flash, OpenCode Go, model_provider, Codex Profile"><link rel="canonical" href="https://lucaslz.com/zh-tw/tools/codex-opencode-go-deepseek-v4-flash/"><link rel="alternate" hreflang="zh-CN" href="https://lucaslz.com/tools/codex-opencode-go-deepseek-v4-flash/"><link rel="alternate" hreflang="en" href="https://lucaslz.com/en/tools/codex-opencode-go-deepseek-v4-flash/"><link rel="alternate" hreflang="zh-Hant-TW" href="https://lucaslz.com/zh-tw/tools/codex-opencode-go-deepseek-v4-flash/"><link rel="alternate" hreflang="x-default" href="https://lucaslz.com/tools/codex-opencode-go-deepseek-v4-flash/"><link rel="author" href="https://github.com/lucaslz2020"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon.ico" sizes="any"><link rel="apple-touch-icon" href="/icons/apple-touch-icon.png"><link rel="alternate" type="application/rss+xml" title="lucaslz · 工程筆記" href="/zh-tw/rss.xml"><link rel="manifest" href="/site.webmanifest"><title>在 Codex 中串接 OpenCode Go 的 DeepSeek V4 Flash：Responses API、模型目錄與 Profile 切換 · lucaslz</title><meta property="og:type" content="article"><meta property="og:site_name" content="lucaslz · 工程筆記"><meta property="og:title" content="在 Codex 中串接 OpenCode Go 的 DeepSeek V4 Flash：Responses API、模型目錄與 Profile 切換 · lucaslz"><meta property="og:description" content="按真實時間線復盤將 DeepSeek V4 Flash 透過 OpenCode Go Responses API 串接到 Codex 的完整過程，包括協定驗證、代理誤判、無明文金鑰認證、模型目錄、雙 Profile 切換、exec 相容性修正與檔案修改實測。"><meta property="og:url" content="https://lucaslz.com/zh-tw/tools/codex-opencode-go-deepseek-v4-flash/"><meta property="og:image" content="https://lucaslz.com/og/zh-tw/tools/codex-opencode-go-deepseek-v4-flash.png"><meta property="og:image:type" content="image/png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="在 Codex 中串接 OpenCode Go 的 DeepSeek V4 Flash：Responses API、模型目錄與 Profile 切換 的分享圖片"><meta property="og:locale" content="zh_TW"><meta property="article:published_time" content="2026-08-06T00:00:00.000Z"><meta property="article:author" content="https://github.com/lucaslz2020"><meta property="article:tag" content="Codex"><meta property="article:tag" content="DeepSeek"><meta property="article:tag" content="OpenCode"><meta property="article:tag" content="Responses API"><meta property="article:tag" content="AI 程式設計"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="在 Codex 中串接 OpenCode Go 的 DeepSeek V4 Flash：Responses API、模型目錄與 Profile 切換 · lucaslz"><meta name="twitter:description" content="按真實時間線復盤將 DeepSeek V4 Flash 透過 OpenCode Go Responses API 串接到 Codex 的完整過程，包括協定驗證、代理誤判、無明文金鑰認證、模型目錄、雙 Profile 切換、exec 相容性修正與檔案修改實測。"><meta name="twitter:image" content="https://lucaslz.com/og/zh-tw/tools/codex-opencode-go-deepseek-v4-flash.png"><script>
+      (() => {
+        const saved = localStorage.getItem("theme");
+        const dark = saved
+          ? saved === "dark"
+          : matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+      })();
+    </script><script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Person","@id":"https://lucaslz.com/#person","name":"lucaslz","url":"https://lucaslz.com","sameAs":["https://github.com/lucaslz2020"]},{"@type":"WebSite","@id":"https://lucaslz.com/#website","name":"lucaslz · 工程筆記","alternateName":"lucaslz","description":"關於軟體工程、Web、Java 與持續學習的長期技術筆記。","url":"https://lucaslz.com","inLanguage":"zh-Hant-TW","publisher":{"@id":"https://lucaslz.com/#person"}},{"@type":"BlogPosting","@id":"https://lucaslz.com/zh-tw/tools/codex-opencode-go-deepseek-v4-flash/#article","url":"https://lucaslz.com/zh-tw/tools/codex-opencode-go-deepseek-v4-flash/","headline":"在 Codex 中串接 OpenCode Go 的 DeepSeek V4 Flash：Responses API、模型目錄與 Profile 切換","description":"按真實時間線復盤將 DeepSeek V4 Flash 透過 OpenCode Go Responses API 串接到 Codex 的完整過程，包括協定驗證、代理誤判、無明文金鑰認證、模型目錄、雙 Profile 切換、exec 相容性修正與檔案修改實測。","inLanguage":"zh-Hant-TW","datePublished":"2026-08-06T00:00:00.000Z","dateModified":"2026-08-06T00:00:00.000Z","author":{"@id":"https://lucaslz.com/#person","name":"lucaslz"},"publisher":{"@id":"https://lucaslz.com/#person"},"isPartOf":{"@id":"https://lucaslz.com/#website"},"mainEntityOfPage":{"@type":"WebPage","@id":"https://lucaslz.com/zh-tw/tools/codex-opencode-go-deepseek-v4-flash/"},"image":{"@type":"ImageObject","url":"https://lucaslz.com/og/zh-tw/tools/codex-opencode-go-deepseek-v4-flash.png","width":1200,"height":630},"articleSection":["Codex","DeepSeek","OpenCode","Responses API","AI 程式設計"],"keywords":"Codex, DeepSeek, OpenCode, Responses API, AI 程式設計, Codex 自訂模型, DeepSeek V4 Flash, OpenCode Go, model_provider, Codex Profile","wordCount":7095},{"@type":"BreadcrumbList","@id":"https://lucaslz.com/zh-tw/tools/codex-opencode-go-deepseek-v4-flash/#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"首頁","item":"https://lucaslz.com/zh-tw"},{"@type":"ListItem","position":2,"name":"在 Codex 中串接 OpenCode Go 的 DeepSeek V4 Flash：Responses API、模型目錄與 Profile 切換","item":"https://lucaslz.com/zh-tw/tools/codex-opencode-go-deepseek-v4-flash/"}]}]}</script><style>@layer astro.images{:where([data-astro-image]){height:auto}:where([data-astro-image=full-width]){width:100%}:where([data-astro-image=constrained]){max-width:100%}[data-astro-image-fit=fill]{object-fit:fill}[data-astro-image-fit=contain]{object-fit:contain}[data-astro-image-fit=cover]{object-fit:cover}[data-astro-image-fit=scale-down]{object-fit:scale-down}[data-astro-image-pos=top]{object-position:top}[data-astro-image-pos=bottom]{object-position:bottom}[data-astro-image-pos=left]{object-position:left}[data-astro-image-pos=right]{object-position:right}[data-astro-image-pos=center]{object-position:center}[data-astro-image-pos=top-bottom]{object-position:top bottom}[data-astro-image-pos=top-left]{object-position:top left}[data-astro-image-pos=top-right]{object-position:top right}[data-astro-image-pos=top-center]{object-position:top center}[data-astro-image-pos=bottom-top]{object-position:bottom top}[data-astro-image-pos=bottom-left]{object-position:bottom left}[data-astro-image-pos=bottom-right]{object-position:bottom right}[data-astro-image-pos=bottom-center]{object-position:bottom center}[data-astro-image-pos=left-top]{object-position:left top}[data-astro-image-pos=left-bottom]{object-position:left bottom}[data-astro-image-pos=left-right]{object-position:left right}[data-astro-image-pos=left-center]{object-position:left center}[data-astro-image-pos=right-top]{object-position:right top}[data-astro-image-pos=right-bottom]{object-position:right bottom}[data-astro-image-pos=right-left]{object-position:right left}[data-astro-image-pos=right-center]{object-position:right center}[data-astro-image-pos=center-top]{object-position:center top}[data-astro-image-pos=center-bottom]{object-position:center bottom}[data-astro-image-pos=center-left]{object-position:center left}[data-astro-image-pos=center-right]{object-position:center right}}
+</style><link rel="stylesheet" href="/_astro/BaseLayout.BkQFXu0L.css"><script type="module" src="/_astro/page.BS6wqQC3.js"></script></head> <body> <a class="skip-link" href="#main-content">跳至主要內容</a> <header class="site-header"> <div class="header-inner"> <a class="brand" href="/zh-tw/" title="首頁" data-analytics-event="nav_click" data-analytics-target="home"> <img class="brand-mark" src="/brand/avatar.svg" alt="" width="42" height="42" decoding="async"> <span class="brand-copy"> <strong>lucaslz</strong> <small>ENGINEERING NOTES</small> </span> </a> <nav class="desktop-nav" aria-label="主要導覽"> <a href="/zh-tw/" data-analytics-event="nav_click" data-analytics-target="首頁" aria-current="page"> 首頁 </a><a href="/zh-tw/archive/" data-analytics-event="nav_click" data-analytics-target="彙整"> 彙整 </a><a href="/zh-tw/tags/" data-analytics-event="nav_click" data-analytics-target="標籤"> 標籤 </a> <a href="https://github.com/lucaslz2020" target="_blank" rel="noreferrer">GitHub ↗</a> </nav> <style>astro-island,astro-slot,astro-static-slot{display:contents}</style><script>(()=>{var e=async t=>{await(await t())()};(self.Astro||(self.Astro={})).load=e;window.dispatchEvent(new Event("astro:load"));})();</script><script>(()=>{var g=Object.defineProperty;var w=(a,s,c)=>s in a?g(a,s,{enumerable:!0,configurable:!0,writable:!0,value:c}):a[s]=c;var l=(a,s,c)=>w(a,typeof s!="symbol"?s+"":s,c);var E=new Set(["__proto__","constructor","prototype"]);{let a={0:t=>y(t),1:t=>c(t),2:t=>new RegExp(t),3:t=>new Date(t),4:t=>new Map(c(t)),5:t=>new Set(c(t)),6:t=>BigInt(t),7:t=>new URL(t),8:t=>new Uint8Array(t),9:t=>new Uint16Array(t),10:t=>new Uint32Array(t),11:t=>Number.POSITIVE_INFINITY*t},s=t=>{let[p,e]=t;return p in a?a[p](e):void 0},c=t=>t.map(s),y=t=>typeof t!="object"||t===null?t:Object.fromEntries(Object.entries(t).map(([p,e])=>[p,s(e)]));class f extends HTMLElement{constructor(){super(...arguments);l(this,"Component");l(this,"hydrator");l(this,"hydrate",async()=>{var b;if(!this.hydrator||!this.isConnected)return;let e=(b=this.parentElement)==null?void 0:b.closest("astro-island[ssr]");if(e){e.addEventListener("astro:hydrate",this.hydrate,{once:!0});return}let r=this.querySelectorAll("astro-slot"),n={},d=this.querySelectorAll("template[data-astro-template]");for(let o of d){let i=o.closest(this.tagName);i!=null&&i.isSameNode(this)&&(n[o.getAttribute("data-astro-template")||"default"]=o.innerHTML,o.remove())}for(let o of r){let i=o.closest(this.tagName);i!=null&&i.isSameNode(this)&&(n[o.getAttribute("name")||"default"]=o.innerHTML)}let u;try{u=this.hasAttribute("props")?y(JSON.parse(this.getAttribute("props"))):{}}catch(o){let i=this.getAttribute("component-url")||"<unknown>",v=this.getAttribute("component-export");throw v&&(i+=` (export ${v})`),console.error(`[hydrate] Error parsing props for component ${i}`,this.getAttribute("props"),o),o}let h;await this.hydrator(this)(this.Component,u,n,{client:this.getAttribute("client")}),this.removeAttribute("ssr"),this.dispatchEvent(new CustomEvent("astro:hydrate"))});l(this,"unmount",()=>{this.isConnected||this.dispatchEvent(new CustomEvent("astro:unmount"))})}disconnectedCallback(){document.removeEventListener("astro:after-swap",this.unmount),document.addEventListener("astro:after-swap",this.unmount,{once:!0})}connectedCallback(){if(!this.hasAttribute("await-children")||document.readyState==="interactive"||document.readyState==="complete")this.childrenConnectedCallback();else{let e=()=>{document.removeEventListener("DOMContentLoaded",e),r.disconnect(),this.childrenConnectedCallback()},r=new MutationObserver(()=>{var n;((n=this.lastChild)==null?void 0:n.nodeType)===Node.COMMENT_NODE&&this.lastChild.nodeValue==="astro:end"&&(this.lastChild.remove(),e())});r.observe(this,{childList:!0}),document.addEventListener("DOMContentLoaded",e)}}async childrenConnectedCallback(){let e=this.getAttribute("before-hydration-url");e&&await import(e),this.start()}getRetryImportUrl(e){let r=new URL(e,document.baseURI);return r.searchParams.set("astro-retry",Date.now().toString()),r.toString()}async importWithRetry(e){try{return await import(e)}catch(r){return await new Promise(n=>setTimeout(n,1e3)),import(this.getRetryImportUrl(e))}}handleHydrationError(e){let r=this.getAttribute("component-url"),n=new CustomEvent("astro:hydration-error",{cancelable:!0,bubbles:!0,composed:!0,detail:{error:e,componentUrl:r}});this.dispatchEvent(n)&&console.error(`[astro-island] Error hydrating ${r}`,e)}async start(){let e=JSON.parse(this.getAttribute("opts")),r=this.getAttribute("client");if(Astro[r]===void 0){window.addEventListener(`astro:${r}`,()=>this.start(),{once:!0});return}try{await Astro[r](async()=>{let n=this.getAttribute("renderer-url");try{let[d,{default:u}]=await Promise.all([this.importWithRetry(this.getAttribute("component-url")),n?this.importWithRetry(n):Promise.resolve({default:()=>()=>{}})]),h=this.getAttribute("component-export")||"default";if(h.includes(".")){this.Component=d;for(let m of h.split(".")){if(E.has(m)||!this.Component||typeof this.Component!="object"&&typeof this.Component!="function"||!Object.hasOwn(this.Component,m))throw new Error(`Invalid component export path: ${h}`);this.Component=this.Component[m]}}else{if(E.has(h))throw new Error(`Invalid component export path: ${h}`);this.Component=d[h]}return this.hydrator=u,this.hydrate}catch(d){return this.handleHydrationError(d),()=>{}}},e,this)}catch(n){this.handleHydrationError(n)}}attributeChangedCallback(){this.hydrate()}}l(f,"observedAttributes",["props"]),customElements.get("astro-island")||customElements.define("astro-island",f)}})();</script><astro-island uid="Z1ks5gR" prefix="r1" component-url="/_astro/HeaderControls.B1MD04oD.js" component-export="default" renderer-url="/_astro/client.2oQR4HXa.js" props="{&quot;githubUrl&quot;:[0,&quot;https://github.com/lucaslz2020&quot;],&quot;locale&quot;:[0,&quot;zh-TW&quot;],&quot;languageTargets&quot;:[0,{&quot;zh-CN&quot;:[0,&quot;/tools/codex-opencode-go-deepseek-v4-flash/&quot;],&quot;en&quot;:[0,&quot;/en/tools/codex-opencode-go-deepseek-v4-flash/&quot;],&quot;zh-TW&quot;:[0,&quot;/zh-tw/tools/codex-opencode-go-deepseek-v4-flash/&quot;]}]}" ssr client="load" opts="{&quot;name&quot;:&quot;HeaderControls&quot;,&quot;value&quot;:true}" await-children><div class="header-controls"><div class="language-switcher" aria-label="語言"><a href="/tools/codex-opencode-go-deepseek-v4-flash/">简</a><a href="/en/tools/codex-opencode-go-deepseek-v4-flash/">EN</a><a href="/zh-tw/tools/codex-opencode-go-deepseek-v4-flash/" aria-current="page">繁</a></div><button class="icon-button search-trigger" type="button" aria-label="搜尋"><span aria-hidden="true">⌕</span><span class="search-label">搜尋</span><kbd>⌘K</kbd></button><button class="icon-button theme-trigger" type="button" aria-label="切換至深色模式"><span aria-hidden="true">◐</span></button><button class="icon-button menu-trigger" type="button" aria-label="開啟導覽"><span aria-hidden="true">☰</span></button></div><!--astro:end--></astro-island> </div> </header> <main id="main-content">  <article class="post-page" data-pagefind-body> <meta data-pagefind-filter="locale[content]" content="zh-TW"> <header class="post-header page-shell narrow-shell"> <a class="back-link" href="/zh-tw/">← 返回文章列表</a> <p class="eyebrow"> <span></span>ENGINEERING NOTE · 2026年8月6日 </p> <h1 data-pagefind-meta="title">在 Codex 中串接 OpenCode Go 的 DeepSeek V4 Flash：Responses API、模型目錄與 Profile 切換</h1> <p class="post-description" data-pagefind-meta="description"> 按真實時間線復盤將 DeepSeek V4 Flash 透過 OpenCode Go Responses API 串接到 Codex 的完整過程，包括協定驗證、代理誤判、無明文金鑰認證、模型目錄、雙 Profile 切換、exec 相容性修正與檔案修改實測。 </p> <meta data-pagefind-meta="date" content="2026-08-06"> <meta data-pagefind-meta="tags" content="Codex, DeepSeek, OpenCode, Responses API, AI 程式設計"> <div class="post-meta-row"> <div class="post-author"> <img class="mini-avatar" src="/brand/avatar.svg" alt="" width="36" height="36" decoding="async"> <span><strong>lucaslz</strong><small>作者</small></span> </div> <div class="post-facts"> <time datetime="2026-08-06T00:00:00.000Z">2026年8月6日</time>  <span>36 分鐘閱讀</span> <span class="post-view-count" data-page-views hidden></span> </div> </div> <div class="post-tag-row"> <a href="/zh-tw/tags/codex/" data-analytics-event="tag_click" data-analytics-target="Codex">
+#Codex </a><a href="/zh-tw/tags/deepseek/" data-analytics-event="tag_click" data-analytics-target="DeepSeek">
+#DeepSeek </a><a href="/zh-tw/tags/opencode/" data-analytics-event="tag_click" data-analytics-target="OpenCode">
+#OpenCode </a><a href="/zh-tw/tags/responses-api/" data-analytics-event="tag_click" data-analytics-target="Responses API">
+#Responses API </a><a href="/zh-tw/tags/ai-程式設計/" data-analytics-event="tag_click" data-analytics-target="AI 程式設計">
+#AI 程式設計 </a> </div> <div class="tested-with"> <span>驗證環境</span> <dl aria-label="文章驗證環境"> <div> <dt>codex</dt> <dd>0.145.0</dd> </div><div> <dt>model</dt> <dd>deepseek-v4-flash</dd> </div><div> <dt>protocol</dt> <dd>Responses API</dd> </div> </dl> </div>   </header> <div class="post-divider"> <span></span><b>&#123; &#125;</b><span></span> </div> <div class="post-layout page-shell"> <div class="post-content prose">  <p>目標很明確：保留 Codex 原本的 OpenAI 登入，同時把 OpenCode Go 提供的 <strong>DeepSeek V4 Flash</strong> 串接到 Codex；預設使用 DeepSeek，需要時用一條指令切回 OpenAI。</p>
+<p>最後實作了三個入口：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D"># 默认：DeepSeek V4 Flash</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D"># 显式选择 DeepSeek</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -p</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> deepseek</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D"># 切回 OpenAI</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -p</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> openai</span></span></code></pre>
+<p>實際過程不是簡單改一個模型名稱。這裡同時涉及 Responses API 相容性、Provider 認證、模型元資料、Codex 自訂工具，以及 Profile 的設定覆寫順序。更麻煩的是，有些設定可以通過靜態檢查，卻只會在第一次真實請求時暴露協定差異。</p>
+<h2 id="需求約束與驗收標準">需求、約束與驗收標準</h2>
+<p>開始修改前，我把目標拆成一組可以驗證的條件：</p>
+<ul>
+<li>沿用 OpenCode Go 中已經設定好的 <code>deepseek-v4-flash</code>，不再另外申請和複製一份憑證。</li>
+<li>Codex 直接呼叫 Responses API，不長期執行本機協定代理。</li>
+<li>DeepSeek 維持預設，OpenAI 登入與模型仍然可用。</li>
+<li>跨 Provider 切換不能只改模型名稱，必須同時切換認證與模型目錄。</li>
+<li>目前工作階段的設定可以追溯，修改前要保留原始的 <code>config.toml</code>。</li>
+<li>不把 API Key 輸出到終端機日誌、文章、Git 或截圖。</li>
+<li>不能只透過 <code>curl</code>；還要透過 Codex 原生對話與真實檔案修改。</li>
+<li>出現不相容時，保留完整錯誤並定位到請求協定，而不是靠重試掩蓋。</li>
+</ul>
+<p>最終驗收標準是：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>驗收項</th><th>通過條件</th></tr></thead><tbody><tr><td>原始 API</td><td><code>/v1/responses</code> 回傳 HTTP 200 和 <code>completed</code></td></tr><tr><td>Codex 設定</td><td><code>doctor</code> 無 warning、無 failure</td></tr><tr><td>模型目錄</td><td>能解析 100 萬上下文、<code>high/max</code> 與正確工具模式</td></tr><tr><td>DeepSeek Profile</td><td>啟動資訊顯示 <code>opencode-go + deepseek-v4-flash</code></td></tr><tr><td>OpenAI Profile</td><td>啟動資訊顯示 <code>openai + gpt-5.6-luna</code></td></tr><tr><td>生成能力</td><td>兩個 Profile 分別回傳約定的精確文字</td></tr><tr><td>Agent 工具</td><td>DeepSeek 能透過 <code>apply_patch</code> 建立並寫入指定內容</td></tr><tr><td>憑證安全</td><td>Codex 設定不包含 API Key，相關檔案權限限制為目前使用者</td></tr></tbody></table>
+<h2 id="完整排查時間線">完整排查時間線</h2>
+<p>這次串接經歷了幾次方向修正。依發生順序記錄如下：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>階段</th><th>操作</th><th>結果或判斷</th></tr></thead><tbody><tr><td>1</td><td>確認 OpenCode Go 已儲存 DeepSeek 憑證</td><td>不重複儲存明文 Key</td></tr><tr><td>2</td><td>根據舊資料判斷只支援 Chat Completions</td><td>結論過時，方向錯誤</td></tr><tr><td>3</td><td>暫時安裝協定相容代理</td><td>尚未啟用，等待介面能力確認</td></tr><tr><td>4</td><td>閱讀 DeepSeek 建立 Response 文件</td><td>確認新介面已支援 Responses API</td></tr><tr><td>5</td><td>直連 OpenCode Go <code>/v1/responses</code></td><td>HTTP 200，回傳 <code>OK</code></td></tr><tr><td>6</td><td>解除安裝未使用的代理</td><td>減少一層執行與憑證鏈路</td></tr><tr><td>7</td><td>設定 Codex 自訂 Provider 與執行時期認證</td><td>Provider 可達，Key 未寫入設定</td></tr><tr><td>8</td><td>使用未知模型的 fallback 元資料執行</td><td>原生 Codex 回傳 <code>OK</code>，但有模型元資料警告</td></tr><tr><td>9</td><td>加入自訂模型目錄</td><td>警告消失，但首次真實請求被 <code>exec</code> 工具拒絕</td></tr><tr><td>10</td><td>將 <code>tool_mode</code> 從 <code>code_mode_only</code> 改為標準模式</td><td>DeepSeek 原生請求恢復成功</td></tr><tr><td>11</td><td>加入 <code>deepseek</code> 與 <code>openai</code> 兩個 Profile</td><td>一條指令即可切換完整 Provider 設定</td></tr><tr><td>12</td><td>執行真實 <code>apply_patch</code> 檔案修改</td><td>檔案內容與結尾換行均通過位元組層級驗證</td></tr></tbody></table>
+<p>這條時間線有一個反直覺的點：<strong>沒有模型目錄時請求可以成功，補上看似更完整的模型目錄後反而失敗。</strong> 根因不是模型品質，而是模型目錄改變了 Codex 傳送給上游的工具宣告。</p>
+<h2 id="最終架構">最終架構</h2>
+<pre><code class="language-mermaid">flowchart LR
+  A[Codex CLI] --> B{啟動參數}
+  B -->|預設或 -p deepseek| C[DeepSeek Profile]
+  B -->|-p openai| D[OpenAI Profile]
+  C --> E[OpenCode Go Provider]
+  E --> F[deepseek-v4-flash]
+  D --> G[OpenAI Provider]
+  G --> H[gpt-5.6-luna]
+</code></pre>
+<p>設定分為四個檔案：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>~/.codex/</span></span>
+<span class="line"><span>├── config.toml</span></span>
+<span class="line"><span>├── deepseek.config.toml</span></span>
+<span class="line"><span>├── openai.config.toml</span></span>
+<span class="line"><span>└── model-catalogs/</span></span>
+<span class="line"><span>    └── opencode-go.json</span></span></code></pre>
+<p><code>config.toml</code> 儲存預設值與 Provider 定義；兩個 Profile 只覆寫模型、Provider、上下文視窗與模型目錄。API Key 不寫進這些檔案，而是在執行時期從 OpenCode 已儲存的認證檔讀取。</p>
+<h2 id="先驗證-responses-api不要從舊資料推斷">先驗證 Responses API，不要從舊資料推斷</h2>
+<p>一開始我根據舊的搜尋結果誤以為 DeepSeek 端點只支援 Chat Completions，並準備增加一層協定代理。隨後在 <a href="https://api-docs.deepseek.com/zh-cn/api/create-response">DeepSeek 建立 Response 文件</a> 中確認了 Responses API，再對 OpenCode Go 的實際端點做最小請求驗證：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">curl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --request</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> POST</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --url</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> https://opencode.ai/zen/go/v1/responses</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --header</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> "Authorization: Bearer ${</span><span style="color:#24292E;--shiki-dark:#E1E4E8">OPENCODE_GO_API_KEY</span><span style="color:#032F62;--shiki-dark:#9ECBFF">}"</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --header</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> "Content-Type: application/json"</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --data</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> '{</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">    "model": "deepseek-v4-flash",</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">    "input": "Reply exactly OK.",</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">    "max_output_tokens": 16</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  }'</span></span></code></pre>
+<p>去識別化後的關鍵結果如下：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "object"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"response"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "status"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"completed"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "model"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"deepseek-v4-flash"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "output_text"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"OK"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "error"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">null</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
+<p>介面回傳 HTTP 200，回應狀態為 <code>completed</code>，模型為 <code>deepseek-v4-flash</code>，文字結果為 <code>OK</code>。這代表不需要額外的協定代理，可以讓 Codex 直接使用 <code>wire_api = "responses"</code>。</p>
+<h3 id="文件模型服務與閘道是三層能力">文件、模型服務與閘道是三層能力</h3>
+<p>這裡不能只問「DeepSeek 是否支援 Responses API」，因為實際請求會經過三層：</p>
+<ol>
+<li>DeepSeek 模型與介面定義是否支援 Response 物件。</li>
+<li>OpenCode Go 是否暴露相容的 <code>/v1/responses</code> 路由。</li>
+<li>OpenCode Go 是否完整接受 Codex 附帶的工具 schema 與串流事件。</li>
+</ol>
+<p>最小文字請求只能證明前兩層以及第三層的基礎部分。Codex 還會傳送開發者指令、工具、推理參數與串流設定，所以後面仍需要原生端到端測試。</p>
+<p>這一步很重要：搜尋索引、舊文件與第三方說明都可能落後，最終應以目標端點的真實契約與最小請求結果為準。先前暫時安裝、但尚未投入使用的代理隨後被解除安裝，避免留下重複鏈路。</p>
+<p>測試時不要把真實 API Key 寫進文章、腳本或 shell 歷史。上面的環境變數只用來說明請求結構。</p>
+<h2 id="第一條彎路為什麼代理裝了又解除安裝">第一條彎路：為什麼代理裝了又解除安裝</h2>
+<p>最初的判斷來自舊的 DeepSeek API 印象：如果上游只有 <code>/chat/completions</code>，而目前的 Codex 自訂 Provider 只接受 <code>wire_api = "responses"</code>，中間就需要一個轉換層。</p>
+<p>因此當時的備援鏈路是：</p>
+<pre><code class="language-mermaid">flowchart LR
+  A[Codex Responses] --> B[本機相容代理]
+  B --> C[Chat Completions]
+  C --> D[DeepSeek]
+</code></pre>
+<p>代理套件已經暫時安裝，但沒有啟動服務，也沒有寫入 Codex 路由。看到 DeepSeek 的新文件後，我沒有繼續完成代理設定，而是先驗證直連。直連通過後立即解除安裝代理。</p>
+<p>這不是單純清理一個 npm 套件。多保留一層代理會引入：</p>
+<ul>
+<li>第二處 API Key 或憑證讀取邏輯。</li>
+<li>獨立行程、連接埠、健康檢查與開機啟動。</li>
+<li>兩套逾時、串流轉送、重試與錯誤格式。</li>
+<li>工具 schema、推理欄位與 Response 事件的轉換風險。</li>
+<li>故障時難以判斷問題來自 Codex、代理、OpenCode Go 還是模型。</li>
+</ul>
+<p>只有當直連協定確實缺失，或者必須做統一稽核、限流與路由時，代理才值得長期存在。</p>
+<h2 id="設定前先盤點本機狀態">設定前先盤點本機狀態</h2>
+<p>直接覆寫 <code>config.toml</code> 之前，先確認目前版本、預設模型、登入狀態與已儲存的 OpenCode 憑證。本文當時使用：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>Codex CLI: 0.145.0</span></span>
+<span class="line"><span>原默认模型: gpt-5.6-luna</span></span>
+<span class="line"><span>原推理强度: high</span></span>
+<span class="line"><span>OpenAI 登录: 已存在</span></span>
+<span class="line"><span>OpenCode Go 凭证: 已存在</span></span></code></pre>
+<p>版本檢查：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --version</span></span></code></pre>
+<p>憑證存在性檢查只回傳布林結果，不印出內容：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">jq</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -e</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  '.["opencode-go"].key | type == "string" and length > 0'</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  ~/.local/share/opencode/auth.json</span><span style="color:#D73A49;--shiki-dark:#F97583"> ></span><span style="color:#032F62;--shiki-dark:#9ECBFF">/dev/null</span></span></code></pre>
+<p>再檢查檔案權限：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">ls</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -l</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ~/.codex/config.toml</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ~/.local/share/opencode/auth.json</span></span></code></pre>
+<p>如果權限允許同機其他使用者讀取，應先修正權限，再繼續串接。不要為了確認 Key 是否存在，直接執行會把它印到終端機的 <code>jq -r</code>。</p>
+<h2 id="設定-opencode-go-provider">設定 OpenCode Go Provider</h2>
+<p>先備份目前設定：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">cp</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ~/.codex/config.toml</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ~/.codex/config.toml.before-opencode-go</span></span></code></pre>
+<p>在 <code>~/.codex/config.toml</code> 中設定預設模型：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="toml"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">model = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"deepseek-v4-flash"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">model_provider = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"opencode-go"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">model_context_window = </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1000000</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">model_catalog_json = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"/Users/you/.codex/model-catalogs/opencode-go.json"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">model_reasoning_effort = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"high"</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">[</span><span style="color:#6F42C1;--shiki-dark:#B392F0">model_providers</span><span style="color:#24292E;--shiki-dark:#E1E4E8">.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">opencode-go</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">name = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"OpenCode Go"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">base_url = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"https://opencode.ai/zen/go/v1"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">wire_api = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"responses"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">request_max_retries = </span><span style="color:#005CC5;--shiki-dark:#79B8FF">4</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">stream_max_retries = </span><span style="color:#005CC5;--shiki-dark:#79B8FF">5</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">stream_idle_timeout_ms = </span><span style="color:#005CC5;--shiki-dark:#79B8FF">300000</span></span></code></pre>
+<p><code>base_url</code> 到 <code>/v1</code> 為止，Codex 會根據 <code>wire_api</code> 請求 <code>/responses</code>。不要把完整的 <code>/responses</code> 再寫進 <code>base_url</code>。</p>
+<p>這裡明確設定 100 萬上下文，但實際可用視窗仍受模型、Provider 與閘道策略共同約束。超長任務上線前應單獨做邊界測試，不能只依賴本機元資料。</p>
+<h3 id="每個欄位解決什麼問題">每個欄位解決什麼問題</h3>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>設定項</th><th>作用</th></tr></thead><tbody><tr><td><code>model</code></td><td>傳送給上游的模型識別</td></tr><tr><td><code>model_provider</code></td><td>選擇哪一組 Base URL、認證與重試策略</td></tr><tr><td><code>model_context_window</code></td><td>給 Codex 的上下文預算提示</td></tr><tr><td><code>model_catalog_json</code></td><td>提供模型名稱、推理檔位、工具模式與其他能力元資料</td></tr><tr><td><code>wire_api</code></td><td>指定 Provider 使用 Responses 協定</td></tr><tr><td><code>request_max_retries</code></td><td>一般 HTTP 請求的最大重試次數</td></tr><tr><td><code>stream_max_retries</code></td><td>串流回應中斷後的恢復次數</td></tr><tr><td><code>stream_idle_timeout_ms</code></td><td>串流長時間沒有事件時的逾時</td></tr></tbody></table>
+<p><code>model</code> 與 <code>model_provider</code> 必須成對理解。把模型改成 DeepSeek、卻仍保留 <code>model_provider = "openai"</code>，請求不會自動發現 OpenCode Go；反過來，在 OpenCode Go Provider 下選擇只有 OpenAI 提供的模型名稱也會失敗。</p>
+<h3 id="為什麼沒有使用環境變數直接複製-key">為什麼沒有使用環境變數直接複製 Key</h3>
+<p>Codex Provider 也可以讀取指定的環境變數，但這需要保證每個啟動 Codex 的終端機、IDE 或桌面行程都繼承同一個變數。目前憑證已經由 OpenCode 管理，所以讓認證指令按需求讀取現有檔案，更符合「單一憑證來源」。</p>
+<p>如果團隊用統一的 Secret Manager 注入環境變數，則應優先使用團隊的標準做法；本文的 <code>jq</code> 方案適合已經使用 OpenCode 本機認證儲存的個人開發機。</p>
+<h2 id="models-能回傳不代表-codex-能使用"><code>/models</code> 能回傳，不代表 Codex 能使用</h2>
+<p>設定 Provider 後，Codex 會嘗試重新整理模型清單。OpenCode Go 的 <code>/models</code> 當時回傳 OpenAI 風格結構：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "object"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"list"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "data"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [{ </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"id"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"deepseek-v4-flash"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">"object"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"model"</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> }]</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
+<p>目前 Codex 的模型管理邏輯在這條自訂重新整理鏈路中預期的是包含 <code>models</code> 欄位的目錄結構，因此記錄了類似的錯誤：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>failed to decode models response:</span></span>
+<span class="line"><span>missing field `models`</span></span></code></pre>
+<p>這不代表 <code>/responses</code> 不可用。實際上，最小 Response 與 Codex 的 fallback 元資料請求都已經成功。失敗的是「自動重新整理模型目錄」這條輔助鏈路。</p>
+<p>處理方式不是修改閘道回應，也不是忽略所有日誌，而是提供本機 <code>model_catalog_json</code>：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>文本生成链路: Codex -> /responses -> 成功</span></span>
+<span class="line"><span>模型发现链路: Codex -> /models -> schema 不匹配</span></span>
+<span class="line"><span>替代方案:     Codex -> 本地 model_catalog_json</span></span></code></pre>
+<p>這樣可以把模型執行與模型發現解耦，同時明確由本機設定維護 DeepSeek 的能力宣告。</p>
+<h2 id="用執行時期認證避免複製明文金鑰">用執行時期認證避免複製明文金鑰</h2>
+<p>OpenCode 已經在本機認證檔中儲存憑證，沒有必要再把同一個 Key 複製到 <code>config.toml</code>。Codex 的自訂 Provider 支援透過指令取得認證資訊：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="toml"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">[</span><span style="color:#6F42C1;--shiki-dark:#B392F0">model_providers</span><span style="color:#24292E;--shiki-dark:#E1E4E8">.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">opencode-go</span><span style="color:#24292E;--shiki-dark:#E1E4E8">.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">auth</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">command = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"/usr/bin/jq"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">args = [</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  "-r"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  ".[</span><span style="color:#005CC5;--shiki-dark:#79B8FF">\"</span><span style="color:#032F62;--shiki-dark:#9ECBFF">opencode-go</span><span style="color:#005CC5;--shiki-dark:#79B8FF">\"</span><span style="color:#032F62;--shiki-dark:#9ECBFF">].key"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  "/Users/you/.local/share/opencode/auth.json"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">timeout_ms = </span><span style="color:#005CC5;--shiki-dark:#79B8FF">5000</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">refresh_interval_ms = </span><span style="color:#005CC5;--shiki-dark:#79B8FF">300000</span></span></code></pre>
+<p>注意：<code>args</code> 由 Codex 直接傳給指令，不一定經過 shell，因此不要假設 <code>~</code> 會自動展開。macOS 應寫實際的絕對路徑，Linux 則通常是 <code>/home/用户名/...</code>。</p>
+<p>這種做法有幾個好處：</p>
+<ul>
+<li>Codex 設定中沒有第二份明文 Key。</li>
+<li>OpenCode 更新憑證後，Codex 可以依重新整理週期重新讀取。</li>
+<li>設定檔更適合備份與審查。</li>
+</ul>
+<p>認證檔與 Codex 設定都應限制為目前使用者可讀，例如權限 <code>600</code>。任何診斷輸出也不應印出 Key。</p>
+<h2 id="為什麼需要自訂模型目錄">為什麼需要自訂模型目錄</h2>
+<p>只設定模型名稱時，Codex 可以使用 fallback 元資料啟動，但會提示：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>Model metadata for `deepseek-v4-flash` not found.</span></span>
+<span class="line"><span>Defaulting to fallback metadata; this can degrade performance and cause issues.</span></span></code></pre>
+<p>有趣的是，這個 fallback 模式首先通過了原生 Codex 測試：啟動資訊顯示 <code>deepseek-v4-flash + opencode-go</code>，並回傳 <code>OK</code>。因此可以先得到兩個結論：</p>
+<ul>
+<li>Provider、認證與 Responses 路由本身是通的。</li>
+<li>後續失敗如果只發生在自訂目錄啟用後，應優先比較模型元資料，而不是重新懷疑 API Key。</li>
+</ul>
+<h3 id="最小-json-為什麼失敗">最小 JSON 為什麼失敗</h3>
+<p>我先嘗試手動寫一個只有名稱、上下文與推理檔位的目錄。Codex 解析時直接拒絕：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>failed to parse model_catalog_json:</span></span>
+<span class="line"><span>missing field `base_instructions`</span></span></code></pre>
+<p>這代表 <code>model_catalog_json</code> 不是給模型選擇器使用的簡易清單。它還包含 Codex 執行時所需的基本指令、訊息範本、截斷策略與工具能力。</p>
+<p>手動撰寫幾十個隨版本變化的欄位很容易製造新的相容問題，所以最終改為從目前的 <code>models_cache.json</code> 複製一條結構完整的記錄，再明確縮小 DeepSeek 的能力。</p>
+<p>為了讓 Codex 認識模型名稱、上下文視窗與推理檔位，可以根據目前 Codex 的模型快取產生一份自訂目錄。以下指令以既有模型條目為結構範本，只取代與 DeepSeek 相關的能力欄位：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">mkdir</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -p</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ~/.codex/model-catalogs</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">jq</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> '{</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  models: [</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">    (.models[] | select(.slug == "gpt-5.6-luna")</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      | .slug = "deepseek-v4-flash"</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      | .display_name = "DeepSeek V4 Flash (OpenCode Go)"</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      | .description = "通过 OpenCode Go 使用的 DeepSeek V4 Flash"</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      | .context_window = 1000000</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      | .max_context_window = 1000000</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      | .effective_context_window_percent = 95</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      | .default_reasoning_level = "high"</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      | .supported_reasoning_levels = [</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">          {"effort": "high", "description": "适合日常编程与复杂任务"},</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">          {"effort": "max", "description": "为最困难任务提供最大推理强度"}</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">        ]</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      | .tool_mode = null</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      | .input_modalities = ["text"]</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      | .supports_image_detail_original = false</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      | .supports_search_tool = false</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      | .use_responses_lite = false)</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  ]</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">}'</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ~/.codex/models_cache.json</span><span style="color:#D73A49;--shiki-dark:#F97583"> ></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ~/.codex/model-catalogs/opencode-go.json</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">chmod</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 600</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ~/.codex/model-catalogs/opencode-go.json</span></span></code></pre>
+<p>這裡不是隨便拼一個最小 JSON。模型目錄的 schema 會隨 Codex 版本演進，直接重複使用目前安裝版本快取中的完整條目，可以保留該版本要求的基本指令與必填欄位。本次設定以 Codex <code>0.145.0</code> 驗證；升級後應重新執行解析與端到端測試。</p>
+<p>產生後先限制權限並檢查關鍵欄位，不需要印出長篇的基本指令：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">chmod</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 600</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ~/.codex/model-catalogs/opencode-go.json</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">jq</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> '.models[] | {</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  slug,</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  display_name,</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  context_window,</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  max_context_window,</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  default_reasoning_level,</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  tool_mode,</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  input_modalities</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">}'</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ~/.codex/model-catalogs/opencode-go.json</span></span></code></pre>
+<p>預期關鍵值：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "slug"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"deepseek-v4-flash"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "display_name"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"DeepSeek V4 Flash (OpenCode Go)"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "context_window"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1000000</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "max_context_window"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1000000</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "default_reasoning_level"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"high"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "tool_mode"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">null</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "input_modalities"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"text"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
+<h2 id="最隱蔽的問題模型目錄會改變工具協定">最隱蔽的問題：模型目錄會改變工具協定</h2>
+<p>第一次產生目錄時，我完整繼承了 OpenAI 模型的能力宣告，其中包括：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "tool_mode"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"code_mode_only"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "shell_type"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"shell_command"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "apply_patch_tool_type"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"freeform"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
+<p>模型目錄可以正常解析，<code>codex doctor</code> 也沒有回報錯誤，但真實呼叫失敗：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>Unsupported custom tool: 'exec'. Only 'apply_patch' is supported.</span></span></code></pre>
+<p>原因是 <code>tool_mode = "code_mode_only"</code> 不只是一種 UI 標籤。它會讓 Codex 在 Responses 請求中宣告 <code>exec</code> 自訂工具，而當時的 OpenCode Go 上游只接受 <code>apply_patch</code> 這類自訂工具。</p>
+<p>把 DeepSeek 條目的工具模式改為標準模式：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="json"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  "tool_mode"</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">null</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
+<p>隨後同一個原生 Codex 請求成功回傳 <code>DEEPSEEK_OK</code>。</p>
+<h3 id="為什麼關閉-featuresunified_exec-仍然失敗">為什麼關閉 features.unified_exec 仍然失敗</h3>
+<p>排查時還試過一次指令列覆寫：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> exec</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  -p</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> deepseek</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  -c</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> features.unified_exec=</span><span style="color:#005CC5;--shiki-dark:#79B8FF">false</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  -s</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> read-only</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --ephemeral</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  "Reply exactly DEEPSEEK_OK. Do not use tools."</span></span></code></pre>
+<p>請求仍然回報同一個 <code>Unsupported custom tool: 'exec'</code>。這代表問題不只是全域 feature flag；模型條目中的 <code>tool_mode = "code_mode_only"</code> 仍在決定執行時期工具協定。</p>
+<p>真正有效的對照實驗是：其他設定保持不變，只把模型目錄中的 <code>tool_mode</code> 改為 <code>null</code>。修改前失敗，修改後成功，因果關係才夠清晰。</p>
+<h3 id="用真實檔案修改證明-agent-工具可用">用真實檔案修改證明 Agent 工具可用</h3>
+<p>精確回覆只能證明模型能產生文字。為了確認 Codex 不是「能聊天但不能改程式碼」，我在獨立的暫時目錄執行了一個最小的寫檔任務：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> exec</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  -p</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> deepseek</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  -C</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /private/tmp/codex-deepseek-agent-test</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  -s</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> workspace-write</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --ephemeral</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --skip-git-repo-check</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  "Use apply_patch to create result.txt containing exactly DEEPSEEK_TOOL_OK followed by a newline. Then stop."</span></span></code></pre>
+<p>執行資訊確認：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>model: deepseek-v4-flash</span></span>
+<span class="line"><span>provider: opencode-go</span></span>
+<span class="line"><span>sandbox: workspace-write</span></span>
+<span class="line"><span>reasoning effort: high</span></span></code></pre>
+<p>模型隨後發起 <code>apply_patch</code>，Codex 顯示：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>apply patch</span></span>
+<span class="line"><span>patch: completed</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>--- /dev/null</span></span>
+<span class="line"><span>+++ b/result.txt</span></span>
+<span class="line"><span>@@ -0,0 +1 @@</span></span>
+<span class="line"><span>+DEEPSEEK_TOOL_OK</span></span></code></pre>
+<p>位元組層級驗證結果為 17 個位元組，最後一個位元組是 <code>0a</code>：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>44 45 45 50 53 45 45 4b 5f 54 4f 4f 4c 5f 4f 4b 0a</span></span>
+<span class="line"><span>D  E  E  P  S  E  E  K  _  T  O  O  L  _  O  K  \n</span></span></code></pre>
+<p>測試後刪除檔案與暫時目錄，沒有把測試產物留在正式儲存庫。</p>
+<p>這個問題說明：</p>
+<ul>
+<li>支援 Responses API，不等於支援所有 Codex 擴充工具。</li>
+<li>模型目錄不是純展示資料，它可能改變請求結構。</li>
+<li><code>doctor</code> 與 JSON 解析成功只代表靜態設定成立，不能取代真實請求。</li>
+<li>從另一個模型複製元資料後，必須逐項核對工具、圖片、搜尋與推理能力。</li>
+</ul>
+<p>如果閘道未來加入對 <code>exec</code> 的原生支援，可以重新評估工具模式；不要在沒有協定測試的情況下預先宣告能力。</p>
+<h2 id="用-profile-快速切換-provider">用 Profile 快速切換 Provider</h2>
+<p>Codex 互動工作階段中的 <code>/model</code> 適合切換目前 Provider 下的模型與推理強度，但 OpenAI 與 OpenCode Go 是兩個不同的 Provider。只改模型名稱可能把請求送到錯誤的服務，因此應使用 <a href="https://learn.chatgpt.com/docs/config-file/config-advanced#profiles">Codex Profile</a> 同時覆寫模型、Provider 與模型目錄。</p>
+<p>目前 Codex 使用獨立的 Profile 檔案：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>$CODEX_HOME/deepseek.config.toml</span></span>
+<span class="line"><span>$CODEX_HOME/openai.config.toml</span></span></code></pre>
+<p>不要繼續使用舊式寫法：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="toml"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">profile = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"deepseek"</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">[</span><span style="color:#6F42C1;--shiki-dark:#B392F0">profiles</span><span style="color:#24292E;--shiki-dark:#E1E4E8">.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">deepseek</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">model = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"deepseek-v4-flash"</span></span></code></pre>
+<p>從 Codex <code>0.134.0</code> 起，<code>--profile</code> 不再從主設定中的 <code>[profiles.&#x3C;name>]</code> 讀取，而是載入同目錄下的 <code>&#x3C;name>.config.toml</code>。</p>
+<p>DeepSeek Profile，檔名為 <code>~/.codex/deepseek.config.toml</code>：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="toml"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">model = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"deepseek-v4-flash"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">model_provider = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"opencode-go"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">model_context_window = </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1000000</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">model_catalog_json = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"/Users/you/.codex/model-catalogs/opencode-go.json"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">model_reasoning_effort = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"high"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">plan_mode_reasoning_effort = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"max"</span></span></code></pre>
+<p>OpenAI Profile，檔名為 <code>~/.codex/openai.config.toml</code>：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="toml"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">model = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"gpt-5.6-luna"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">model_provider = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"openai"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">model_context_window = </span><span style="color:#005CC5;--shiki-dark:#79B8FF">272000</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">model_catalog_json = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"/Users/you/.codex/models_cache.json"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">model_reasoning_effort = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"high"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">plan_mode_reasoning_effort = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"xhigh"</span></span></code></pre>
+<p>請依自己的系統替換 <code>/Users/you</code>。模型上下文與推理檔位也應以目前的模型目錄為準，不要永久照抄本文的數值。</p>
+<p>啟動時切換：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -p</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> deepseek</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -p</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> openai</span></span></code></pre>
+<p>非互動任務同樣支援：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> exec</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -p</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> deepseek</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> "检查当前代码"</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> exec</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -p</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> openai</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> "检查当前代码"</span></span></code></pre>
+<p>Profile 在新工作階段啟動時載入。已經在執行的工作階段不能靠修改磁碟設定無損更換底層 Provider；完成目前任務後再啟動新工作階段更安全。</p>
+<h3 id="設定覆寫順序">設定覆寫順序</h3>
+<p>Profile 不是完全獨立的設定，它疊加在使用者主設定之上。與本文相關的優先順序可以簡化為：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>用户 ~/.codex/config.toml</span></span>
+<span class="line"><span>  &#x3C; 启动时选择的 Profile</span></span>
+<span class="line"><span>  &#x3C; 项目 .codex/config.toml</span></span>
+<span class="line"><span>  &#x3C; CLI 专用参数或 -c/--config 覆盖</span></span></code></pre>
+<p>這代表：</p>
+<ul>
+<li><code>deepseek.config.toml</code> 不需要重複 Provider 的 Base URL 與認證定義，它可以繼承主設定。</li>
+<li>專案內如果固定了 <code>model_provider</code>，可能覆寫個人 Profile，需要用 <code>/status</code> 或啟動資訊確認。</li>
+<li>暫時診斷適合用 <code>-c</code>，驗證完成後再決定是否永久保留。</li>
+</ul>
+<h3 id="model--model-和---profile-的邊界"><code>/model</code>、<code>--model</code> 和 <code>--profile</code> 的邊界</h3>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>方式</th><th>是否新工作階段</th><th>適合場景</th></tr></thead><tbody><tr><td><code>/model</code></td><td>否</td><td>目前 Provider 內切模型或推理強度</td></tr><tr><td><code>codex -m &#x3C;model></code></td><td>是</td><td>單次覆寫模型名稱</td></tr><tr><td><code>codex -p &#x3C;profile></code></td><td>是</td><td>同時切換模型、Provider、目錄與策略</td></tr><tr><td><code>codex -c key=value</code></td><td>是</td><td>暫時排查任意設定項</td></tr></tbody></table>
+<p>跨 Provider 時優先使用 Profile，因為 <code>-m</code> 不會自動選擇另一組認證與 Base URL。</p>
+<p>如果每天頻繁切換，可以在個人 shell 設定中增加可選別名：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">alias</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> cdx-ds</span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#032F62;--shiki-dark:#9ECBFF">'codex -p deepseek'</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">alias</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> cdx-openai</span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#032F62;--shiki-dark:#9ECBFF">'codex -p openai'</span></span></code></pre>
+<p>別名只是縮短啟動指令，不會改變 Codex 設定的語意。桌面版模型選擇器與 CLI Profile 也不是同一種能力；本文驗證的是本機 Codex CLI。</p>
+<h2 id="驗證不能只跑一層">驗證不能只跑一層</h2>
+<p>最終依五層驗證。每層排除的問題不同，不能互相取代。</p>
+<h3 id="第一層原始-responses-請求">第一層：原始 Responses 請求</h3>
+<p>確認 OpenCode Go 端點能夠接受 <code>deepseek-v4-flash</code>，並回傳 <code>completed</code>。這一層排除 URL、認證、模型名稱與基礎協定問題。</p>
+<h3 id="第二層模型目錄解析">第二層：模型目錄解析</h3>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> debug</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> models</span></span></code></pre>
+<p>輸出應包含：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>deepseek-v4-flash</span></span>
+<span class="line"><span>DeepSeek V4 Flash (OpenCode Go)</span></span>
+<span class="line"><span>context_window: 1000000</span></span>
+<span class="line"><span>default_reasoning_level: high</span></span>
+<span class="line"><span>tool_mode: null</span></span></code></pre>
+<p>目前版本的 <code>codex debug models</code> 不支援 <code>--profile</code>；Profile 只適用於執行時期指令與部分子指令。需要確認 Profile 是否真的生效時，應查看 <code>codex exec</code> 的啟動資訊或執行最小請求。</p>
+<p>排查時曾執行：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -p</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> deepseek</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> debug</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> models</span><span style="color:#D73A49;--shiki-dark:#F97583"> |</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> jq</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ...</span></span></code></pre>
+<p>Codex 已明確回報錯誤 <code>--profile only applies to runtime commands</code>，但因為 shell 預設回傳管線最後一個 <code>jq</code> 的退出碼，整條指令表面上顯示 <code>exit=0</code>。自動化腳本應啟用 <code>pipefail</code>，否則可能把前半段失敗誤判為成功：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">set</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -o</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> pipefail</span></span></code></pre>
+<h3 id="第三層codex-健康檢查">第三層：Codex 健康檢查</h3>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> doctor</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --summary</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --no-color</span></span></code></pre>
+<p>本次結果為：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>17 ok · 1 idle · 1 notes · 0 warn · 0 fail</span></span></code></pre>
+<p>它確認設定可以載入、Provider 不需要 OpenAI 認證、目標 HTTP 端點可達，但仍無法發現工具協定不符。</p>
+<h3 id="第四層兩個-profile-的真實請求">第四層：兩個 Profile 的真實請求</h3>
+<p>用唯讀沙盒與暫時性工作階段做最小端到端測試：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> exec</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -p</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> deepseek</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  -s</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> read-only</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --ephemeral</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  "Reply exactly DEEPSEEK_OK. Do not use tools."</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> exec</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -p</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> openai</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  -s</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> read-only</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --ephemeral</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  "Reply exactly OPENAI_OK. Do not use tools."</span></span></code></pre>
+<p>最後分別回傳：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>DEEPSEEK_OK</span></span>
+<span class="line"><span>OPENAI_OK</span></span></code></pre>
+<p>啟動資訊也應分別顯示：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>model: deepseek-v4-flash</span></span>
+<span class="line"><span>provider: opencode-go</span></span></code></pre>
+<p>以及：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>model: gpt-5.6-luna</span></span>
+<span class="line"><span>provider: openai</span></span></code></pre>
+<p>這一步同時驗證了 Profile 覆寫順序、認證、模型目錄、Provider 路由與 Responses 請求。</p>
+<h3 id="第五層agent-檔案工具">第五層：Agent 檔案工具</h3>
+<p>使用 <code>workspace-write</code> 沙盒在隔離目錄執行真實的 <code>apply_patch</code>，再檢查檔案長度與最後一個換行位元組。它驗證的不是文字生成，而是：</p>
+<ul>
+<li>模型能夠選擇 Codex 提供的工具。</li>
+<li>OpenCode Go 接受該工具宣告。</li>
+<li>Codex 能執行並回傳修補結果。</li>
+<li>目標檔案內容符合精確要求。</li>
+</ul>
+<p>只有第五層通過，才可以說這條鏈路具備最小編碼 Agent 能力。更複雜的 shell、平行工具、MCP、圖片與 Web 搜尋仍要分別驗證，不能從一次 <code>apply_patch</code> 推論出全部能力。</p>
+<h2 id="常見誤區">常見誤區</h2>
+<h3 id="把模型切換等同於-provider-切換">把模型切換等同於 Provider 切換</h3>
+<p><code>/model</code> 或 <code>--model</code> 主要覆寫模型名稱。跨服務切換時，還必須同步切換 <code>model_provider</code>、認證方式與模型目錄。Profile 是更可靠的原子設定單位。</p>
+<h3 id="直接把-api-key-寫進-configtoml">直接把 API Key 寫進 config.toml</h3>
+<p>這會增加備份、截圖、日誌與誤提交時的洩漏面。優先使用 <code>bearer_token_env_var</code> 或 Provider 的執行時期認證指令，並收緊憑證檔權限。</p>
+<h3 id="只看-doctor不跑真實請求">只看 doctor，不跑真實請求</h3>
+<p>健康檢查可以發現設定解析與連通性問題，卻不一定觸發模型閘道對工具 schema 的完整驗證。至少執行一次真實的唯讀、暫時性工作階段。</p>
+<h3 id="盲目複製官方模型元資料">盲目複製官方模型元資料</h3>
+<p>上下文視窗、工具模式、圖片輸入、Web 搜尋與推理檔位都可能影響執行時期行為。複製只能作為產生 schema 的起點，不代表能力完全等同。</p>
+<h3 id="為已經支援的協定保留額外代理">為已經支援的協定保留額外代理</h3>
+<p>如果目標端點已直接支援 Responses API，額外代理只會增加日誌、憑證、重試與故障定位層級。先驗證直連，再決定是否真的需要轉換層。</p>
+<h2 id="故障診斷矩陣">故障診斷矩陣</h2>
+<p>遇到問題時，先依錯誤所在的層級定位，不要同時修改 URL、Key、模型目錄與 Profile。</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>現象</th><th>優先檢查</th><th>不要先做什麼</th></tr></thead><tbody><tr><td><code>/responses</code> 回傳 401</td><td>Key 是否有效、Authorization 格式</td><td>重寫模型目錄</td></tr><tr><td><code>/responses</code> 回傳 404</td><td><code>base_url</code>、<code>/v1</code> 與閘道實際路由</td><td>增加重試次數</td></tr><tr><td>模型不存在</td><td><code>model</code> 字串與 OpenCode Go 目前模型清單</td><td>切換 <code>tool_mode</code></td></tr><tr><td><code>missing field models</code></td><td><code>/models</code> 與 Codex 目錄 schema</td><td>判斷文字生成端點也不可用</td></tr><tr><td><code>Model metadata ... not found</code></td><td><code>model_catalog_json</code> 路徑與 slug</td><td>把 Key 寫進設定</td></tr><tr><td><code>missing field base_instructions</code></td><td>自訂模型目錄是否使用完整 schema</td><td>繼續手動撰寫更多猜測欄位</td></tr><tr><td><code>Unsupported custom tool: exec</code></td><td><code>tool_mode</code> 與上游自訂工具支援</td><td>反覆重新整理 Key</td></tr><tr><td><code>--profile only applies to runtime commands</code></td><td>子指令是否支援 Profile</td><td>根據管線最後一個退出碼宣稱成功</td></tr><tr><td>Profile 啟動後仍是另一個模型</td><td>專案設定與 CLI 參數是否覆寫個人 Profile</td><td>直接刪除所有 Codex 設定</td></tr><tr><td><code>doctor</code> 通過但真實請求失敗</td><td>請求 body、工具 schema、模型參數</td><td>把 <code>doctor</code> 當成端到端測試</td></tr></tbody></table>
+<p>建議使用單一變數實驗：每次只調整一個欄位，並保留修改前後的完整錯誤。像這次的 <code>tool_mode</code> 問題，如果同時修改 feature flag、模型目錄與 Provider，很難建立可靠的因果關係。</p>
+<h2 id="從零重現的操作清單">從零重現的操作清單</h2>
+<p>如果要在另一台開發機重新設定，可以依下面的順序執行。</p>
+<h3 id="1-確認版本與憑證">1. 確認版本與憑證</h3>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --version</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">jq</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -e</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  '.["opencode-go"].key | type == "string" and length > 0'</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  ~/.local/share/opencode/auth.json</span><span style="color:#D73A49;--shiki-dark:#F97583"> ></span><span style="color:#032F62;--shiki-dark:#9ECBFF">/dev/null</span></span></code></pre>
+<h3 id="2-備份設定">2. 備份設定</h3>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">cp</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ~/.codex/config.toml</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ~/.codex/config.toml.before-opencode-go</span></span></code></pre>
+<h3 id="3-用原始請求驗證-responses">3. 用原始請求驗證 <code>/responses</code></h3>
+<p>只傳送短文字，不附加工具。確認 HTTP 狀態、<code>status</code>、<code>model</code> 與 <code>output_text</code>。</p>
+<h3 id="4-加入-provider-與執行時期認證">4. 加入 Provider 與執行時期認證</h3>
+<p>先只設定 <code>model_provider</code>、<code>base_url</code>、<code>wire_api</code> 與認證，保留最少變數。</p>
+<h3 id="5-用-fallback-元資料做第一次-codex-請求">5. 用 fallback 元資料做第一次 Codex 請求</h3>
+<p>如果請求成功但出現模型元資料 warning，代表執行鏈路已經建立，再單獨處理目錄。</p>
+<h3 id="6-從目前模型快取生成本機目錄">6. 從目前模型快取生成本機目錄</h3>
+<p>複製完整記錄，縮小上下文、輸入模態、搜尋與工具能力，並確保 <code>tool_mode = null</code>。</p>
+<h3 id="7-分別建立兩個-profile">7. 分別建立兩個 Profile</h3>
+<p>DeepSeek Profile 指向 OpenCode Go；OpenAI Profile 指向 OpenAI 與原生模型快取。</p>
+<h3 id="8-依序做靜態與真實驗證">8. 依序做靜態與真實驗證</h3>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> debug</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> models</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> doctor</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --summary</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --no-color</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> exec</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -p</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> deepseek</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -s</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> read-only</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --ephemeral</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> "Reply exactly DEEPSEEK_OK."</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">codex</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> exec</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -p</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> openai</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -s</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> read-only</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --ephemeral</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> "Reply exactly OPENAI_OK."</span></span></code></pre>
+<h3 id="9-在隔離目錄驗證-apply_patch">9. 在隔離目錄驗證 <code>apply_patch</code></h3>
+<p>不要把第一次工具測試直接放進重要儲存庫。確認檔案內容後清理暫時目錄。</p>
+<h3 id="10-記錄版本並保留回滾點">10. 記錄版本並保留回滾點</h3>
+<p>Codex、閘道與模型能力都會變化。把測試日期、Codex 版本、模型 slug 與已驗證工具寫入文件；升級後重新執行相同的檢查。</p>
+<h2 id="目前已驗證與尚未推論的邊界">目前已驗證與尚未推論的邊界</h2>
+<p>截至 2026-08-06，本次設定已經真實驗證：</p>
+<ul>
+<li>OpenCode Go <code>/v1/responses</code> 的非串流最小請求。</li>
+<li>Codex 原生 Responses 呼叫。</li>
+<li><code>high</code> 推理檔位的精確文字回應。</li>
+<li>DeepSeek 與 OpenAI 兩個 CLI Profile。</li>
+<li>DeepSeek 選擇並執行 <code>apply_patch</code>。</li>
+<li>Codex 健康檢查、模型目錄解析與 Provider 連通性。</li>
+</ul>
+<p>本文沒有把以下能力視為已經證明：</p>
+<ul>
+<li>100 萬上下文的極限輸入與自動壓縮邊界。</li>
+<li>圖片輸入、原始圖片細節與多模態輸出。</li>
+<li>Web Search、MCP、Browser、Computer Use 等擴充工具。</li>
+<li><code>exec</code> 自訂工具與統一 PTY 執行協定。</li>
+<li>長時間 SSE 中斷恢復、平行工具呼叫與限流退避。</li>
+<li>Codex 桌面版或雲端工作階段的自訂 Provider 切換。</li>
+</ul>
+<p>這種邊界宣告不是保守措辭，而是避免把「API 能回傳一句話」誤寫成「所有 Codex 能力都與 OpenAI Provider 等同」。</p>
+<h2 id="回滾方式">回滾方式</h2>
+<p>如果需要完全還原先前的 Codex 預設設定：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">cp</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ~/.codex/config.toml.before-opencode-go</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ~/.codex/config.toml</span></span></code></pre>
+<p>Profile 檔案是獨立覆寫層，不影響備份內容。不再需要時可以先移出 <code>~/.codex</code>，確認 Codex 正常啟動後再刪除。</p>
+<h2 id="結論">結論</h2>
+<p>這次串接真正困難的部分，不是把 <code>model</code> 改成 <code>deepseek-v4-flash</code>，而是確認整條鏈路的能力邊界：</p>
+<ol>
+<li>DeepSeek 與 OpenCode Go 端點確實接受 Responses API。</li>
+<li>Codex Provider 使用執行時期認證，不複製明文憑證。</li>
+<li>自訂模型目錄補齊上下文與推理檔位。</li>
+<li><code>tool_mode</code> 必須符合閘道支援的自訂工具協定。</li>
+<li>Profile 同時切換模型、Provider 與目錄。</li>
+<li>原始 API、靜態診斷與原生 Codex 請求必須分別驗證。</li>
+<li>真實 <code>apply_patch</code> 成功後，才證明最小編碼 Agent 鏈路成立。</li>
+</ol>
+<p>最大的經驗不是某一段 TOML，而是排查順序：<strong>先驗證最小協定，再串接 Codex；先用 fallback 元資料證明主鏈路，再補模型目錄；靜態檢查之後，一定要執行真實工具任務。</strong> 這樣每一步只有一個主要變數，失敗時才能快速回到正確的層級。</p>
+<p>設定參考：<a href="https://learn.chatgpt.com/docs/config-file/config-reference">Codex 設定參考</a>、<a href="https://learn.chatgpt.com/docs/config-file/config-advanced#profiles">Codex 進階設定與 Profile</a>、<a href="https://opencode.ai/docs/go/">OpenCode Go 文件</a>與 <a href="https://api-docs.deepseek.com/zh-cn/api/create-response">DeepSeek Responses API</a>。</p> </div> <aside class="table-of-contents" aria-label="文章目錄" data-pagefind-ignore> <p>ON THIS PAGE</p> <ol> <li> <a href="#需求約束與驗收標準" data-analytics-event="toc_click" data-analytics-target="需求約束與驗收標準"> 需求、約束與驗收標準 </a> </li><li> <a href="#完整排查時間線" data-analytics-event="toc_click" data-analytics-target="完整排查時間線"> 完整排查時間線 </a> </li><li> <a href="#最終架構" data-analytics-event="toc_click" data-analytics-target="最終架構"> 最終架構 </a> </li><li> <a href="#先驗證-responses-api不要從舊資料推斷" data-analytics-event="toc_click" data-analytics-target="先驗證-responses-api不要從舊資料推斷"> 先驗證 Responses API，不要從舊資料推斷 </a> </li><li class="nested"> <a href="#文件模型服務與閘道是三層能力" data-analytics-event="toc_click" data-analytics-target="文件模型服務與閘道是三層能力"> 文件、模型服務與閘道是三層能力 </a> </li><li> <a href="#第一條彎路為什麼代理裝了又解除安裝" data-analytics-event="toc_click" data-analytics-target="第一條彎路為什麼代理裝了又解除安裝"> 第一條彎路：為什麼代理裝了又解除安裝 </a> </li><li> <a href="#設定前先盤點本機狀態" data-analytics-event="toc_click" data-analytics-target="設定前先盤點本機狀態"> 設定前先盤點本機狀態 </a> </li><li> <a href="#設定-opencode-go-provider" data-analytics-event="toc_click" data-analytics-target="設定-opencode-go-provider"> 設定 OpenCode Go Provider </a> </li><li class="nested"> <a href="#每個欄位解決什麼問題" data-analytics-event="toc_click" data-analytics-target="每個欄位解決什麼問題"> 每個欄位解決什麼問題 </a> </li><li class="nested"> <a href="#為什麼沒有使用環境變數直接複製-key" data-analytics-event="toc_click" data-analytics-target="為什麼沒有使用環境變數直接複製-key"> 為什麼沒有使用環境變數直接複製 Key </a> </li><li> <a href="#models-能回傳不代表-codex-能使用" data-analytics-event="toc_click" data-analytics-target="models-能回傳不代表-codex-能使用"> /models 能回傳，不代表 Codex 能使用 </a> </li><li> <a href="#用執行時期認證避免複製明文金鑰" data-analytics-event="toc_click" data-analytics-target="用執行時期認證避免複製明文金鑰"> 用執行時期認證避免複製明文金鑰 </a> </li><li> <a href="#為什麼需要自訂模型目錄" data-analytics-event="toc_click" data-analytics-target="為什麼需要自訂模型目錄"> 為什麼需要自訂模型目錄 </a> </li><li class="nested"> <a href="#最小-json-為什麼失敗" data-analytics-event="toc_click" data-analytics-target="最小-json-為什麼失敗"> 最小 JSON 為什麼失敗 </a> </li><li> <a href="#最隱蔽的問題模型目錄會改變工具協定" data-analytics-event="toc_click" data-analytics-target="最隱蔽的問題模型目錄會改變工具協定"> 最隱蔽的問題：模型目錄會改變工具協定 </a> </li><li class="nested"> <a href="#為什麼關閉-featuresunified_exec-仍然失敗" data-analytics-event="toc_click" data-analytics-target="為什麼關閉-featuresunified_exec-仍然失敗"> 為什麼關閉 features.unified_exec 仍然失敗 </a> </li><li class="nested"> <a href="#用真實檔案修改證明-agent-工具可用" data-analytics-event="toc_click" data-analytics-target="用真實檔案修改證明-agent-工具可用"> 用真實檔案修改證明 Agent 工具可用 </a> </li><li> <a href="#用-profile-快速切換-provider" data-analytics-event="toc_click" data-analytics-target="用-profile-快速切換-provider"> 用 Profile 快速切換 Provider </a> </li><li class="nested"> <a href="#設定覆寫順序" data-analytics-event="toc_click" data-analytics-target="設定覆寫順序"> 設定覆寫順序 </a> </li><li class="nested"> <a href="#model--model-和---profile-的邊界" data-analytics-event="toc_click" data-analytics-target="model--model-和---profile-的邊界"> /model、--model 和 --profile 的邊界 </a> </li><li> <a href="#驗證不能只跑一層" data-analytics-event="toc_click" data-analytics-target="驗證不能只跑一層"> 驗證不能只跑一層 </a> </li><li class="nested"> <a href="#第一層原始-responses-請求" data-analytics-event="toc_click" data-analytics-target="第一層原始-responses-請求"> 第一層：原始 Responses 請求 </a> </li><li class="nested"> <a href="#第二層模型目錄解析" data-analytics-event="toc_click" data-analytics-target="第二層模型目錄解析"> 第二層：模型目錄解析 </a> </li><li class="nested"> <a href="#第三層codex-健康檢查" data-analytics-event="toc_click" data-analytics-target="第三層codex-健康檢查"> 第三層：Codex 健康檢查 </a> </li><li class="nested"> <a href="#第四層兩個-profile-的真實請求" data-analytics-event="toc_click" data-analytics-target="第四層兩個-profile-的真實請求"> 第四層：兩個 Profile 的真實請求 </a> </li><li class="nested"> <a href="#第五層agent-檔案工具" data-analytics-event="toc_click" data-analytics-target="第五層agent-檔案工具"> 第五層：Agent 檔案工具 </a> </li><li> <a href="#常見誤區" data-analytics-event="toc_click" data-analytics-target="常見誤區"> 常見誤區 </a> </li><li class="nested"> <a href="#把模型切換等同於-provider-切換" data-analytics-event="toc_click" data-analytics-target="把模型切換等同於-provider-切換"> 把模型切換等同於 Provider 切換 </a> </li><li class="nested"> <a href="#直接把-api-key-寫進-configtoml" data-analytics-event="toc_click" data-analytics-target="直接把-api-key-寫進-configtoml"> 直接把 API Key 寫進 config.toml </a> </li><li class="nested"> <a href="#只看-doctor不跑真實請求" data-analytics-event="toc_click" data-analytics-target="只看-doctor不跑真實請求"> 只看 doctor，不跑真實請求 </a> </li><li class="nested"> <a href="#盲目複製官方模型元資料" data-analytics-event="toc_click" data-analytics-target="盲目複製官方模型元資料"> 盲目複製官方模型元資料 </a> </li><li class="nested"> <a href="#為已經支援的協定保留額外代理" data-analytics-event="toc_click" data-analytics-target="為已經支援的協定保留額外代理"> 為已經支援的協定保留額外代理 </a> </li><li> <a href="#故障診斷矩陣" data-analytics-event="toc_click" data-analytics-target="故障診斷矩陣"> 故障診斷矩陣 </a> </li><li> <a href="#從零重現的操作清單" data-analytics-event="toc_click" data-analytics-target="從零重現的操作清單"> 從零重現的操作清單 </a> </li><li class="nested"> <a href="#1-確認版本與憑證" data-analytics-event="toc_click" data-analytics-target="1-確認版本與憑證"> 1. 確認版本與憑證 </a> </li><li class="nested"> <a href="#2-備份設定" data-analytics-event="toc_click" data-analytics-target="2-備份設定"> 2. 備份設定 </a> </li><li class="nested"> <a href="#3-用原始請求驗證-responses" data-analytics-event="toc_click" data-analytics-target="3-用原始請求驗證-responses"> 3. 用原始請求驗證 /responses </a> </li><li class="nested"> <a href="#4-加入-provider-與執行時期認證" data-analytics-event="toc_click" data-analytics-target="4-加入-provider-與執行時期認證"> 4. 加入 Provider 與執行時期認證 </a> </li><li class="nested"> <a href="#5-用-fallback-元資料做第一次-codex-請求" data-analytics-event="toc_click" data-analytics-target="5-用-fallback-元資料做第一次-codex-請求"> 5. 用 fallback 元資料做第一次 Codex 請求 </a> </li><li class="nested"> <a href="#6-從目前模型快取生成本機目錄" data-analytics-event="toc_click" data-analytics-target="6-從目前模型快取生成本機目錄"> 6. 從目前模型快取生成本機目錄 </a> </li><li class="nested"> <a href="#7-分別建立兩個-profile" data-analytics-event="toc_click" data-analytics-target="7-分別建立兩個-profile"> 7. 分別建立兩個 Profile </a> </li><li class="nested"> <a href="#8-依序做靜態與真實驗證" data-analytics-event="toc_click" data-analytics-target="8-依序做靜態與真實驗證"> 8. 依序做靜態與真實驗證 </a> </li><li class="nested"> <a href="#9-在隔離目錄驗證-apply_patch" data-analytics-event="toc_click" data-analytics-target="9-在隔離目錄驗證-apply_patch"> 9. 在隔離目錄驗證 apply_patch </a> </li><li class="nested"> <a href="#10-記錄版本並保留回滾點" data-analytics-event="toc_click" data-analytics-target="10-記錄版本並保留回滾點"> 10. 記錄版本並保留回滾點 </a> </li><li> <a href="#目前已驗證與尚未推論的邊界" data-analytics-event="toc_click" data-analytics-target="目前已驗證與尚未推論的邊界"> 目前已驗證與尚未推論的邊界 </a> </li><li> <a href="#回滾方式" data-analytics-event="toc_click" data-analytics-target="回滾方式"> 回滾方式 </a> </li><li> <a href="#結論" data-analytics-event="toc_click" data-analytics-target="結論"> 結論 </a> </li> </ol> </aside> </div> <script type="module" src="/_astro/MermaidEnhancer.astro_astro_type_script_index_0_lang.DTQ20dni.js"></script> <dialog class="image-lightbox" data-image-lightbox data-locale="zh-TW" aria-labelledby="lightbox-caption"> <div class="image-lightbox-inner"> <button type="button" class="image-lightbox-close" aria-label="關閉圖片預覽">
+×
+</button> <img alt="" decoding="async"> <p id="lightbox-caption" hidden></p> </div> </dialog> <script type="module" src="/_astro/ImageLightbox.astro_astro_type_script_index_0_lang.CmAf__MV.js"></script> <div class="reading-progress" aria-hidden="true"><span></span></div> <div class="article-actions" data-reading-tools data-locale="zh-TW" data-title="在 Codex 中串接 OpenCode Go 的 DeepSeek V4 Flash：Responses API、模型目錄與 Profile 切換" data-href="https://lucaslz.com/zh-tw/tools/codex-opencode-go-deepseek-v4-flash/"> <button type="button" data-share aria-label="分享"> 分享 </button> <button type="button" data-copy-link aria-label="複製連結"> 複製連結 </button> <button type="button" data-bookmark aria-label="收藏" aria-pressed="false"> 收藏 </button> </div> <button class="back-to-top" type="button" aria-label="返回頂端" hidden>↑</button> <div class="reading-toast" role="status" aria-live="polite"></div> <script type="module" src="/_astro/ReadingTools.astro_astro_type_script_index_0_lang.FOex6a9j.js"></script> <footer class="post-footer page-shell narrow-shell" data-pagefind-ignore> <div class="post-end-mark"><span>END</span></div> <p>感謝閱讀。你可以分享、收藏，或在下方參與討論。</p>  <div class="post-navigation"> <a href="/zh-tw/blog/astro-react-mdx-cloudflare-pages/" class="previous-post" data-analytics-event="article_click" data-analytics-target="/zh-tw/blog/astro-react-mdx-cloudflare-pages/">  <small>← 上一篇</small> <strong>從零重寫個人部落格：Astro + React + MDX + Cloudflare Pages</strong>  </a> <a href="/zh-tw/kubernetes/spring-boot-2-3-nacos-redis-property-postmortem/" class="next-post" data-analytics-event="article_click" data-analytics-target="/zh-tw/kubernetes/spring-boot-2-3-nacos-redis-property-postmortem/">  <small>下一篇 →</small> <strong>Spring Boot 2 與 3 混部：Nacos Redis 設定為什麼會回退到 localhost</strong>  </a> </div> </footer> </article> <div class="page-shell narrow-shell" data-pagefind-ignore> <section class="comments-section" aria-labelledby="comments-title" data-giscus-comments data-repo="lucaslz2020/lucasleelz.github.io" data-repo-id="MDEwOlJlcG9zaXRvcnkyNzcxNjkwNw==" data-category="Announcements" data-category-id="DIC_kwDOAabtK84DCw-x" data-discussion-path="/tools/codex-opencode-go-deepseek-v4-flash/" data-giscus-language="zh-TW"> <div class="comments-heading"> <p class="eyebrow"> <span></span>
+DISCUSSION
+</p> <h2 id="comments-title">討論與回饋</h2> </div> <div class="giscus" aria-live="polite"></div> </section> <script type="module">var e=()=>document.documentElement.dataset.theme===`dark`?`noborder_dark`:`noborder_light`,t=t=>{if(t.dataset.loaded===`true`)return;let n=t.querySelector(`.giscus`);if(!n)return;let r=document.createElement(`script`);r.src=`https://giscus.app/client.js`,r.async=!0,r.crossOrigin=`anonymous`,r.dataset.repo=t.dataset.repo??``,r.dataset.repoId=t.dataset.repoId??``,r.dataset.category=t.dataset.category??``,r.dataset.categoryId=t.dataset.categoryId??``,r.dataset.mapping=`specific`,r.dataset.term=t.dataset.discussionPath??window.location.pathname,r.dataset.strict=`1`,r.dataset.reactionsEnabled=`1`,r.dataset.emitMetadata=`0`,r.dataset.inputPosition=`top`,r.dataset.theme=e(),r.dataset.lang=t.dataset.giscusLanguage??`zh-CN`,r.dataset.loading=`lazy`,t.dataset.loaded=`true`,n.append(r)},n=document.querySelector(`[data-giscus-comments]`);if(n)if(`IntersectionObserver`in window){let e=new IntersectionObserver(r=>{r.some(e=>e.isIntersecting)&&(t(n),e.disconnect())},{rootMargin:`500px 0px`});e.observe(n)}else t(n);window.addEventListener(`theme-change`,()=>{document.querySelector(`iframe.giscus-frame`)?.contentWindow?.postMessage({giscus:{setConfig:{theme:e()}}},`https://giscus.app`)});</script> </div>  </main> <footer class="site-footer"> <div class="footer-inner"> <div class="footer-brand"> <img class="brand-mark" src="/brand/avatar.svg" alt="" width="42" height="42" loading="lazy" decoding="async"> <div> <strong>lucaslz</strong> <p>關於軟體工程、Web、Java 與持續學習的長期技術筆記。</p> </div> </div> <div class="footer-links"> <a href="/zh-tw/rss.xml">RSS</a> <a href="/zh-tw/archive/">彙整</a> <a href="/zh-tw/tags/">標籤</a> <a href="https://github.com/lucaslz2020" target="_blank" rel="noreferrer">GitHub</a> </div> </div> <div class="footer-bottom"> <span>© 2026 lucaslz</span> <span>Built with Astro + React · Deployed on Cloudflare Pages</span> </div> </footer> <script type="module" src="/_astro/Analytics.astro_astro_type_script_index_0_lang.C6zUefo_.js"></script> <aside class="pwa-notice" data-pwa-notice data-locale="zh-TW" data-mode="status" aria-label="應用狀態" aria-live="polite" aria-atomic="true" hidden> <span class="pwa-notice-icon" data-pwa-icon aria-hidden="true">↧</span> <p> <strong data-pwa-title>離線閱讀已就緒</strong> <small data-pwa-message>造訪過的文章可以在離線時繼續閱讀。</small> </p> <div class="pwa-notice-actions"> <button type="button" data-pwa-action hidden> 立即安裝 </button> <button type="button" data-pwa-dismiss>知道了</button> </div> </aside> <script type="module" src="/_astro/Pwa.astro_astro_type_script_index_0_lang.ErCGOlnE.js"></script> </body> </html>

@@ -1,0 +1,531 @@
+<!DOCTYPE html><html lang="zh-Hant-TW" data-theme="light" data-locale="zh-TW"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="generator" content="Astro v7.1.6"><meta name="author" content="lucaslz"><meta name="theme-color" content="#f5f1e8" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)"><meta name="description" content="從網路規劃與 Rocky Linux 初始化開始，一步步建立 kubeadm 高可用叢集，安裝 kube-vip、Calico、指標、儲存與 Ingress，並完成叢集驗收。"><meta name="google-site-verification" content="o_QOQN3-adA79KPRfqy1wAj9zviE8hyD5jvfdQEMVco"><meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"><meta name="keywords" content="Kubernetes, kubeadm, Rocky Linux, Calico, Nacos, 遷移, Kubernetes 遷移, kube-vip, Service DNS"><link rel="canonical" href="https://lucaslz.com/zh-tw/kubernetes/kubeadm-cluster-rebuild-migration-retrospective/"><link rel="alternate" hreflang="zh-CN" href="https://lucaslz.com/kubernetes/kubeadm-cluster-rebuild-migration-retrospective/"><link rel="alternate" hreflang="en" href="https://lucaslz.com/en/kubernetes/kubeadm-cluster-rebuild-migration-retrospective/"><link rel="alternate" hreflang="zh-Hant-TW" href="https://lucaslz.com/zh-tw/kubernetes/kubeadm-cluster-rebuild-migration-retrospective/"><link rel="alternate" hreflang="x-default" href="https://lucaslz.com/kubernetes/kubeadm-cluster-rebuild-migration-retrospective/"><link rel="author" href="https://github.com/lucaslz2020"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon.ico" sizes="any"><link rel="apple-touch-icon" href="/icons/apple-touch-icon.png"><link rel="alternate" type="application/rss+xml" title="lucaslz · 工程筆記" href="/zh-tw/rss.xml"><link rel="manifest" href="/site.webmanifest"><title>從零搭建 Kubernetes v1.36.3：Rocky Linux 與 kubeadm 完整教學 · lucaslz</title><meta property="og:type" content="article"><meta property="og:site_name" content="lucaslz · 工程筆記"><meta property="og:title" content="從零搭建 Kubernetes v1.36.3：Rocky Linux 與 kubeadm 完整教學 · lucaslz"><meta property="og:description" content="從網路規劃與 Rocky Linux 初始化開始，一步步建立 kubeadm 高可用叢集，安裝 kube-vip、Calico、指標、儲存與 Ingress，並完成叢集驗收。"><meta property="og:url" content="https://lucaslz.com/zh-tw/kubernetes/kubeadm-cluster-rebuild-migration-retrospective/"><meta property="og:image" content="https://lucaslz.com/og/zh-tw/kubernetes/kubeadm-cluster-rebuild-migration-retrospective.png"><meta property="og:image:type" content="image/png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="從零搭建 Kubernetes v1.36.3：Rocky Linux 與 kubeadm 完整教學 的分享圖片"><meta property="og:locale" content="zh_TW"><meta property="article:published_time" content="2026-05-30T00:00:00.000Z"><meta property="article:author" content="https://github.com/lucaslz2020"><meta property="article:tag" content="Kubernetes"><meta property="article:tag" content="kubeadm"><meta property="article:tag" content="Rocky Linux"><meta property="article:tag" content="Calico"><meta property="article:tag" content="Nacos"><meta property="article:tag" content="遷移"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="從零搭建 Kubernetes v1.36.3：Rocky Linux 與 kubeadm 完整教學 · lucaslz"><meta name="twitter:description" content="從網路規劃與 Rocky Linux 初始化開始，一步步建立 kubeadm 高可用叢集，安裝 kube-vip、Calico、指標、儲存與 Ingress，並完成叢集驗收。"><meta name="twitter:image" content="https://lucaslz.com/og/zh-tw/kubernetes/kubeadm-cluster-rebuild-migration-retrospective.png"><script>
+      (() => {
+        const saved = localStorage.getItem("theme");
+        const dark = saved
+          ? saved === "dark"
+          : matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+      })();
+    </script><script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Person","@id":"https://lucaslz.com/#person","name":"lucaslz","url":"https://lucaslz.com","sameAs":["https://github.com/lucaslz2020"]},{"@type":"WebSite","@id":"https://lucaslz.com/#website","name":"lucaslz · 工程筆記","alternateName":"lucaslz","description":"關於軟體工程、Web、Java 與持續學習的長期技術筆記。","url":"https://lucaslz.com","inLanguage":"zh-Hant-TW","publisher":{"@id":"https://lucaslz.com/#person"}},{"@type":"BlogPosting","@id":"https://lucaslz.com/zh-tw/kubernetes/kubeadm-cluster-rebuild-migration-retrospective/#article","url":"https://lucaslz.com/zh-tw/kubernetes/kubeadm-cluster-rebuild-migration-retrospective/","headline":"從零搭建 Kubernetes v1.36.3：Rocky Linux 與 kubeadm 完整教學","description":"從網路規劃與 Rocky Linux 初始化開始，一步步建立 kubeadm 高可用叢集，安裝 kube-vip、Calico、指標、儲存與 Ingress，並完成叢集驗收。","inLanguage":"zh-Hant-TW","datePublished":"2026-05-30T00:00:00.000Z","dateModified":"2026-05-30T00:00:00.000Z","author":{"@id":"https://lucaslz.com/#person","name":"lucaslz"},"publisher":{"@id":"https://lucaslz.com/#person"},"isPartOf":{"@id":"https://lucaslz.com/#website"},"mainEntityOfPage":{"@type":"WebPage","@id":"https://lucaslz.com/zh-tw/kubernetes/kubeadm-cluster-rebuild-migration-retrospective/"},"image":{"@type":"ImageObject","url":"https://lucaslz.com/og/zh-tw/kubernetes/kubeadm-cluster-rebuild-migration-retrospective.png","width":1200,"height":630},"articleSection":["Kubernetes","kubeadm","Rocky Linux","Calico","Nacos","遷移"],"keywords":"Kubernetes, kubeadm, Rocky Linux, Calico, Nacos, 遷移, Kubernetes 遷移, kube-vip, Service DNS","wordCount":4685},{"@type":"BreadcrumbList","@id":"https://lucaslz.com/zh-tw/kubernetes/kubeadm-cluster-rebuild-migration-retrospective/#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"首頁","item":"https://lucaslz.com/zh-tw"},{"@type":"ListItem","position":2,"name":"從零搭建 Kubernetes v1.36.3：Rocky Linux 與 kubeadm 完整教學","item":"https://lucaslz.com/zh-tw/kubernetes/kubeadm-cluster-rebuild-migration-retrospective/"}]}]}</script><style>@layer astro.images{:where([data-astro-image]){height:auto}:where([data-astro-image=full-width]){width:100%}:where([data-astro-image=constrained]){max-width:100%}[data-astro-image-fit=fill]{object-fit:fill}[data-astro-image-fit=contain]{object-fit:contain}[data-astro-image-fit=cover]{object-fit:cover}[data-astro-image-fit=scale-down]{object-fit:scale-down}[data-astro-image-pos=top]{object-position:top}[data-astro-image-pos=bottom]{object-position:bottom}[data-astro-image-pos=left]{object-position:left}[data-astro-image-pos=right]{object-position:right}[data-astro-image-pos=center]{object-position:center}[data-astro-image-pos=top-bottom]{object-position:top bottom}[data-astro-image-pos=top-left]{object-position:top left}[data-astro-image-pos=top-right]{object-position:top right}[data-astro-image-pos=top-center]{object-position:top center}[data-astro-image-pos=bottom-top]{object-position:bottom top}[data-astro-image-pos=bottom-left]{object-position:bottom left}[data-astro-image-pos=bottom-right]{object-position:bottom right}[data-astro-image-pos=bottom-center]{object-position:bottom center}[data-astro-image-pos=left-top]{object-position:left top}[data-astro-image-pos=left-bottom]{object-position:left bottom}[data-astro-image-pos=left-right]{object-position:left right}[data-astro-image-pos=left-center]{object-position:left center}[data-astro-image-pos=right-top]{object-position:right top}[data-astro-image-pos=right-bottom]{object-position:right bottom}[data-astro-image-pos=right-left]{object-position:right left}[data-astro-image-pos=right-center]{object-position:right center}[data-astro-image-pos=center-top]{object-position:center top}[data-astro-image-pos=center-bottom]{object-position:center bottom}[data-astro-image-pos=center-left]{object-position:center left}[data-astro-image-pos=center-right]{object-position:center right}}
+</style><link rel="stylesheet" href="/_astro/BaseLayout.BkQFXu0L.css"><script type="module" src="/_astro/page.BS6wqQC3.js"></script></head> <body> <a class="skip-link" href="#main-content">跳至主要內容</a> <header class="site-header"> <div class="header-inner"> <a class="brand" href="/zh-tw/" title="首頁" data-analytics-event="nav_click" data-analytics-target="home"> <img class="brand-mark" src="/brand/avatar.svg" alt="" width="42" height="42" decoding="async"> <span class="brand-copy"> <strong>lucaslz</strong> <small>ENGINEERING NOTES</small> </span> </a> <nav class="desktop-nav" aria-label="主要導覽"> <a href="/zh-tw/" data-analytics-event="nav_click" data-analytics-target="首頁" aria-current="page"> 首頁 </a><a href="/zh-tw/archive/" data-analytics-event="nav_click" data-analytics-target="彙整"> 彙整 </a><a href="/zh-tw/tags/" data-analytics-event="nav_click" data-analytics-target="標籤"> 標籤 </a> <a href="https://github.com/lucaslz2020" target="_blank" rel="noreferrer">GitHub ↗</a> </nav> <style>astro-island,astro-slot,astro-static-slot{display:contents}</style><script>(()=>{var e=async t=>{await(await t())()};(self.Astro||(self.Astro={})).load=e;window.dispatchEvent(new Event("astro:load"));})();</script><script>(()=>{var g=Object.defineProperty;var w=(a,s,c)=>s in a?g(a,s,{enumerable:!0,configurable:!0,writable:!0,value:c}):a[s]=c;var l=(a,s,c)=>w(a,typeof s!="symbol"?s+"":s,c);var E=new Set(["__proto__","constructor","prototype"]);{let a={0:t=>y(t),1:t=>c(t),2:t=>new RegExp(t),3:t=>new Date(t),4:t=>new Map(c(t)),5:t=>new Set(c(t)),6:t=>BigInt(t),7:t=>new URL(t),8:t=>new Uint8Array(t),9:t=>new Uint16Array(t),10:t=>new Uint32Array(t),11:t=>Number.POSITIVE_INFINITY*t},s=t=>{let[p,e]=t;return p in a?a[p](e):void 0},c=t=>t.map(s),y=t=>typeof t!="object"||t===null?t:Object.fromEntries(Object.entries(t).map(([p,e])=>[p,s(e)]));class f extends HTMLElement{constructor(){super(...arguments);l(this,"Component");l(this,"hydrator");l(this,"hydrate",async()=>{var b;if(!this.hydrator||!this.isConnected)return;let e=(b=this.parentElement)==null?void 0:b.closest("astro-island[ssr]");if(e){e.addEventListener("astro:hydrate",this.hydrate,{once:!0});return}let r=this.querySelectorAll("astro-slot"),n={},d=this.querySelectorAll("template[data-astro-template]");for(let o of d){let i=o.closest(this.tagName);i!=null&&i.isSameNode(this)&&(n[o.getAttribute("data-astro-template")||"default"]=o.innerHTML,o.remove())}for(let o of r){let i=o.closest(this.tagName);i!=null&&i.isSameNode(this)&&(n[o.getAttribute("name")||"default"]=o.innerHTML)}let u;try{u=this.hasAttribute("props")?y(JSON.parse(this.getAttribute("props"))):{}}catch(o){let i=this.getAttribute("component-url")||"<unknown>",v=this.getAttribute("component-export");throw v&&(i+=` (export ${v})`),console.error(`[hydrate] Error parsing props for component ${i}`,this.getAttribute("props"),o),o}let h;await this.hydrator(this)(this.Component,u,n,{client:this.getAttribute("client")}),this.removeAttribute("ssr"),this.dispatchEvent(new CustomEvent("astro:hydrate"))});l(this,"unmount",()=>{this.isConnected||this.dispatchEvent(new CustomEvent("astro:unmount"))})}disconnectedCallback(){document.removeEventListener("astro:after-swap",this.unmount),document.addEventListener("astro:after-swap",this.unmount,{once:!0})}connectedCallback(){if(!this.hasAttribute("await-children")||document.readyState==="interactive"||document.readyState==="complete")this.childrenConnectedCallback();else{let e=()=>{document.removeEventListener("DOMContentLoaded",e),r.disconnect(),this.childrenConnectedCallback()},r=new MutationObserver(()=>{var n;((n=this.lastChild)==null?void 0:n.nodeType)===Node.COMMENT_NODE&&this.lastChild.nodeValue==="astro:end"&&(this.lastChild.remove(),e())});r.observe(this,{childList:!0}),document.addEventListener("DOMContentLoaded",e)}}async childrenConnectedCallback(){let e=this.getAttribute("before-hydration-url");e&&await import(e),this.start()}getRetryImportUrl(e){let r=new URL(e,document.baseURI);return r.searchParams.set("astro-retry",Date.now().toString()),r.toString()}async importWithRetry(e){try{return await import(e)}catch(r){return await new Promise(n=>setTimeout(n,1e3)),import(this.getRetryImportUrl(e))}}handleHydrationError(e){let r=this.getAttribute("component-url"),n=new CustomEvent("astro:hydration-error",{cancelable:!0,bubbles:!0,composed:!0,detail:{error:e,componentUrl:r}});this.dispatchEvent(n)&&console.error(`[astro-island] Error hydrating ${r}`,e)}async start(){let e=JSON.parse(this.getAttribute("opts")),r=this.getAttribute("client");if(Astro[r]===void 0){window.addEventListener(`astro:${r}`,()=>this.start(),{once:!0});return}try{await Astro[r](async()=>{let n=this.getAttribute("renderer-url");try{let[d,{default:u}]=await Promise.all([this.importWithRetry(this.getAttribute("component-url")),n?this.importWithRetry(n):Promise.resolve({default:()=>()=>{}})]),h=this.getAttribute("component-export")||"default";if(h.includes(".")){this.Component=d;for(let m of h.split(".")){if(E.has(m)||!this.Component||typeof this.Component!="object"&&typeof this.Component!="function"||!Object.hasOwn(this.Component,m))throw new Error(`Invalid component export path: ${h}`);this.Component=this.Component[m]}}else{if(E.has(h))throw new Error(`Invalid component export path: ${h}`);this.Component=d[h]}return this.hydrator=u,this.hydrate}catch(d){return this.handleHydrationError(d),()=>{}}},e,this)}catch(n){this.handleHydrationError(n)}}attributeChangedCallback(){this.hydrate()}}l(f,"observedAttributes",["props"]),customElements.get("astro-island")||customElements.define("astro-island",f)}})();</script><astro-island uid="Z11iGHA" prefix="r1" component-url="/_astro/HeaderControls.B1MD04oD.js" component-export="default" renderer-url="/_astro/client.2oQR4HXa.js" props="{&quot;githubUrl&quot;:[0,&quot;https://github.com/lucaslz2020&quot;],&quot;locale&quot;:[0,&quot;zh-TW&quot;],&quot;languageTargets&quot;:[0,{&quot;zh-CN&quot;:[0,&quot;/kubernetes/kubeadm-cluster-rebuild-migration-retrospective/&quot;],&quot;en&quot;:[0,&quot;/en/kubernetes/kubeadm-cluster-rebuild-migration-retrospective/&quot;],&quot;zh-TW&quot;:[0,&quot;/zh-tw/kubernetes/kubeadm-cluster-rebuild-migration-retrospective/&quot;]}]}" ssr client="load" opts="{&quot;name&quot;:&quot;HeaderControls&quot;,&quot;value&quot;:true}" await-children><div class="header-controls"><div class="language-switcher" aria-label="語言"><a href="/kubernetes/kubeadm-cluster-rebuild-migration-retrospective/">简</a><a href="/en/kubernetes/kubeadm-cluster-rebuild-migration-retrospective/">EN</a><a href="/zh-tw/kubernetes/kubeadm-cluster-rebuild-migration-retrospective/" aria-current="page">繁</a></div><button class="icon-button search-trigger" type="button" aria-label="搜尋"><span aria-hidden="true">⌕</span><span class="search-label">搜尋</span><kbd>⌘K</kbd></button><button class="icon-button theme-trigger" type="button" aria-label="切換至深色模式"><span aria-hidden="true">◐</span></button><button class="icon-button menu-trigger" type="button" aria-label="開啟導覽"><span aria-hidden="true">☰</span></button></div><!--astro:end--></astro-island> </div> </header> <main id="main-content">  <article class="post-page" data-pagefind-body> <meta data-pagefind-filter="locale[content]" content="zh-TW"> <header class="post-header page-shell narrow-shell"> <a class="back-link" href="/zh-tw/">← 返回文章列表</a> <p class="eyebrow"> <span></span>ENGINEERING NOTE · 2026年5月30日 </p> <h1 data-pagefind-meta="title">從零搭建 Kubernetes v1.36.3：Rocky Linux 與 kubeadm 完整教學</h1> <p class="post-description" data-pagefind-meta="description"> 從網路規劃與 Rocky Linux 初始化開始，一步步建立 kubeadm 高可用叢集，安裝 kube-vip、Calico、指標、儲存與 Ingress，並完成叢集驗收。 </p> <meta data-pagefind-meta="date" content="2026-05-30"> <meta data-pagefind-meta="tags" content="Kubernetes, kubeadm, Rocky Linux, Calico, Nacos, 遷移"> <div class="post-meta-row"> <div class="post-author"> <img class="mini-avatar" src="/brand/avatar.svg" alt="" width="36" height="36" decoding="async"> <span><strong>lucaslz</strong><small>作者</small></span> </div> <div class="post-facts"> <time datetime="2026-05-30T00:00:00.000Z">2026年5月30日</time>  <span>24 分鐘閱讀</span> <span class="post-view-count" data-page-views hidden></span> </div> </div> <div class="post-tag-row"> <a href="/zh-tw/tags/kubernetes/" data-analytics-event="tag_click" data-analytics-target="Kubernetes">
+#Kubernetes </a><a href="/zh-tw/tags/kubeadm/" data-analytics-event="tag_click" data-analytics-target="kubeadm">
+#kubeadm </a><a href="/zh-tw/tags/rocky-linux/" data-analytics-event="tag_click" data-analytics-target="Rocky Linux">
+#Rocky Linux </a><a href="/zh-tw/tags/calico/" data-analytics-event="tag_click" data-analytics-target="Calico">
+#Calico </a><a href="/zh-tw/tags/nacos/" data-analytics-event="tag_click" data-analytics-target="Nacos">
+#Nacos </a><a href="/zh-tw/tags/遷移/" data-analytics-event="tag_click" data-analytics-target="遷移">
+#遷移 </a> </div>    </header> <div class="post-divider"> <span></span><b>&#123; &#125;</b><span></span> </div> <div class="post-layout page-shell"> <div class="post-content prose">  <blockquote>
+<p>本文來自一次真實遷移復盤。節點、位址、網域、命名空間、業務數量與內部倉庫資訊均已脫敏或泛化，範例不能直接用於生產環境。</p>
+</blockquote>
+<blockquote>
+<p>系列導覽：<a href="/zh-tw/kubernetes/kubernetes-migration-series/">Kubernetes 重建遷移教學系列</a>。本篇負責從零獲得一個健康的空叢集。</p>
+</blockquote>
+<p>這次升級沒有在舊控制平面上連續執行多次 <code>kubeadm upgrade</code>，而是建立一套全新的 Kubernetes v1.36.3 叢集，再分階段遷移節點、資料、中介軟體、設定與業務。</p>
+<p>下面不只講結論，而是按照實際執行順序，從建立工作目錄開始，一直寫到業務切換完成。你可以把指令複製到自己的維運倉庫，再替換所有 <code>&#x3C;...></code> 佔位符。</p>
+<p>選擇重建而不是原地升級，主要因為舊環境同時存在作業系統老化、節點用途混亂、固定 Service IP、歷史命名空間、網路規則不一致與有狀態服務分散等問題。單純升級控制平面，只會把這些問題原封不動帶到新版本。</p>
+<p>最終證明，遷移最難的部分不是讓 Pod 顯示 <code>Running</code>，而是把下面這條鏈路全部打通：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>节点</span></span>
+<span class="line"><span>→ CNI / kube-proxy</span></span>
+<span class="line"><span>→ PVC 与真实数据</span></span>
+<span class="line"><span>→ Pod Ready</span></span>
+<span class="line"><span>→ Service Endpoint</span></span>
+<span class="line"><span>→ Service DNS / 服务注册</span></span>
+<span class="line"><span>→ Gateway / Ingress</span></span>
+<span class="line"><span>→ 登录与真实业务请求</span></span>
+<span class="line"><span>→ 外部入口</span></span></code></pre>
+<h2 id="遷移目標與最終形態">遷移目標與最終形態</h2>
+<p>最終叢集採用：</p>
+<ul>
+<li>Rocky Linux 10.2。</li>
+<li>Kubernetes v1.36.3。</li>
+<li>containerd，使用 systemd cgroup。</li>
+<li>三節點控制平面與 etcd。</li>
+<li>kube-vip 提供 API 虛擬位址。</li>
+<li>Calico 提供 Pod 網路。</li>
+<li>NGINX Ingress 三複本。</li>
+<li>NFS 動態儲存與少量本機 PersistentVolume。</li>
+<li>metrics-server 提供節點與 Pod 指標。</li>
+<li>Nacos 三節點叢集。</li>
+<li>依業務、資料、入口、監控、共用與預留用途劃分節點池。</li>
+</ul>
+<p>網路規劃在建立控制平面之前凍結。Pod CIDR、Service CIDR、節點網段三者不能重疊，應用也不能混淆這三類位址。</p>
+<pre><code class="language-mermaid">flowchart LR
+  A["旧集群与虚拟化平台盘点"] --> B["etcd、资源和数据备份"]
+  B --> C["批量重装 Rocky Linux"]
+  C --> D["创建高可用控制平面"]
+  D --> E["Calico、Ingress、存储、指标"]
+  E --> F["资源以零副本预部署"]
+  F --> G["恢复数据服务"]
+  G --> H["Nacos 与 Service DNS 治理"]
+  H --> I["分批启动业务"]
+  I --> J["真实请求与入口切换"]
+</code></pre>
+<h2 id="開始前建立版本化工作目錄">開始前：建立版本化工作目錄</h2>
+<p>不要把下載檔案、備份、臨時 patch 與最終清單散落在維運機的下載目錄。先建立一個獨立目錄：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">mkdir</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -p</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> cluster-migration/{inventory,backup,images,manifests,scripts,reports}</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">cd</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> cluster-migration</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">git</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> init</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">printf</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'backup/\n*.key\n*.kubeconfig\n.env\n'</span><span style="color:#D73A49;--shiki-dark:#F97583"> ></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> .gitignore</span></span></code></pre>
+<p>建議目錄結構如下：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>cluster-migration/</span></span>
+<span class="line"><span>├── inventory/       # 节点、服务、存储和域名清单</span></span>
+<span class="line"><span>├── backup/          # 不进入 Git 的备份及校验值</span></span>
+<span class="line"><span>├── images/          # 镜像和 digest 清单</span></span>
+<span class="line"><span>├── manifests/       # kubeadm、CNI、存储和业务清单</span></span>
+<span class="line"><span>├── scripts/         # 可重复执行的初始化与验证脚本</span></span>
+<span class="line"><span>└── reports/         # 每个阶段的验收结果</span></span></code></pre>
+<p>再建立一個不提交 Git 的 <code>.env</code>：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">cat</span><span style="color:#D73A49;--shiki-dark:#F97583"> ></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> .env</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;&#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">'EOF'</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">K8S_VERSION=v1.36.3</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">API_VIP=&#x3C;api-vip></span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">POD_CIDR=&#x3C;pod-cidr></span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">SERVICE_CIDR=&#x3C;service-cidr></span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">CONTROL_PLANE_1=&#x3C;control-plane-1></span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">CONTROL_PLANE_2=&#x3C;control-plane-2></span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">CONTROL_PLANE_3=&#x3C;control-plane-3></span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">EOF</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">chmod</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 600</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> .env</span></span></code></pre>
+<p>本文不會提供真實位址。對於公開文件，可以使用 <code>192.0.2.0/24</code>、<code>198.51.100.0/24</code> 等專用文件網段；真實執行必須替換成自己的規劃。</p>
+<h2 id="第-1-步把伺服器清單變成可驗證的資料">第 1 步：把伺服器清單變成可驗證的資料</h2>
+<p>不要只維護一張自由格式 Excel。至少額外匯出一份 CSV：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="csv"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">hostname,</span><span style="color:#D73A49;--shiki-dark:#F97583">ip,</span><span style="color:#6F42C1;--shiki-dark:#B392F0">role,</span><span style="color:#6A737D;--shiki-dark:#6A737D">pool,</span><span style="color:#032F62;--shiki-dark:#9ECBFF">cpu,</span><span style="color:#E36209;--shiki-dark:#FFAB70">memory_gib,</span><span style="color:#005CC5;--shiki-dark:#79B8FF">disk_gib,</span><span style="color:#6F42C1;--shiki-dark:#B392F0">local_data</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">cp-a,</span><span style="color:#D73A49;--shiki-dark:#F97583">&#x3C;node-ip>,</span><span style="color:#6F42C1;--shiki-dark:#B392F0">control-plane,</span><span style="color:#6A737D;--shiki-dark:#6A737D">control-plane,</span><span style="color:#032F62;--shiki-dark:#9ECBFF">8,</span><span style="color:#E36209;--shiki-dark:#FFAB70">32,</span><span style="color:#005CC5;--shiki-dark:#79B8FF">100,</span><span style="color:#6F42C1;--shiki-dark:#B392F0">false</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">worker-a,</span><span style="color:#D73A49;--shiki-dark:#F97583">&#x3C;node-ip>,</span><span style="color:#6F42C1;--shiki-dark:#B392F0">worker,</span><span style="color:#6A737D;--shiki-dark:#6A737D">app-dev,</span><span style="color:#032F62;--shiki-dark:#9ECBFF">8,</span><span style="color:#E36209;--shiki-dark:#FFAB70">32,</span><span style="color:#005CC5;--shiki-dark:#79B8FF">100,</span><span style="color:#6F42C1;--shiki-dark:#B392F0">false</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">data-a,</span><span style="color:#D73A49;--shiki-dark:#F97583">&#x3C;node-ip>,</span><span style="color:#6F42C1;--shiki-dark:#B392F0">worker,</span><span style="color:#6A737D;--shiki-dark:#6A737D">data,</span><span style="color:#032F62;--shiki-dark:#9ECBFF">16,</span><span style="color:#E36209;--shiki-dark:#FFAB70">64,</span><span style="color:#005CC5;--shiki-dark:#79B8FF">500,</span><span style="color:#6F42C1;--shiki-dark:#B392F0">true</span></span></code></pre>
+<p>先檢查 IP、主機名稱是否重複：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">cut</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -d,</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -f1</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> inventory/nodes.csv</span><span style="color:#D73A49;--shiki-dark:#F97583"> |</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> tail</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> +2</span><span style="color:#D73A49;--shiki-dark:#F97583"> |</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> sort</span><span style="color:#D73A49;--shiki-dark:#F97583"> |</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> uniq</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -d</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">cut</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -d,</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -f2</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> inventory/nodes.csv</span><span style="color:#D73A49;--shiki-dark:#F97583"> |</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> tail</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> +2</span><span style="color:#D73A49;--shiki-dark:#F97583"> |</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> sort</span><span style="color:#D73A49;--shiki-dark:#F97583"> |</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> uniq</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -d</span></span></code></pre>
+<p>兩個指令都不應輸出任何內容。再核對節點池數量：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">cut</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -d,</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -f4</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> inventory/nodes.csv</span><span style="color:#D73A49;--shiki-dark:#F97583"> |</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> tail</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> +2</span><span style="color:#D73A49;--shiki-dark:#F97583"> |</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> sort</span><span style="color:#D73A49;--shiki-dark:#F97583"> |</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> uniq</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -c</span></span></code></pre>
+<p>這一步很樸素，卻能提早發現一台節點被寫進兩個業務池、預留節點被誤當資料節點等問題。</p>
+<h2 id="第-2-步匯出舊叢集資源">第 2 步：匯出舊叢集資源</h2>
+<p>先確認自己操作的是舊叢集：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> config</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> current-context</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> cluster-info</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> get</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> nodes</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -o</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> wide</span></span></code></pre>
+<p>然後分別匯出 namespaced 與 cluster-scoped 資源。生產環境建議用經過審核的指令碼逐類匯出；下面只展示結構：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> get</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> deploy,statefulset,daemonset,job,cronjob</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -A</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -o</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> yaml</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  ></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> backup/workloads.yaml</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> get</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> svc,ingress,configmap,pvc</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -A</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -o</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> yaml</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  ></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> backup/application-resources.yaml</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> get</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> pv,storageclass,clusterrole,clusterrolebinding,crd</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -o</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> yaml</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  ></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> backup/cluster-resources.yaml</span></span></code></pre>
+<p>Secret 必須單獨處理：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">umask</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 077</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> get</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> secret</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -A</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -o</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> yaml</span><span style="color:#D73A49;--shiki-dark:#F97583"> ></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> backup/secrets.yaml</span></span></code></pre>
+<p><code>backup/secrets.yaml</code> 不得進入 Git、聊天工具或一般檔案分享。完成後對備份計算校驗值：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">sha256sum</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> backup/</span><span style="color:#005CC5;--shiki-dark:#79B8FF">*</span><span style="color:#032F62;--shiki-dark:#9ECBFF">.yaml</span><span style="color:#D73A49;--shiki-dark:#F97583"> ></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> backup/SHA256SUMS</span></span></code></pre>
+<p>還要保存副本數，因為後續會把新叢集內的工作負載統一改成零副本：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> get</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> deployment,statefulset</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -A</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  -o</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> custom-columns='KIND:.kind,NAMESPACE:.metadata.namespace,NAME:.metadata.name,REPLICAS:.spec.replicas'</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  ></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> inventory/workload-replicas.txt</span></span></code></pre>
+<h2 id="第-3-步建立並驗證-etcd-快照">第 3 步：建立並驗證 etcd 快照</h2>
+<p>在控制平面節點上找到 etcd 憑證與 endpoint，再執行：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">ETCDCTL_API</span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#032F62;--shiki-dark:#9ECBFF">3</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> etcdctl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> snapshot</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> save</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /backup/etcd-snapshot.db</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --endpoints=https://127.0.0.1:2379</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --cacert=</span><span style="color:#D73A49;--shiki-dark:#F97583">&#x3C;</span><span style="color:#005CC5;--shiki-dark:#79B8FF">etcd-ca</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --cert=</span><span style="color:#D73A49;--shiki-dark:#F97583">&#x3C;</span><span style="color:#005CC5;--shiki-dark:#79B8FF">etcd-client-cert</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --key=</span><span style="color:#D73A49;--shiki-dark:#F97583">&#x3C;</span><span style="color:#005CC5;--shiki-dark:#79B8FF">etcd-client-key</span><span style="color:#D73A49;--shiki-dark:#F97583">></span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">ETCDCTL_API</span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#032F62;--shiki-dark:#9ECBFF">3</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> etcdctl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> snapshot</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> status</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /backup/etcd-snapshot.db</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --write-out=table</span></span></code></pre>
+<p>把快照複製到獨立儲存，並在隔離主機做一次 restore：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">etcdutl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> snapshot</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> restore</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /backup/etcd-snapshot.db</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --data-dir</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /var/lib/etcd-restore-test</span></span></code></pre>
+<p>還原目錄能夠建立、member 資訊可讀取，才表示快照至少具備基礎可還原性。正式演練還應啟動隔離的 etcd 與 API Server 驗證物件。</p>
+<h2 id="第-4-步製作統一的節點初始化指令碼">第 4 步：製作統一的節點初始化指令碼</h2>
+<p>不要逐台手敲指令。建立 <code>scripts/prepare-node.sh</code>，指令碼至少完成：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">#!/usr/bin/env bash</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">set</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -euo</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> pipefail</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">swapoff</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -a</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">sed</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -ri</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> '/\sswap\s/s/^#?/#/'</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /etc/fstab</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">cat</span><span style="color:#D73A49;--shiki-dark:#F97583"> ></span><span style="color:#032F62;--shiki-dark:#9ECBFF">/etc/modules-load.d/kubernetes.conf</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;&#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">'EOF'</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">overlay</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">br_netfilter</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">EOF</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">modprobe</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> overlay</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">modprobe</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> br_netfilter</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">cat</span><span style="color:#D73A49;--shiki-dark:#F97583"> ></span><span style="color:#032F62;--shiki-dark:#9ECBFF">/etc/sysctl.d/99-kubernetes.conf</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;&#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">'EOF'</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">net.bridge.bridge-nf-call-iptables=1</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">net.bridge.bridge-nf-call-ip6tables=1</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">net.ipv4.ip_forward=1</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">EOF</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">sysctl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --system</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">systemctl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> enable</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --now</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> containerd</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">systemctl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> enable</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> kubelet</span></span></code></pre>
+<p>containerd 設定產生後，確認：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">containerd</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> config</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> dump</span><span style="color:#D73A49;--shiki-dark:#F97583"> |</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> grep</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -E</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'SystemdCgroup|sandbox_image'</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">crictl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> info</span></span></code></pre>
+<p>預期 <code>SystemdCgroup=true</code>，pause 映像來自你已驗證可拉取的倉庫。</p>
+<h2 id="第-5-步在加入叢集前完成防火牆">第 5 步：在加入叢集前完成防火牆</h2>
+<p>在所有節點允許規劃好的 Pod CIDR：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">firewall-cmd</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --permanent</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --zone=trusted</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --add-source=</span><span style="color:#D73A49;--shiki-dark:#F97583">&#x3C;</span><span style="color:#005CC5;--shiki-dark:#79B8FF">pod-cidr</span><span style="color:#D73A49;--shiki-dark:#F97583">></span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">firewall-cmd</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --reload</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">firewall-cmd</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --zone=trusted</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --query-source=</span><span style="color:#D73A49;--shiki-dark:#F97583">&#x3C;</span><span style="color:#005CC5;--shiki-dark:#79B8FF">pod-cidr</span><span style="color:#D73A49;--shiki-dark:#F97583">></span></span></code></pre>
+<p>最後一個指令必須輸出 <code>yes</code>。再把結果寫入報告：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">hostname</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">firewall-cmd</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --zone=trusted</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --list-sources</span></span></code></pre>
+<p>不要直接長期關閉 firewalld。關閉防火牆看似能讓網路快速恢復，卻會失去可稽核的安全邊界。</p>
+<h2 id="第-6-步產生-kubeadm-設定並預先拉取映像">第 6 步：產生 kubeadm 設定並預先拉取映像</h2>
+<p>建立 <code>manifests/kubeadm.yaml</code>：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">apiVersion</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">kubeadm.k8s.io/v1beta4</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">kind</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">ClusterConfiguration</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">kubernetesVersion</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">v1.36.3</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">controlPlaneEndpoint</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#x3C;api-vip>:6443</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">imageRepository</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#x3C;kubernetes-image-mirror></span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">networking</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  dnsDomain</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">cluster.local</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  podSubnet</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#x3C;pod-cidr></span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  serviceSubnet</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#x3C;service-cidr></span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">apiServer</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  certSANs</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    - </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#x3C;api-vip></span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    - </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#x3C;api-dns-name></span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    - </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#x3C;control-plane-1-ip></span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    - </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#x3C;control-plane-2-ip></span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    - </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#x3C;control-plane-3-ip></span></span></code></pre>
+<p>在三台控制平面預先拉取映像：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubeadm</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> config</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> images</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> list</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --config</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> manifests/kubeadm.yaml</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubeadm</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> config</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> images</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> pull</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --config</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> manifests/kubeadm.yaml</span></span></code></pre>
+<p>如果這裡失敗，先解決映像倉庫、DNS 與憑證問題，不要進入 <code>kubeadm init</code>。</p>
+<h2 id="第-7-步初始化第一台控制平面">第 7 步：初始化第一台控制平面</h2>
+<p>在第一台控制平面執行：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">sudo</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> kubeadm</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> init</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --config</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> manifests/kubeadm.yaml</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --upload-certs</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  |</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> tee</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> reports/kubeadm-init.log</span></span></code></pre>
+<p>初始化成功後，保存輸出中的兩條 <code>kubeadm join</code> 指令。它們分別用於控制平面與工作節點，內含短期有效的 token，不能提交到 Git。</p>
+<p>為目前管理員設定 kubeconfig：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">mkdir</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -p</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> "</span><span style="color:#24292E;--shiki-dark:#E1E4E8">$HOME</span><span style="color:#032F62;--shiki-dark:#9ECBFF">/.kube"</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">sudo</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> install</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -m</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 600</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /etc/kubernetes/admin.conf</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> "</span><span style="color:#24292E;--shiki-dark:#E1E4E8">$HOME</span><span style="color:#032F62;--shiki-dark:#9ECBFF">/.kube/config"</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">sudo</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> chown</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> "$(</span><span style="color:#6F42C1;--shiki-dark:#B392F0">id</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -u</span><span style="color:#032F62;--shiki-dark:#9ECBFF">):$(</span><span style="color:#6F42C1;--shiki-dark:#B392F0">id</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -g</span><span style="color:#032F62;--shiki-dark:#9ECBFF">)"</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> "</span><span style="color:#24292E;--shiki-dark:#E1E4E8">$HOME</span><span style="color:#032F62;--shiki-dark:#9ECBFF">/.kube/config"</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> get</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> nodes</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> get</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> pods</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -A</span></span></code></pre>
+<p>此時第一台節點通常是 <code>NotReady</code>，CoreDNS 也可能處於 <code>Pending</code>。這是因為 CNI 還沒有安裝，不要把它誤判為 kubeadm 失敗。</p>
+<h2 id="第-8-步部署-api-高可用虛擬位址">第 8 步：部署 API 高可用虛擬位址</h2>
+<p>三節點控制平面不能讓用戶端固定連線某一台節點。本文使用 kube-vip 的靜態 Pod 模式提供 <code>&#x3C;api-vip></code>。</p>
+<p>先在第一台控制平面產生 manifest。映像版本必須在遷移前固定並完成映像掃描：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">export</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> VIP</span><span style="color:#D73A49;--shiki-dark:#F97583">=&#x3C;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">api-vip</span><span style="color:#D73A49;--shiki-dark:#F97583">></span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">export</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> INTERFACE</span><span style="color:#D73A49;--shiki-dark:#F97583">=&#x3C;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">node-interface</span><span style="color:#D73A49;--shiki-dark:#F97583">></span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">export</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> KVVERSION</span><span style="color:#D73A49;--shiki-dark:#F97583">=&#x3C;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">approved-kube-vip-version</span><span style="color:#D73A49;--shiki-dark:#F97583">></span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">sudo</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ctr</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> image</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> pull</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">kube-vip-imag</span><span style="color:#24292E;--shiki-dark:#E1E4E8">e</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#032F62;--shiki-dark:#9ECBFF">:</span><span style="color:#24292E;--shiki-dark:#E1E4E8">${KVVERSION}</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">sudo</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ctr</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> run</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --rm</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --net-host</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">kube-vip-imag</span><span style="color:#24292E;--shiki-dark:#E1E4E8">e</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#032F62;--shiki-dark:#9ECBFF">:</span><span style="color:#24292E;--shiki-dark:#E1E4E8">${KVVERSION} </span><span style="color:#032F62;--shiki-dark:#9ECBFF">vip</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /kube-vip</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> manifest</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> pod</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --interface</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> "</span><span style="color:#24292E;--shiki-dark:#E1E4E8">$INTERFACE</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --address</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> "</span><span style="color:#24292E;--shiki-dark:#E1E4E8">$VIP</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --controlplane</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --services</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --arp</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --leaderElection</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  |</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> sudo</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> tee</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /etc/kubernetes/manifests/kube-vip.yaml</span><span style="color:#D73A49;--shiki-dark:#F97583"> ></span><span style="color:#032F62;--shiki-dark:#9ECBFF">/dev/null</span></span></code></pre>
+<p>檢查虛擬位址與 API：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">ip</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> address</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> show</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> dev</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">node-interfac</span><span style="color:#24292E;--shiki-dark:#E1E4E8">e</span><span style="color:#D73A49;--shiki-dark:#F97583">></span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">curl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --cacert</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /etc/kubernetes/pki/ca.crt</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> https://</span><span style="color:#D73A49;--shiki-dark:#F97583">&#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">api-vi</span><span style="color:#24292E;--shiki-dark:#E1E4E8">p</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#032F62;--shiki-dark:#9ECBFF">:6443/readyz</span></span></code></pre>
+<p>預期 <code>/readyz</code> 回傳 <code>ok</code>。如果沒有 VIP，先查 kubelet 日誌與靜態 Pod：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">sudo</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> crictl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ps</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -a</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --name</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> kube-vip</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">sudo</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> journalctl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -u</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> kubelet</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 100</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --no-pager</span></span></code></pre>
+<h2 id="第-9-步安裝-calico讓節點真正-ready">第 9 步：安裝 Calico，讓節點真正 Ready</h2>
+<p>把經過審核並固定版本的 Calico 清單保存到 <code>manifests/calico.yaml</code>。安裝前確認其中的位址池與 kubeadm 的 <code>&#x3C;pod-cidr></code> 完全一致：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">grep</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> '&#x3C;pod-cidr>'</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> manifests/calico.yaml</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> apply</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -f</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> manifests/calico.yaml</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> kube-system</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> rollout</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> status</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> daemonset/calico-node</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --timeout=10m</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> get</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> nodes</span></span></code></pre>
+<p>所有節點應逐步進入 <code>Ready</code>，CoreDNS 也應進入 <code>Running</code>。繼續做一次 DNS 測試：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> run</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> dns-check</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --image=</span><span style="color:#D73A49;--shiki-dark:#F97583">&#x3C;</span><span style="color:#005CC5;--shiki-dark:#79B8FF">approved-busybox-image</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --restart=Never</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --command</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> nslookup</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> kubernetes.default.svc.cluster.local</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> logs</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> dns-check</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> delete</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> pod</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> dns-check</span></span></code></pre>
+<p>只看到 Calico Pod 執行還不夠。至少再建立兩個位於不同節點的測試 Pod，互相存取 Pod IP，並存取一個 ClusterIP Service，證明跨節點路由與 Service 轉送都正常。</p>
+<h2 id="第-10-步加入其餘控制平面與工作節點">第 10 步：加入其餘控制平面與工作節點</h2>
+<p>先加入另外兩台控制平面，再加入工作節點。控制平面指令形式如下：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">sudo</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> kubeadm</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> join</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">api-vi</span><span style="color:#24292E;--shiki-dark:#E1E4E8">p</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#032F62;--shiki-dark:#9ECBFF">:6443</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --token</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">bootstrap-toke</span><span style="color:#24292E;--shiki-dark:#E1E4E8">n</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --discovery-token-ca-cert-hash</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> sha256:</span><span style="color:#D73A49;--shiki-dark:#F97583">&#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">ca-has</span><span style="color:#24292E;--shiki-dark:#E1E4E8">h</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --control-plane</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --certificate-key</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">certificate-ke</span><span style="color:#24292E;--shiki-dark:#E1E4E8">y</span><span style="color:#D73A49;--shiki-dark:#F97583">></span></span></code></pre>
+<p>工作節點不帶最後兩項：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">sudo</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> kubeadm</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> join</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">api-vi</span><span style="color:#24292E;--shiki-dark:#E1E4E8">p</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#032F62;--shiki-dark:#9ECBFF">:6443</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --token</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">bootstrap-toke</span><span style="color:#24292E;--shiki-dark:#E1E4E8">n</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --discovery-token-ca-cert-hash</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> sha256:</span><span style="color:#D73A49;--shiki-dark:#F97583">&#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">ca-has</span><span style="color:#24292E;--shiki-dark:#E1E4E8">h</span><span style="color:#D73A49;--shiki-dark:#F97583">></span></span></code></pre>
+<p>token 失效後，在現有控制平面重新產生：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubeadm</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> token</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> create</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --print-join-command</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">sudo</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> kubeadm</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> init</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> phase</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> upload-certs</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --upload-certs</span></span></code></pre>
+<p>全部加入後檢查控制平面與 etcd 靜態 Pod 是否均勻分布：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> get</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> nodes</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -o</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> wide</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> kube-system</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> get</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> pods</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -o</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> wide</span><span style="color:#D73A49;--shiki-dark:#F97583"> |</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> grep</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -E</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'kube-apiserver|etcd'</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> get</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --raw=</span><span style="color:#032F62;--shiki-dark:#9ECBFF">'/readyz?verbose'</span></span></code></pre>
+<h2 id="第-11-步安裝指標儲存與-ingress">第 11 步：安裝指標、儲存與 Ingress</h2>
+<p>基礎元件的安裝順序建議固定為：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>metrics-server → StorageClass → 动态制备器 → Ingress Controller</span></span></code></pre>
+<p>每安裝一個元件就完成一次小驗收，不要一次性 <code>kubectl apply -f manifests/</code>：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> apply</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -f</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> manifests/metrics-server.yaml</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> kube-system</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> rollout</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> status</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> deployment/metrics-server</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --timeout=5m</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> top</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> nodes</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> apply</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -f</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> manifests/storage/</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> get</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> storageclass</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> apply</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -f</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> manifests/ingress-nginx/</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ingress-nginx</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> rollout</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> status</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> deployment/ingress-nginx-controller</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --timeout=10m</span></span></code></pre>
+<p>儲存必須用臨時 PVC 做讀寫測試，Ingress 必須用臨時網域做 Host 路由測試。詳細清單放在本系列的「基礎元件篇」，不要僅憑 Pod 為 <code>Running</code> 就進入業務遷移。</p>
+<h2 id="第-12-步完成叢集級驗收">第 12 步：完成叢集級驗收</h2>
+<p>建立 <code>reports/cluster-baseline.txt</code>，記錄以下指令輸出：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> get</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> nodes</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -o</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> wide</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> get</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> pods</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -A</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -o</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> wide</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> get</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> storageclass</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> top</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> nodes</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> get</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ingressclass</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> get</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --raw=</span><span style="color:#032F62;--shiki-dark:#9ECBFF">'/readyz?verbose'</span></span></code></pre>
+<p>到這裡，新的空叢集才算搭建完成。接下來依專題繼續：</p>
+<ul>
+<li>基礎元件：Calico、metrics-server、Ingress 與 NFS 的逐項部署與驗收。</li>
+<li>節點排程：標籤、污點、親和性與資料服務反親和。</li>
+<li>業務遷移：零複本預部署、資料還原、分批放量、入口切換與回滾。</li>
+<li>Nacos：三節點叢集搭建、Service DNS 治理與平滑升級。</li>
+</ul>
+<h2 id="復盤為什麼第一步不是安裝而是盤點">復盤：為什麼第一步不是安裝，而是盤點</h2>
+<p>遷移前先建立伺服器與工作負載清單。每台節點至少記錄：</p>
+<ul>
+<li>虛擬化主機與虛擬機器識別。</li>
+<li>IP、主機名稱、CPU、記憶體與磁碟。</li>
+<li>是否承載本機碟、資料庫、Ingress、代理或控制平面。</li>
+<li>舊主機名稱到新主機名稱的對應。</li>
+<li>目標節點池、標籤、污點與容忍關係。</li>
+</ul>
+<p>舊叢集則要單獨匯出：</p>
+<ul>
+<li>Deployment、StatefulSet、DaemonSet、CronJob。</li>
+<li>Service、Ingress、Endpoint、ConfigMap、Secret。</li>
+<li>PVC、PV、StorageClass 與本機目錄。</li>
+<li>RBAC、CRD 與叢集級資源。</li>
+<li>各工作負載目前副本數與 CronJob suspend 狀態。</li>
+</ul>
+<p>只保存 YAML 還不夠。還原時最容易遺失的是「執行狀態」與「資料實際在哪裡」。因此副本數、節點親和性、儲存位置與資料校驗必須另行記錄。</p>
+<h2 id="備份必須證明能還原">備份必須證明能還原</h2>
+<p>重裝節點前完成三類備份：</p>
+<ol>
+<li>etcd snapshot。</li>
+<li>Kubernetes 全量資源封存。</li>
+<li>資料庫、訊息系統、NFS 與 hostPath 資料備份。</li>
+</ol>
+<p>最低限度的校驗包括：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">etcdctl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> snapshot</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> status</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /backup/etcd-snapshot.db</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --write-out=table</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">tar</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -tzf</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /backup/kubernetes-resources.tgz</span><span style="color:#D73A49;--shiki-dark:#F97583"> |</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> head</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">sha256sum</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /backup/</span><span style="color:#005CC5;--shiki-dark:#79B8FF">*</span><span style="color:#D73A49;--shiki-dark:#F97583"> ></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /backup/SHA256SUMS</span></span></code></pre>
+<p>真正可靠的做法是在隔離環境執行一次 etcd restore，並對資料庫做抽樣還原。<code>snapshot status</code> 正常只能證明檔案可讀，不能證明還原流程完整。</p>
+<h2 id="作業系統基線要先於-kubeadm">作業系統基線要先於 kubeadm</h2>
+<p>所有節點使用同一份版本化初始化指令碼完成：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">swapoff</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -a</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">modprobe</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> overlay</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">modprobe</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> br_netfilter</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">sysctl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --system</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">systemctl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> enable</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --now</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> containerd</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">systemctl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> enable</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> kubelet</span></span></code></pre>
+<p>containerd 統一使用：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>SystemdCgroup = true</span></span></code></pre>
+<p>同時啟用橋接流量與 IPv4 轉送：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>net.bridge.bridge-nf-call-iptables=1</span></span>
+<span class="line"><span>net.bridge.bridge-nf-call-ip6tables=1</span></span>
+<span class="line"><span>net.ipv4.ip_forward=1</span></span></code></pre>
+<p>這次最典型的網路故障來自 firewalld：Nacos 回傳的 Pod IP 健康，但跨節點用戶端存取時出現 <code>No route to host</code>。原因不是 Nacos，而是節點沒有信任 Calico Pod CIDR。</p>
+<p>正確做法是在 kubeadm 之前把 <code>&#x3C;pod-cidr></code> 持久化加入信任區域，並在 Calico 安裝後用一次性 DaemonSet 對所有節點再校準。不能等業務啟動後逐台補規則。</p>
+<p>對於仍使用 <code>hostNetwork</code> 的資料服務，還要單獨驗證目標節點連接埠是否允許來自 Pod SNAT 後的流量。長期方案應是減少 <code>hostNetwork</code>，透過一般 Pod 網路與 Service 對外提供服務。</p>
+<h2 id="控制平面與基礎元件">控制平面與基礎元件</h2>
+<p>高可用控制平面使用三個節點。kubeadm 設定中的版本、API VIP、Pod CIDR、Service CIDR 與 DNS 網域一旦凍結，就不應在業務遷移過程中修改。</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">apiVersion</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">kubeadm.k8s.io/v1beta4</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">kind</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">ClusterConfiguration</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">kubernetesVersion</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">v1.36.3</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">controlPlaneEndpoint</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#x3C;api-vip>:6443</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">networking</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  dnsDomain</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">cluster.local</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  podSubnet</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#x3C;pod-cidr></span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  serviceSubnet</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#x3C;service-cidr></span></span></code></pre>
+<p>控制平面完成後依序安裝：</p>
+<ol>
+<li>Calico。</li>
+<li>NFS provisioner。</li>
+<li>metrics-server。</li>
+<li>NGINX Ingress。</li>
+<li>日誌、監控與必要系統元件。</li>
+</ol>
+<p>維運機的 <code>kubectl</code> 應與 API Server 保持官方支援的版本偏差。Kubernetes 文件規定，<code>kubectl</code> 只支援比 <code>kube-apiserver</code> 高或低一個 minor 版本。參見 <a href="https://kubernetes.io/releases/version-skew-policy/">Version Skew Policy</a>。</p>
+<h2 id="節點池解決的不是整齊而是故障邊界">節點池解決的不是整齊，而是故障邊界</h2>
+<p>節點劃分為控制平面、入口、平台基礎服務、業務、資料、監控、共用與預留池。排程策略同時使用：</p>
+<ul>
+<li><code>nodeSelector</code> 指定目標池。</li>
+<li>污點阻止未授權工作負載進入專用池。</li>
+<li>toleration 允許對應工作負載排程。</li>
+<li>required Pod Anti-Affinity 分散 Kafka、Zookeeper、Nacos 等複本。</li>
+</ul>
+<p>一個常見錯誤是只加標籤，不加污點。這樣「指定了節點池」的業務看起來正常，但沒有 nodeSelector 的其他 Pod 仍會落到專用節點。另一個錯誤是先加污點、後補 toleration，結果造成大批 Pod Pending。</p>
+<p>標籤、污點與 toleration 必須在 Git 中成對產生並提前 dry-run。</p>
+<h2 id="資源先落地副本保持為零">資源先落地，副本保持為零</h2>
+<p>舊物件不能原樣匯入。需要移除：</p>
+<ul>
+<li><code>uid</code></li>
+<li><code>resourceVersion</code></li>
+<li><code>managedFields</code></li>
+<li><code>creationTimestamp</code></li>
+<li><code>status</code></li>
+<li>自動產生的 ServiceAccount Token</li>
+<li>Helm release Secret</li>
+<li>舊叢集管理平台的標籤與資源</li>
+</ul>
+<p>Service、Ingress、ConfigMap、Secret、PVC 等先建立；Deployment 與 StatefulSet 初始副本設為 0；CronJob 先 suspend。</p>
+<p>這一步可以提早發現：</p>
+<ul>
+<li>YAML 與新 API 不相容。</li>
+<li>固定 ClusterIP 衝突。</li>
+<li>PVC 無法綁定。</li>
+<li>映像不存在或拉取憑證缺失。</li>
+<li>Service selector 與 Pod label 不匹配。</li>
+<li>節點標籤與容忍設定不完整。</li>
+</ul>
+<h2 id="有狀態服務必須逐層還原">有狀態服務必須逐層還原</h2>
+<p>啟動順序固定為：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>存储与 PVC</span></span>
+<span class="line"><span>→ MySQL / MongoDB / Redis / RabbitMQ / Zookeeper</span></span>
+<span class="line"><span>→ Kafka</span></span>
+<span class="line"><span>→ PostgreSQL 与辅助服务</span></span>
+<span class="line"><span>→ Nacos</span></span>
+<span class="line"><span>→ 平台依赖</span></span>
+<span class="line"><span>→ 业务服务</span></span></code></pre>
+<p>資料庫不能用「建立了同名空庫」代替遷移完成。至少要驗證庫表、權限、關鍵列數、索引與真實應用帳號查詢。</p>
+<p>Redis 的排查則分成四層：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>redis-cli PING</span></span>
+<span class="line"><span>→ Pod Endpoint</span></span>
+<span class="line"><span>→ ClusterIP</span></span>
+<span class="line"><span>→ Service DNS</span></span>
+<span class="line"><span>→ 真实应用接口</span></span></code></pre>
+<p>如果 Endpoint 正常而 ClusterIP 失敗，優先檢查請求來源節點的 kube-proxy；重啟業務 Pod 或修改 Nacos 都不會修復 Service 轉送表。</p>
+<h2 id="nacos行程啟動不等於註冊中心可用">Nacos：行程啟動不等於註冊中心可用</h2>
+<p>Nacos 使用三個 StatefulSet Pod。Headless Service 為每個成員提供穩定 DNS，一般 ClusterIP Service 為用戶端提供統一入口。</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>nacos-0.nacos-hs.platform.svc.cluster.local</span></span>
+<span class="line"><span>nacos-1.nacos-hs.platform.svc.cluster.local</span></span>
+<span class="line"><span>nacos-2.nacos-hs.platform.svc.cluster.local</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>nacos-cs.platform.svc.cluster.local:8848</span></span></code></pre>
+<p>遷移時曾出現 Nacos 日誌顯示啟動成功，但用戶端仍無法註冊。最終發現執行模式開關與 gRPC 註冊不相容。修復後依三層驗收：</p>
+<ol>
+<li>三個 Pod Ready，三個成員全部健康。</li>
+<li>三個節點執行模式一致。</li>
+<li>同一個測試用戶端在三個節點的實例清單中都可見。</li>
+</ol>
+<p>只有這三層通過，才能繼續啟動 OAuth、閘道與業務服務。</p>
+<h2 id="從固定-ip-遷移到-service-dns">從固定 IP 遷移到 Service DNS</h2>
+<p>舊設定中大量內部服務使用 ClusterIP：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="properties"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">rbac.api.url</span><span style="color:#24292E;--shiki-dark:#E1E4E8">=http://&#x3C;cluster-ip>:8082</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">spring.data.redis.host</span><span style="color:#24292E;--shiki-dark:#E1E4E8">=&#x3C;cluster-ip></span></span></code></pre>
+<p>遷移後改為：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="properties"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">rbac.api.url</span><span style="color:#24292E;--shiki-dark:#E1E4E8">=http://rbac-api.app-test.svc.cluster.local:8082</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">spring.data.redis.host</span><span style="color:#24292E;--shiki-dark:#E1E4E8">=redis-service.app-test.svc.cluster.local</span></span></code></pre>
+<p>但不能用正規表達式把所有 IP 都替換為 DNS：</p>
+<ul>
+<li>已刪除的 Service 沒有可替換目標。</li>
+<li>Kafka advertised listener 需要單獨設計。</li>
+<li>外部資料庫、簡訊與專網位址不是 Kubernetes Service。</li>
+<li>少量 Jenkins 或入口依賴可暫時保留固定 ClusterIP，但必須進入白名單並寫入 Git。</li>
+</ul>
+<h2 id="pod-running-只是驗收起點">Pod Running 只是驗收起點</h2>
+<p>業務依命名空間逐批啟動。每批至少檢查：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">namespac</span><span style="color:#24292E;--shiki-dark:#E1E4E8">e</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> get</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> deployment,statefulset,pod</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">namespac</span><span style="color:#24292E;--shiki-dark:#E1E4E8">e</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> get</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> svc,endpointslice</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">namespac</span><span style="color:#24292E;--shiki-dark:#E1E4E8">e</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> get</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> event</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --sort-by=.lastTimestamp</span></span></code></pre>
+<p>然後執行真實請求：</p>
+<ul>
+<li>登入與 Token 重新整理。</li>
+<li>使用者、角色與權限。</li>
+<li>Redis Session。</li>
+<li>檔案上傳下載。</li>
+<li>RabbitMQ 與 Kafka 生產消費。</li>
+<li>資料庫讀寫。</li>
+<li>WebSocket 建立連線。</li>
+<li>CI/CD 發布介面。</li>
+</ul>
+<p>未登入介面回傳「未登入」，只能證明入口到業務服務的鏈路可達，不能取代登入後的業務驗證。</p>
+<h2 id="這次最有價值的故障模式">這次最有價值的故障模式</h2>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>現象</th><th>根因</th><th>正確處理</th></tr></thead><tbody><tr><td>服務註冊為空</td><td>Nacos 執行模式或用戶端註冊失敗</td><td>查三個節點實例清單，不只看啟動日誌</td></tr><tr><td>Pod IP 跨節點不可達</td><td>firewalld 未信任 Pod CIDR</td><td>全節點固化規則並做跨節點測試</td></tr><tr><td>Endpoint 正常、ClusterIP 逾時</td><td>單節點 kube-proxy 規則異常</td><td>只處理故障來源節點的 kube-proxy</td></tr><tr><td>Redis 正常但應用逾時</td><td>Service 位址過期或 hostNetwork 連接埠被拒絕</td><td>分層驗證 Endpoint、Service 與防火牆</td></tr><tr><td>指標為空</td><td>metrics-server 無法存取 kubelet</td><td>驗證網路路徑，必要時使用 hostNetwork</td></tr><tr><td>叢集內 200、公網失敗</td><td>外層路由或 SNI 未設定</td><td>修改入口層，不反覆重啟業務 Pod</td></tr><tr><td>Job Pending</td><td>仍綁定舊主機名稱或缺少 toleration</td><td>同步修改 selector、PV affinity 與 toleration</td></tr></tbody></table>
+<h2 id="回滾必須在遷移前設計">回滾必須在遷移前設計</h2>
+<p>回滾分為四層：</p>
+<ol>
+<li><strong>入口回滾</strong>：還原舊路由、VIP 或 DNS。</li>
+<li><strong>物件回滾</strong>：從資源封存還原 Service、Ingress、RBAC、PVC/PV。</li>
+<li><strong>設定回滾</strong>：依 Nacos 的 namespace、group、dataId 精確回滾。</li>
+<li><strong>資料回滾</strong>：使用資料庫備份、binlog/WAL 與儲存快照還原。</li>
+</ol>
+<p>一旦新環境開始接受寫入，回滾就不再只是切換入口。必須明確增量資料如何處理，避免新舊環境雙寫或資料倒退。</p>
+<h2 id="最終結論">最終結論</h2>
+<p>重建式升級的價值，不只是獲得一個新版本叢集，而是順便清理舊系統累積的隱性依賴：固定 IP、未登記節點用途、不可還原備份、混亂污點、失效路由與無法追蹤的手工設定。</p>
+<p>真正可複用的原則只有四條：</p>
+<ol>
+<li>所有設計在切換前凍結。</li>
+<li>所有有狀態資料在重裝前證明能還原。</li>
+<li>每個階段都有不可跳過的驗收門檻。</li>
+<li>最終用真實業務請求定義完成，而不是用 Pod 狀態定義完成。</li>
+</ol> </div> <aside class="table-of-contents" aria-label="文章目錄" data-pagefind-ignore> <p>ON THIS PAGE</p> <ol> <li> <a href="#遷移目標與最終形態" data-analytics-event="toc_click" data-analytics-target="遷移目標與最終形態"> 遷移目標與最終形態 </a> </li><li> <a href="#開始前建立版本化工作目錄" data-analytics-event="toc_click" data-analytics-target="開始前建立版本化工作目錄"> 開始前：建立版本化工作目錄 </a> </li><li> <a href="#第-1-步把伺服器清單變成可驗證的資料" data-analytics-event="toc_click" data-analytics-target="第-1-步把伺服器清單變成可驗證的資料"> 第 1 步：把伺服器清單變成可驗證的資料 </a> </li><li> <a href="#第-2-步匯出舊叢集資源" data-analytics-event="toc_click" data-analytics-target="第-2-步匯出舊叢集資源"> 第 2 步：匯出舊叢集資源 </a> </li><li> <a href="#第-3-步建立並驗證-etcd-快照" data-analytics-event="toc_click" data-analytics-target="第-3-步建立並驗證-etcd-快照"> 第 3 步：建立並驗證 etcd 快照 </a> </li><li> <a href="#第-4-步製作統一的節點初始化指令碼" data-analytics-event="toc_click" data-analytics-target="第-4-步製作統一的節點初始化指令碼"> 第 4 步：製作統一的節點初始化指令碼 </a> </li><li> <a href="#第-5-步在加入叢集前完成防火牆" data-analytics-event="toc_click" data-analytics-target="第-5-步在加入叢集前完成防火牆"> 第 5 步：在加入叢集前完成防火牆 </a> </li><li> <a href="#第-6-步產生-kubeadm-設定並預先拉取映像" data-analytics-event="toc_click" data-analytics-target="第-6-步產生-kubeadm-設定並預先拉取映像"> 第 6 步：產生 kubeadm 設定並預先拉取映像 </a> </li><li> <a href="#第-7-步初始化第一台控制平面" data-analytics-event="toc_click" data-analytics-target="第-7-步初始化第一台控制平面"> 第 7 步：初始化第一台控制平面 </a> </li><li> <a href="#第-8-步部署-api-高可用虛擬位址" data-analytics-event="toc_click" data-analytics-target="第-8-步部署-api-高可用虛擬位址"> 第 8 步：部署 API 高可用虛擬位址 </a> </li><li> <a href="#第-9-步安裝-calico讓節點真正-ready" data-analytics-event="toc_click" data-analytics-target="第-9-步安裝-calico讓節點真正-ready"> 第 9 步：安裝 Calico，讓節點真正 Ready </a> </li><li> <a href="#第-10-步加入其餘控制平面與工作節點" data-analytics-event="toc_click" data-analytics-target="第-10-步加入其餘控制平面與工作節點"> 第 10 步：加入其餘控制平面與工作節點 </a> </li><li> <a href="#第-11-步安裝指標儲存與-ingress" data-analytics-event="toc_click" data-analytics-target="第-11-步安裝指標儲存與-ingress"> 第 11 步：安裝指標、儲存與 Ingress </a> </li><li> <a href="#第-12-步完成叢集級驗收" data-analytics-event="toc_click" data-analytics-target="第-12-步完成叢集級驗收"> 第 12 步：完成叢集級驗收 </a> </li><li> <a href="#復盤為什麼第一步不是安裝而是盤點" data-analytics-event="toc_click" data-analytics-target="復盤為什麼第一步不是安裝而是盤點"> 復盤：為什麼第一步不是安裝，而是盤點 </a> </li><li> <a href="#備份必須證明能還原" data-analytics-event="toc_click" data-analytics-target="備份必須證明能還原"> 備份必須證明能還原 </a> </li><li> <a href="#作業系統基線要先於-kubeadm" data-analytics-event="toc_click" data-analytics-target="作業系統基線要先於-kubeadm"> 作業系統基線要先於 kubeadm </a> </li><li> <a href="#控制平面與基礎元件" data-analytics-event="toc_click" data-analytics-target="控制平面與基礎元件"> 控制平面與基礎元件 </a> </li><li> <a href="#節點池解決的不是整齊而是故障邊界" data-analytics-event="toc_click" data-analytics-target="節點池解決的不是整齊而是故障邊界"> 節點池解決的不是整齊，而是故障邊界 </a> </li><li> <a href="#資源先落地副本保持為零" data-analytics-event="toc_click" data-analytics-target="資源先落地副本保持為零"> 資源先落地，副本保持為零 </a> </li><li> <a href="#有狀態服務必須逐層還原" data-analytics-event="toc_click" data-analytics-target="有狀態服務必須逐層還原"> 有狀態服務必須逐層還原 </a> </li><li> <a href="#nacos行程啟動不等於註冊中心可用" data-analytics-event="toc_click" data-analytics-target="nacos行程啟動不等於註冊中心可用"> Nacos：行程啟動不等於註冊中心可用 </a> </li><li> <a href="#從固定-ip-遷移到-service-dns" data-analytics-event="toc_click" data-analytics-target="從固定-ip-遷移到-service-dns"> 從固定 IP 遷移到 Service DNS </a> </li><li> <a href="#pod-running-只是驗收起點" data-analytics-event="toc_click" data-analytics-target="pod-running-只是驗收起點"> Pod Running 只是驗收起點 </a> </li><li> <a href="#這次最有價值的故障模式" data-analytics-event="toc_click" data-analytics-target="這次最有價值的故障模式"> 這次最有價值的故障模式 </a> </li><li> <a href="#回滾必須在遷移前設計" data-analytics-event="toc_click" data-analytics-target="回滾必須在遷移前設計"> 回滾必須在遷移前設計 </a> </li><li> <a href="#最終結論" data-analytics-event="toc_click" data-analytics-target="最終結論"> 最終結論 </a> </li> </ol> </aside> </div> <script type="module" src="/_astro/MermaidEnhancer.astro_astro_type_script_index_0_lang.DTQ20dni.js"></script> <dialog class="image-lightbox" data-image-lightbox data-locale="zh-TW" aria-labelledby="lightbox-caption"> <div class="image-lightbox-inner"> <button type="button" class="image-lightbox-close" aria-label="關閉圖片預覽">
+×
+</button> <img alt="" decoding="async"> <p id="lightbox-caption" hidden></p> </div> </dialog> <script type="module" src="/_astro/ImageLightbox.astro_astro_type_script_index_0_lang.CmAf__MV.js"></script> <div class="reading-progress" aria-hidden="true"><span></span></div> <div class="article-actions" data-reading-tools data-locale="zh-TW" data-title="從零搭建 Kubernetes v1.36.3：Rocky Linux 與 kubeadm 完整教學" data-href="https://lucaslz.com/zh-tw/kubernetes/kubeadm-cluster-rebuild-migration-retrospective/"> <button type="button" data-share aria-label="分享"> 分享 </button> <button type="button" data-copy-link aria-label="複製連結"> 複製連結 </button> <button type="button" data-bookmark aria-label="收藏" aria-pressed="false"> 收藏 </button> </div> <button class="back-to-top" type="button" aria-label="返回頂端" hidden>↑</button> <div class="reading-toast" role="status" aria-live="polite"></div> <script type="module" src="/_astro/ReadingTools.astro_astro_type_script_index_0_lang.FOex6a9j.js"></script> <footer class="post-footer page-shell narrow-shell" data-pagefind-ignore> <div class="post-end-mark"><span>END</span></div> <p>感謝閱讀。你可以分享、收藏，或在下方參與討論。</p> <section class="related-posts" aria-labelledby="related-title"> <div class="related-heading"> <span>CONTINUE READING</span> <h2 id="related-title">相關文章</h2> </div> <div class="related-grid"> <article class="article-card compact"> <a class="article-card-link" href="/zh-tw/kubernetes/kubernetes-migration-series/" data-analytics-event="article_click" data-analytics-impression="article_impression" data-analytics-target="/zh-tw/kubernetes/kubernetes-migration-series/"> <div class="article-card-top"> <span class="article-index">01</span> <span class="article-date">2026.05.24</span> </div> <h3>Kubernetes 重建遷移教學系列：從零搭建到業務切換</h3> <p>一套按照實際執行順序整理的 Kubernetes 教學，涵蓋叢集、網路、排程、滾動發布、Deployment 與 Nacos 基線、中介軟體、JVM 最佳化和故障復盤。</p> <div class="article-card-bottom"> <div class="article-tags"> <span data-href="/zh-tw/tags/kubernetes/">
+#Kubernetes </span><span data-href="/zh-tw/tags/kubeadm/">
+#kubeadm </span><span data-href="/zh-tw/tags/rocky-linux/">
+#Rocky Linux </span> </div> <span class="read-time">7 分鐘閱讀 <b>↗</b></span> </div> </a> </article><article class="article-card compact"> <a class="article-card-link" href="/zh-tw/java/spring-boot-3-container-startup-compatibility-postmortem/" data-analytics-event="article_click" data-analytics-impression="article_impression" data-analytics-target="/zh-tw/java/spring-boot-3-container-startup-compatibility-postmortem/"> <div class="article-card-top"> <span class="article-index">02</span> <span class="article-date">2026.08.08</span> </div> <h3>Spring Boot 3 容器啟動異常復盤：目錄、廢棄屬性、日誌橋與選用驅動</h3> <p>從 UnsatisfiedDependencyException 追到 mkdir failed，並系統處理 Nacos 快取目錄、server.use-forward-headers、commons-logging、nacos-logback.xml 與空的 Class.forName。</p> <div class="article-card-bottom"> <div class="article-tags"> <span data-href="/zh-tw/tags/spring-boot/">
+#Spring Boot </span><span data-href="/zh-tw/tags/java/">
+#Java </span><span data-href="/zh-tw/tags/nacos/">
+#Nacos </span> </div> <span class="read-time">13 分鐘閱讀 <b>↗</b></span> </div> </a> </article><article class="article-card compact"> <a class="article-card-link" href="/zh-tw/kubernetes/spring-boot-2-3-nacos-redis-property-postmortem/" data-analytics-event="article_click" data-analytics-impression="article_impression" data-analytics-target="/zh-tw/kubernetes/spring-boot-2-3-nacos-redis-property-postmortem/"> <div class="article-card-top"> <span class="article-index">03</span> <span class="article-date">2026.08.08</span> </div> <h3>Spring Boot 2 與 3 混部：Nacos Redis 設定為什麼會回退到 localhost</h3> <p>復盤一次 Spring Boot 2 服務在 Kubernetes 中讀取不到 Boot 3 Redis 設定的問題，涵蓋屬性前綴、Nacos dataId、延遲建連、滾動發布與 commons-pool2 相依套件陷阱。</p> <div class="article-card-bottom"> <div class="article-tags"> <span data-href="/zh-tw/tags/spring-boot/">
+#Spring Boot </span><span data-href="/zh-tw/tags/nacos/">
+#Nacos </span><span data-href="/zh-tw/tags/redis/">
+#Redis </span> </div> <span class="read-time">12 分鐘閱讀 <b>↗</b></span> </div> </a> </article> </div> </section> <div class="post-navigation"> <a href="/zh-tw/kubernetes/kubernetes-migration-series/" class="previous-post" data-analytics-event="article_click" data-analytics-target="/zh-tw/kubernetes/kubernetes-migration-series/">  <small>← 上一篇</small> <strong>Kubernetes 重建遷移教學系列：從零搭建到業務切換</strong>  </a> <a href="/zh-tw/kubernetes/kubernetes-network-addressing-cidr/" class="next-post" data-analytics-event="article_click" data-analytics-target="/zh-tw/kubernetes/kubernetes-network-addressing-cidr/">  <small>下一篇 →</small> <strong>Kubernetes 中的 Pod CIDR、Service CIDR 與節點網段到底是什麼</strong>  </a> </div> </footer> </article> <div class="page-shell narrow-shell" data-pagefind-ignore> <section class="comments-section" aria-labelledby="comments-title" data-giscus-comments data-repo="lucaslz2020/lucasleelz.github.io" data-repo-id="MDEwOlJlcG9zaXRvcnkyNzcxNjkwNw==" data-category="Announcements" data-category-id="DIC_kwDOAabtK84DCw-x" data-discussion-path="/kubernetes/kubeadm-cluster-rebuild-migration-retrospective/" data-giscus-language="zh-TW"> <div class="comments-heading"> <p class="eyebrow"> <span></span>
+DISCUSSION
+</p> <h2 id="comments-title">討論與回饋</h2> </div> <div class="giscus" aria-live="polite"></div> </section> <script type="module">var e=()=>document.documentElement.dataset.theme===`dark`?`noborder_dark`:`noborder_light`,t=t=>{if(t.dataset.loaded===`true`)return;let n=t.querySelector(`.giscus`);if(!n)return;let r=document.createElement(`script`);r.src=`https://giscus.app/client.js`,r.async=!0,r.crossOrigin=`anonymous`,r.dataset.repo=t.dataset.repo??``,r.dataset.repoId=t.dataset.repoId??``,r.dataset.category=t.dataset.category??``,r.dataset.categoryId=t.dataset.categoryId??``,r.dataset.mapping=`specific`,r.dataset.term=t.dataset.discussionPath??window.location.pathname,r.dataset.strict=`1`,r.dataset.reactionsEnabled=`1`,r.dataset.emitMetadata=`0`,r.dataset.inputPosition=`top`,r.dataset.theme=e(),r.dataset.lang=t.dataset.giscusLanguage??`zh-CN`,r.dataset.loading=`lazy`,t.dataset.loaded=`true`,n.append(r)},n=document.querySelector(`[data-giscus-comments]`);if(n)if(`IntersectionObserver`in window){let e=new IntersectionObserver(r=>{r.some(e=>e.isIntersecting)&&(t(n),e.disconnect())},{rootMargin:`500px 0px`});e.observe(n)}else t(n);window.addEventListener(`theme-change`,()=>{document.querySelector(`iframe.giscus-frame`)?.contentWindow?.postMessage({giscus:{setConfig:{theme:e()}}},`https://giscus.app`)});</script> </div>  </main> <footer class="site-footer"> <div class="footer-inner"> <div class="footer-brand"> <img class="brand-mark" src="/brand/avatar.svg" alt="" width="42" height="42" loading="lazy" decoding="async"> <div> <strong>lucaslz</strong> <p>關於軟體工程、Web、Java 與持續學習的長期技術筆記。</p> </div> </div> <div class="footer-links"> <a href="/zh-tw/rss.xml">RSS</a> <a href="/zh-tw/archive/">彙整</a> <a href="/zh-tw/tags/">標籤</a> <a href="https://github.com/lucaslz2020" target="_blank" rel="noreferrer">GitHub</a> </div> </div> <div class="footer-bottom"> <span>© 2026 lucaslz</span> <span>Built with Astro + React · Deployed on Cloudflare Pages</span> </div> </footer> <script type="module" src="/_astro/Analytics.astro_astro_type_script_index_0_lang.C6zUefo_.js"></script> <aside class="pwa-notice" data-pwa-notice data-locale="zh-TW" data-mode="status" aria-label="應用狀態" aria-live="polite" aria-atomic="true" hidden> <span class="pwa-notice-icon" data-pwa-icon aria-hidden="true">↧</span> <p> <strong data-pwa-title>離線閱讀已就緒</strong> <small data-pwa-message>造訪過的文章可以在離線時繼續閱讀。</small> </p> <div class="pwa-notice-actions"> <button type="button" data-pwa-action hidden> 立即安裝 </button> <button type="button" data-pwa-dismiss>知道了</button> </div> </aside> <script type="module" src="/_astro/Pwa.astro_astro_type_script_index_0_lang.ErCGOlnE.js"></script> </body> </html>

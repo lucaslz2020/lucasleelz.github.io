@@ -1,0 +1,348 @@
+<!DOCTYPE html><html lang="zh-Hant-TW" data-theme="light" data-locale="zh-TW"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="generator" content="Astro v7.1.6"><meta name="author" content="lucaslz"><meta name="theme-color" content="#f5f1e8" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)"><meta name="description" content="記錄如何盤點數百份 Nacos 設定，將 Kubernetes ClusterIP 安全遷移為 Service DNS，並區分 Redis、Kafka、外部依賴與已刪除服務。"><meta name="google-site-verification" content="o_QOQN3-adA79KPRfqy1wAj9zviE8hyD5jvfdQEMVco"><meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"><meta name="keywords" content="Nacos, Kubernetes, Service DNS, Redis, 配置治理, Nacos 設定, Kubernetes Service DNS, ClusterIP, Kafka advertised listener, 設定遷移"><link rel="canonical" href="https://lucaslz.com/zh-tw/kubernetes/nacos-service-dns-migration/"><link rel="alternate" hreflang="zh-CN" href="https://lucaslz.com/kubernetes/nacos-service-dns-migration/"><link rel="alternate" hreflang="en" href="https://lucaslz.com/en/kubernetes/nacos-service-dns-migration/"><link rel="alternate" hreflang="zh-Hant-TW" href="https://lucaslz.com/zh-tw/kubernetes/nacos-service-dns-migration/"><link rel="alternate" hreflang="x-default" href="https://lucaslz.com/kubernetes/nacos-service-dns-migration/"><link rel="author" href="https://github.com/lucaslz2020"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon.ico" sizes="any"><link rel="apple-touch-icon" href="/icons/apple-touch-icon.png"><link rel="alternate" type="application/rss+xml" title="lucaslz · 工程筆記" href="/zh-tw/rss.xml"><link rel="manifest" href="/site.webmanifest"><title>把 Nacos 裡的固定 Service IP 改成 Kubernetes DNS：一次配置治理實戰 · lucaslz</title><meta property="og:type" content="article"><meta property="og:site_name" content="lucaslz · 工程筆記"><meta property="og:title" content="把 Nacos 裡的固定 Service IP 改成 Kubernetes DNS：一次配置治理實戰 · lucaslz"><meta property="og:description" content="記錄如何盤點數百份 Nacos 設定，將 Kubernetes ClusterIP 安全遷移為 Service DNS，並區分 Redis、Kafka、外部依賴與已刪除服務。"><meta property="og:url" content="https://lucaslz.com/zh-tw/kubernetes/nacos-service-dns-migration/"><meta property="og:image" content="https://lucaslz.com/og/zh-tw/kubernetes/nacos-service-dns-migration.png"><meta property="og:image:type" content="image/png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="把 Nacos 裡的固定 Service IP 改成 Kubernetes DNS：一次配置治理實戰 的分享圖片"><meta property="og:locale" content="zh_TW"><meta property="article:published_time" content="2026-06-20T00:00:00.000Z"><meta property="article:author" content="https://github.com/lucaslz2020"><meta property="article:tag" content="Nacos"><meta property="article:tag" content="Kubernetes"><meta property="article:tag" content="Service DNS"><meta property="article:tag" content="Redis"><meta property="article:tag" content="配置治理"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="把 Nacos 裡的固定 Service IP 改成 Kubernetes DNS：一次配置治理實戰 · lucaslz"><meta name="twitter:description" content="記錄如何盤點數百份 Nacos 設定，將 Kubernetes ClusterIP 安全遷移為 Service DNS，並區分 Redis、Kafka、外部依賴與已刪除服務。"><meta name="twitter:image" content="https://lucaslz.com/og/zh-tw/kubernetes/nacos-service-dns-migration.png"><script>
+      (() => {
+        const saved = localStorage.getItem("theme");
+        const dark = saved
+          ? saved === "dark"
+          : matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+      })();
+    </script><script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Person","@id":"https://lucaslz.com/#person","name":"lucaslz","url":"https://lucaslz.com","sameAs":["https://github.com/lucaslz2020"]},{"@type":"WebSite","@id":"https://lucaslz.com/#website","name":"lucaslz · 工程筆記","alternateName":"lucaslz","description":"關於軟體工程、Web、Java 與持續學習的長期技術筆記。","url":"https://lucaslz.com","inLanguage":"zh-Hant-TW","publisher":{"@id":"https://lucaslz.com/#person"}},{"@type":"BlogPosting","@id":"https://lucaslz.com/zh-tw/kubernetes/nacos-service-dns-migration/#article","url":"https://lucaslz.com/zh-tw/kubernetes/nacos-service-dns-migration/","headline":"把 Nacos 裡的固定 Service IP 改成 Kubernetes DNS：一次配置治理實戰","description":"記錄如何盤點數百份 Nacos 設定，將 Kubernetes ClusterIP 安全遷移為 Service DNS，並區分 Redis、Kafka、外部依賴與已刪除服務。","inLanguage":"zh-Hant-TW","datePublished":"2026-06-20T00:00:00.000Z","dateModified":"2026-06-20T00:00:00.000Z","author":{"@id":"https://lucaslz.com/#person","name":"lucaslz"},"publisher":{"@id":"https://lucaslz.com/#person"},"isPartOf":{"@id":"https://lucaslz.com/#website"},"mainEntityOfPage":{"@type":"WebPage","@id":"https://lucaslz.com/zh-tw/kubernetes/nacos-service-dns-migration/"},"image":{"@type":"ImageObject","url":"https://lucaslz.com/og/zh-tw/kubernetes/nacos-service-dns-migration.png","width":1200,"height":630},"articleSection":["Nacos","Kubernetes","Service DNS","Redis","配置治理"],"keywords":"Nacos, Kubernetes, Service DNS, Redis, 配置治理, Nacos 設定, Kubernetes Service DNS, ClusterIP, Kafka advertised listener, 設定遷移","wordCount":3117},{"@type":"BreadcrumbList","@id":"https://lucaslz.com/zh-tw/kubernetes/nacos-service-dns-migration/#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"首頁","item":"https://lucaslz.com/zh-tw"},{"@type":"ListItem","position":2,"name":"把 Nacos 裡的固定 Service IP 改成 Kubernetes DNS：一次配置治理實戰","item":"https://lucaslz.com/zh-tw/kubernetes/nacos-service-dns-migration/"}]}]}</script><style>@layer astro.images{:where([data-astro-image]){height:auto}:where([data-astro-image=full-width]){width:100%}:where([data-astro-image=constrained]){max-width:100%}[data-astro-image-fit=fill]{object-fit:fill}[data-astro-image-fit=contain]{object-fit:contain}[data-astro-image-fit=cover]{object-fit:cover}[data-astro-image-fit=scale-down]{object-fit:scale-down}[data-astro-image-pos=top]{object-position:top}[data-astro-image-pos=bottom]{object-position:bottom}[data-astro-image-pos=left]{object-position:left}[data-astro-image-pos=right]{object-position:right}[data-astro-image-pos=center]{object-position:center}[data-astro-image-pos=top-bottom]{object-position:top bottom}[data-astro-image-pos=top-left]{object-position:top left}[data-astro-image-pos=top-right]{object-position:top right}[data-astro-image-pos=top-center]{object-position:top center}[data-astro-image-pos=bottom-top]{object-position:bottom top}[data-astro-image-pos=bottom-left]{object-position:bottom left}[data-astro-image-pos=bottom-right]{object-position:bottom right}[data-astro-image-pos=bottom-center]{object-position:bottom center}[data-astro-image-pos=left-top]{object-position:left top}[data-astro-image-pos=left-bottom]{object-position:left bottom}[data-astro-image-pos=left-right]{object-position:left right}[data-astro-image-pos=left-center]{object-position:left center}[data-astro-image-pos=right-top]{object-position:right top}[data-astro-image-pos=right-bottom]{object-position:right bottom}[data-astro-image-pos=right-left]{object-position:right left}[data-astro-image-pos=right-center]{object-position:right center}[data-astro-image-pos=center-top]{object-position:center top}[data-astro-image-pos=center-bottom]{object-position:center bottom}[data-astro-image-pos=center-left]{object-position:center left}[data-astro-image-pos=center-right]{object-position:center right}}
+</style><link rel="stylesheet" href="/_astro/BaseLayout.BkQFXu0L.css"><script type="module" src="/_astro/page.BS6wqQC3.js"></script></head> <body> <a class="skip-link" href="#main-content">跳至主要內容</a> <header class="site-header"> <div class="header-inner"> <a class="brand" href="/zh-tw/" title="首頁" data-analytics-event="nav_click" data-analytics-target="home"> <img class="brand-mark" src="/brand/avatar.svg" alt="" width="42" height="42" decoding="async"> <span class="brand-copy"> <strong>lucaslz</strong> <small>ENGINEERING NOTES</small> </span> </a> <nav class="desktop-nav" aria-label="主要導覽"> <a href="/zh-tw/" data-analytics-event="nav_click" data-analytics-target="首頁" aria-current="page"> 首頁 </a><a href="/zh-tw/archive/" data-analytics-event="nav_click" data-analytics-target="彙整"> 彙整 </a><a href="/zh-tw/tags/" data-analytics-event="nav_click" data-analytics-target="標籤"> 標籤 </a> <a href="https://github.com/lucaslz2020" target="_blank" rel="noreferrer">GitHub ↗</a> </nav> <style>astro-island,astro-slot,astro-static-slot{display:contents}</style><script>(()=>{var e=async t=>{await(await t())()};(self.Astro||(self.Astro={})).load=e;window.dispatchEvent(new Event("astro:load"));})();</script><script>(()=>{var g=Object.defineProperty;var w=(a,s,c)=>s in a?g(a,s,{enumerable:!0,configurable:!0,writable:!0,value:c}):a[s]=c;var l=(a,s,c)=>w(a,typeof s!="symbol"?s+"":s,c);var E=new Set(["__proto__","constructor","prototype"]);{let a={0:t=>y(t),1:t=>c(t),2:t=>new RegExp(t),3:t=>new Date(t),4:t=>new Map(c(t)),5:t=>new Set(c(t)),6:t=>BigInt(t),7:t=>new URL(t),8:t=>new Uint8Array(t),9:t=>new Uint16Array(t),10:t=>new Uint32Array(t),11:t=>Number.POSITIVE_INFINITY*t},s=t=>{let[p,e]=t;return p in a?a[p](e):void 0},c=t=>t.map(s),y=t=>typeof t!="object"||t===null?t:Object.fromEntries(Object.entries(t).map(([p,e])=>[p,s(e)]));class f extends HTMLElement{constructor(){super(...arguments);l(this,"Component");l(this,"hydrator");l(this,"hydrate",async()=>{var b;if(!this.hydrator||!this.isConnected)return;let e=(b=this.parentElement)==null?void 0:b.closest("astro-island[ssr]");if(e){e.addEventListener("astro:hydrate",this.hydrate,{once:!0});return}let r=this.querySelectorAll("astro-slot"),n={},d=this.querySelectorAll("template[data-astro-template]");for(let o of d){let i=o.closest(this.tagName);i!=null&&i.isSameNode(this)&&(n[o.getAttribute("data-astro-template")||"default"]=o.innerHTML,o.remove())}for(let o of r){let i=o.closest(this.tagName);i!=null&&i.isSameNode(this)&&(n[o.getAttribute("name")||"default"]=o.innerHTML)}let u;try{u=this.hasAttribute("props")?y(JSON.parse(this.getAttribute("props"))):{}}catch(o){let i=this.getAttribute("component-url")||"<unknown>",v=this.getAttribute("component-export");throw v&&(i+=` (export ${v})`),console.error(`[hydrate] Error parsing props for component ${i}`,this.getAttribute("props"),o),o}let h;await this.hydrator(this)(this.Component,u,n,{client:this.getAttribute("client")}),this.removeAttribute("ssr"),this.dispatchEvent(new CustomEvent("astro:hydrate"))});l(this,"unmount",()=>{this.isConnected||this.dispatchEvent(new CustomEvent("astro:unmount"))})}disconnectedCallback(){document.removeEventListener("astro:after-swap",this.unmount),document.addEventListener("astro:after-swap",this.unmount,{once:!0})}connectedCallback(){if(!this.hasAttribute("await-children")||document.readyState==="interactive"||document.readyState==="complete")this.childrenConnectedCallback();else{let e=()=>{document.removeEventListener("DOMContentLoaded",e),r.disconnect(),this.childrenConnectedCallback()},r=new MutationObserver(()=>{var n;((n=this.lastChild)==null?void 0:n.nodeType)===Node.COMMENT_NODE&&this.lastChild.nodeValue==="astro:end"&&(this.lastChild.remove(),e())});r.observe(this,{childList:!0}),document.addEventListener("DOMContentLoaded",e)}}async childrenConnectedCallback(){let e=this.getAttribute("before-hydration-url");e&&await import(e),this.start()}getRetryImportUrl(e){let r=new URL(e,document.baseURI);return r.searchParams.set("astro-retry",Date.now().toString()),r.toString()}async importWithRetry(e){try{return await import(e)}catch(r){return await new Promise(n=>setTimeout(n,1e3)),import(this.getRetryImportUrl(e))}}handleHydrationError(e){let r=this.getAttribute("component-url"),n=new CustomEvent("astro:hydration-error",{cancelable:!0,bubbles:!0,composed:!0,detail:{error:e,componentUrl:r}});this.dispatchEvent(n)&&console.error(`[astro-island] Error hydrating ${r}`,e)}async start(){let e=JSON.parse(this.getAttribute("opts")),r=this.getAttribute("client");if(Astro[r]===void 0){window.addEventListener(`astro:${r}`,()=>this.start(),{once:!0});return}try{await Astro[r](async()=>{let n=this.getAttribute("renderer-url");try{let[d,{default:u}]=await Promise.all([this.importWithRetry(this.getAttribute("component-url")),n?this.importWithRetry(n):Promise.resolve({default:()=>()=>{}})]),h=this.getAttribute("component-export")||"default";if(h.includes(".")){this.Component=d;for(let m of h.split(".")){if(E.has(m)||!this.Component||typeof this.Component!="object"&&typeof this.Component!="function"||!Object.hasOwn(this.Component,m))throw new Error(`Invalid component export path: ${h}`);this.Component=this.Component[m]}}else{if(E.has(h))throw new Error(`Invalid component export path: ${h}`);this.Component=d[h]}return this.hydrator=u,this.hydrate}catch(d){return this.handleHydrationError(d),()=>{}}},e,this)}catch(n){this.handleHydrationError(n)}}attributeChangedCallback(){this.hydrate()}}l(f,"observedAttributes",["props"]),customElements.get("astro-island")||customElements.define("astro-island",f)}})();</script><astro-island uid="Zyfe4S" prefix="r1" component-url="/_astro/HeaderControls.B1MD04oD.js" component-export="default" renderer-url="/_astro/client.2oQR4HXa.js" props="{&quot;githubUrl&quot;:[0,&quot;https://github.com/lucaslz2020&quot;],&quot;locale&quot;:[0,&quot;zh-TW&quot;],&quot;languageTargets&quot;:[0,{&quot;zh-CN&quot;:[0,&quot;/kubernetes/nacos-service-dns-migration/&quot;],&quot;en&quot;:[0,&quot;/en/kubernetes/nacos-service-dns-migration/&quot;],&quot;zh-TW&quot;:[0,&quot;/zh-tw/kubernetes/nacos-service-dns-migration/&quot;]}]}" ssr client="load" opts="{&quot;name&quot;:&quot;HeaderControls&quot;,&quot;value&quot;:true}" await-children><div class="header-controls"><div class="language-switcher" aria-label="語言"><a href="/kubernetes/nacos-service-dns-migration/">简</a><a href="/en/kubernetes/nacos-service-dns-migration/">EN</a><a href="/zh-tw/kubernetes/nacos-service-dns-migration/" aria-current="page">繁</a></div><button class="icon-button search-trigger" type="button" aria-label="搜尋"><span aria-hidden="true">⌕</span><span class="search-label">搜尋</span><kbd>⌘K</kbd></button><button class="icon-button theme-trigger" type="button" aria-label="切換至深色模式"><span aria-hidden="true">◐</span></button><button class="icon-button menu-trigger" type="button" aria-label="開啟導覽"><span aria-hidden="true">☰</span></button></div><!--astro:end--></astro-island> </div> </header> <main id="main-content">  <article class="post-page" data-pagefind-body> <meta data-pagefind-filter="locale[content]" content="zh-TW"> <header class="post-header page-shell narrow-shell"> <a class="back-link" href="/zh-tw/">← 返回文章列表</a> <p class="eyebrow"> <span></span>ENGINEERING NOTE · 2026年6月20日 </p> <h1 data-pagefind-meta="title">把 Nacos 裡的固定 Service IP 改成 Kubernetes DNS：一次配置治理實戰</h1> <p class="post-description" data-pagefind-meta="description"> 記錄如何盤點數百份 Nacos 設定，將 Kubernetes ClusterIP 安全遷移為 Service DNS，並區分 Redis、Kafka、外部依賴與已刪除服務。 </p> <meta data-pagefind-meta="date" content="2026-06-20"> <meta data-pagefind-meta="tags" content="Nacos, Kubernetes, Service DNS, Redis, 配置治理"> <div class="post-meta-row"> <div class="post-author"> <img class="mini-avatar" src="/brand/avatar.svg" alt="" width="36" height="36" decoding="async"> <span><strong>lucaslz</strong><small>作者</small></span> </div> <div class="post-facts"> <time datetime="2026-06-20T00:00:00.000Z">2026年6月20日</time>  <span>16 分鐘閱讀</span> <span class="post-view-count" data-page-views hidden></span> </div> </div> <div class="post-tag-row"> <a href="/zh-tw/tags/nacos/" data-analytics-event="tag_click" data-analytics-target="Nacos">
+#Nacos </a><a href="/zh-tw/tags/kubernetes/" data-analytics-event="tag_click" data-analytics-target="Kubernetes">
+#Kubernetes </a><a href="/zh-tw/tags/service-dns/" data-analytics-event="tag_click" data-analytics-target="Service DNS">
+#Service DNS </a><a href="/zh-tw/tags/redis/" data-analytics-event="tag_click" data-analytics-target="Redis">
+#Redis </a><a href="/zh-tw/tags/配置治理/" data-analytics-event="tag_click" data-analytics-target="配置治理">
+#配置治理 </a> </div>    </header> <div class="post-divider"> <span></span><b>&#123; &#125;</b><span></span> </div> <div class="post-layout page-shell"> <div class="post-content prose">  <blockquote>
+<p>文中的 namespace、服務名稱、網域、位址與設定數量均已去識別化或泛化。真實設定備份可能包含密碼和 Token，絕不能進入部落格或 Git 存放庫。</p>
+</blockquote>
+<blockquote>
+<p>系列導覽：<a href="/zh-tw/kubernetes/kubernetes-migration-series/">Kubernetes 重建遷移教學系列</a>。本文假設 Nacos 叢集已搭建完成並通過驗收。</p>
+</blockquote>
+<p>Kubernetes 叢集遷移後，最隱蔽的一類故障不是 Pod 起不來，而是 Nacos 設定裡還保存著舊叢集的 Service ClusterIP。</p>
+<p>典型現象包括：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>Load balancer does not have available server</span></span>
+<span class="line"><span>Unable to connect to Redis</span></span>
+<span class="line"><span>No route to host</span></span>
+<span class="line"><span>connect timed out</span></span></code></pre>
+<p>舊 IP 在新叢集中可能不存在，也可能剛好被另一個 Service 占用。後者比直接逾時更危險，因為請求會被轉送到錯誤的服務。</p>
+<p>因此，這次治理的目標不是「把 IP 換成新 IP」，而是盡可能改成穩定的 Kubernetes Service DNS。</p>
+<p>下面先完整走一遍操作流程，再解釋為什麼有些位址不能自動替換。</p>
+<h2 id="第-1-步建立隔離的工作目錄">第 1 步：建立隔離的工作目錄</h2>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">mkdir</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -p</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> nacos-dns-migration/{backup,inventory,candidates,reports}</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">cd</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> nacos-dns-migration</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">git</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> init</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">printf</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'backup/\n*.zip\n*.token\n.env\n'</span><span style="color:#D73A49;--shiki-dark:#F97583"> ></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> .gitignore</span></span></code></pre>
+<p>原始 Nacos 匯出檔可能包含密碼、Token 和資料庫位址，只能放在 <code>backup/</code>，並應使用加密儲存。Git 中只保留去識別化後的規則、腳本與報告範本。</p>
+<p>建立一份變更清單：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="csv"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">namespace,</span><span style="color:#D73A49;--shiki-dark:#F97583">group,</span><span style="color:#6F42C1;--shiki-dark:#B392F0">data_id,</span><span style="color:#6A737D;--shiki-dark:#6A737D">old_value,</span><span style="color:#032F62;--shiki-dark:#9ECBFF">target_service,</span><span style="color:#E36209;--shiki-dark:#FFAB70">target_port,</span><span style="color:#005CC5;--shiki-dark:#79B8FF">action,</span><span style="color:#6F42C1;--shiki-dark:#B392F0">owner,</span><span style="color:#24292E;--shiki-light-font-weight:bold;--shiki-dark:#E1E4E8;--shiki-dark-font-weight:bold">status</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">app-test,</span><span style="color:#D73A49;--shiki-dark:#F97583">DEFAULT_GROUP,</span><span style="color:#6F42C1;--shiki-dark:#B392F0">global.properties,</span><span style="color:#6A737D;--shiki-dark:#6A737D">&#x3C;old-address>,</span><span style="color:#032F62;--shiki-dark:#9ECBFF">redis-service,</span><span style="color:#E36209;--shiki-dark:#FFAB70">6379,</span><span style="color:#005CC5;--shiki-dark:#79B8FF">replace,</span><span style="color:#6F42C1;--shiki-dark:#B392F0">team-a,</span><span style="color:#24292E;--shiki-light-font-weight:bold;--shiki-dark:#E1E4E8;--shiki-dark-font-weight:bold">pending</span></span></code></pre>
+<p>所有發布動作都要能追溯到這一行。</p>
+<h2 id="第-2-步匯出-nacos-設定">第 2 步：匯出 Nacos 設定</h2>
+<p>最穩妥的方式是使用 Nacos 控制台按 namespace 匯出設定壓縮檔，並記錄匯出時間、操作人與檔案校驗值：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">sha256sum</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> backup/</span><span style="color:#D73A49;--shiki-dark:#F97583">&#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">namespac</span><span style="color:#24292E;--shiki-dark:#E1E4E8">e</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#032F62;--shiki-dark:#9ECBFF">-configs.zip</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  ></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> backup/</span><span style="color:#D73A49;--shiki-dark:#F97583">&#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">namespac</span><span style="color:#24292E;--shiki-dark:#E1E4E8">e</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#032F62;--shiki-dark:#9ECBFF">-configs.zip.sha256</span></span></code></pre>
+<p>如果使用 OpenAPI 自動匯出，API 路徑、鑑權與相容性必須按目前 Nacos Server 版本核對。Nacos 3.2 起移除了部分舊 HTTP API，不能拿舊腳本直接操作新叢集。</p>
+<p>解壓到暫存目錄後，先做唯讀掃描：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">mkdir</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -p</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> backup/unpacked</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">unzip</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -q</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> backup/</span><span style="color:#D73A49;--shiki-dark:#F97583">&#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">namespac</span><span style="color:#24292E;--shiki-dark:#E1E4E8">e</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#032F62;--shiki-dark:#9ECBFF">-configs.zip</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -d</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> backup/unpacked</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">rg</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --glob</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> '*.{properties,yaml,yml,json,xml}'</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  '([0-9]{1,3}\.){3}[0-9]{1,3}'</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> backup/unpacked</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  ></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> reports/ip-references.txt</span></span></code></pre>
+<p>不要在掃描結果裡印出整行 Secret。正式腳本應對 <code>password</code>、<code>secret</code>、<code>token</code> 等鍵的值進行遮罩。</p>
+<h2 id="第-3-步匯出新舊叢集-service-清單">第 3 步：匯出新舊叢集 Service 清單</h2>
+<p>分別使用明確的 kubeconfig 匯出，不要依賴目前的 context：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --kubeconfig</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">old-kubeconfi</span><span style="color:#24292E;--shiki-dark:#E1E4E8">g</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> get</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> service</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -A</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -o</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> json</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  ></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> inventory/old-services.json</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --kubeconfig</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">new-kubeconfi</span><span style="color:#24292E;--shiki-dark:#E1E4E8">g</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> get</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> service</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -A</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -o</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> json</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  ></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> inventory/new-services.json</span></span></code></pre>
+<p>轉換成便於審閱的 TSV：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">jq</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -r</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> '</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  .items[]</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  | select(.spec.clusterIP != "None")</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  | [</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      .metadata.namespace,</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      .metadata.name,</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      .spec.clusterIP,</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      (.spec.ports | map((.port|tostring) + ":" + (.targetPort|tostring)) | join(","))</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">    ]</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  | @tsv</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">'</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> inventory/old-services.json</span><span style="color:#D73A49;--shiki-dark:#F97583"> ></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> inventory/old-services.tsv</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">jq</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -r</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> '</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  .items[]</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  | select(.spec.clusterIP != "None")</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  | [</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      .metadata.namespace,</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      .metadata.name,</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      .spec.clusterIP,</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      (.spec.ports | map((.port|tostring) + ":" + (.targetPort|tostring)) | join(","))</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">    ]</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  | @tsv</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">'</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> inventory/new-services.json</span><span style="color:#D73A49;--shiki-dark:#F97583"> ></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> inventory/new-services.tsv</span></span></code></pre>
+<p>現在可以依舊 IP 反查 Service：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">rg</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -F</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> '&#x3C;old-service-ip>'</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> inventory/old-services.tsv</span></span></code></pre>
+<p>預期得到：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>app-test    rbac-api    &#x3C;old-service-ip>    8082:8082</span></span></code></pre>
+<p>目標 DNS 就是：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>rbac-api.app-test.svc.cluster.local</span></span></code></pre>
+<h2 id="第-4-步逐條確認目標-service-與連接埠">第 4 步：逐條確認目標 Service 與連接埠</h2>
+<p>先檢查新叢集是否存在同名 Service：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --kubeconfig</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">new-kubeconfi</span><span style="color:#24292E;--shiki-dark:#E1E4E8">g</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> app-test</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  get</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> service</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> rbac-api</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -o</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> yaml</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --kubeconfig</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">new-kubeconfi</span><span style="color:#24292E;--shiki-dark:#E1E4E8">g</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> app-test</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  get</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> endpointslice</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  -l</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> kubernetes.io/service-name=rbac-api</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -o</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> wide</span></span></code></pre>
+<p>只有同時滿足下列條件，才能進入自動候選：</p>
+<ul>
+<li>舊 IP 能唯一反查到一個 Service。</li>
+<li>新叢集存在語意相同的 Service。</li>
+<li>設定連接埠對應新 Service 的 <code>port</code>，不是誤拿 <code>targetPort</code>。</li>
+<li>EndpointSlice 至少有一個 Ready 位址。</li>
+<li>負責人確認該依賴仍然存在。</li>
+</ul>
+<p>其餘條目全部標成 <code>manual-review</code>，不能讓腳本猜。</p>
+<h2 id="第-5-步產生候選檔不直接發布">第 5 步：產生候選檔，不直接發布</h2>
+<p>複製一份原始設定：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">cp</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> backup/unpacked/global.properties</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  candidates/global.properties</span></span></code></pre>
+<p>把：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="properties"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">rbac.api.url</span><span style="color:#24292E;--shiki-dark:#E1E4E8">=http://&#x3C;old-service-ip>:8082</span></span></code></pre>
+<p>改為：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="properties"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">rbac.api.url</span><span style="color:#24292E;--shiki-dark:#E1E4E8">=http://rbac-api.app-test.svc.cluster.local:8082</span></span></code></pre>
+<p>然後審閱差異：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">diff</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -u</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> backup/unpacked/global.properties</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  candidates/global.properties</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  |</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> tee</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> reports/global.properties.diff</span></span></code></pre>
+<p>審閱時逐行確認：</p>
+<ul>
+<li>只修改主機部分，協定、連接埠、路徑與參數都未遺失。</li>
+<li>沒有把外部依賴改成叢集 DNS。</li>
+<li>沒有把 Kafka broker 位址合併成一般 Service。</li>
+<li>沒有新增不存在的 Service 名稱。</li>
+</ul>
+<h2 id="第-6-步在業務-pod-中提早驗證-dns">第 6 步：在業務 Pod 中提早驗證 DNS</h2>
+<p>正式發布前，從真實呼叫方 Pod 測試目標位址：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">caller-namespac</span><span style="color:#24292E;--shiki-dark:#E1E4E8">e</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> exec</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">caller-po</span><span style="color:#24292E;--shiki-dark:#E1E4E8">d</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  getent</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> hosts</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> rbac-api.app-test.svc.cluster.local</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">caller-namespac</span><span style="color:#24292E;--shiki-dark:#E1E4E8">e</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> exec</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">caller-po</span><span style="color:#24292E;--shiki-dark:#E1E4E8">d</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  nc</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -vz</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> rbac-api.app-test.svc.cluster.local</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 8082</span></span></code></pre>
+<p>這一步失敗時，修改 Nacos 沒有意義。先修復 Service、Endpoint、NetworkPolicy、CNI 或 kube-proxy。</p>
+<h2 id="第-7-步逐個-data-id-發布">第 7 步：逐個 Data ID 發布</h2>
+<p>第一次治理建議透過 Nacos 控制台操作：</p>
+<ol>
+<li>進入正確的 namespace。</li>
+<li>搜尋精確的 Data ID 與 Group。</li>
+<li>開啟歷史版本，確認能夠回滾。</li>
+<li>貼上候選內容，檢視控制台顯示的 diff。</li>
+<li>只發布一個 Data ID。</li>
+<li>立即回讀並下載一次，比對校驗值。</li>
+</ol>
+<p>若使用自動化 API，腳本必須實作：鑑權、逾時、發布前備份、發布後回讀、內容校驗與單一 Data ID 回滾。不要用一個迴圈無條件覆寫整個 namespace。</p>
+<h2 id="第-8-步只滾動受影響的用戶端">第 8 步：只滾動受影響的用戶端</h2>
+<p>先確認設定是否支援動態刷新。不能動態刷新的應用再執行滾動重啟：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">caller-namespac</span><span style="color:#24292E;--shiki-dark:#E1E4E8">e</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> rollout</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> restart</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> deployment/</span><span style="color:#D73A49;--shiki-dark:#F97583">&#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">caller-ap</span><span style="color:#24292E;--shiki-dark:#E1E4E8">p</span><span style="color:#D73A49;--shiki-dark:#F97583">></span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">caller-namespac</span><span style="color:#24292E;--shiki-dark:#E1E4E8">e</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> rollout</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> status</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> deployment/</span><span style="color:#D73A49;--shiki-dark:#F97583">&#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">caller-ap</span><span style="color:#24292E;--shiki-dark:#E1E4E8">p</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --timeout=10m</span></span></code></pre>
+<p>檢視最近日誌：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">caller-namespac</span><span style="color:#24292E;--shiki-dark:#E1E4E8">e</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> logs</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> deployment/</span><span style="color:#D73A49;--shiki-dark:#F97583">&#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">caller-ap</span><span style="color:#24292E;--shiki-dark:#E1E4E8">p</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --since=10m</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  |</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> grep</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -Ei</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'nacos|refused|timed out|no route|available server'</span></span></code></pre>
+<p>不要因為修改了一份共用的 <code>global.properties</code> 就同時重啟所有命名空間。依依賴關係分批執行，前一批通過真實業務驗收後再繼續。</p>
+<h2 id="第-9-步執行真實請求並搜尋舊位址">第 9 步：執行真實請求並搜尋舊位址</h2>
+<p>除了健康檢查，還應完成登入、查詢、快取讀寫或內部 RPC 等真實請求。然後在設定與執行日誌中搜尋舊位址：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">rg</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -F</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> '&#x3C;old-service-ip>'</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> candidates</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> reports</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">caller-namespac</span><span style="color:#24292E;--shiki-dark:#E1E4E8">e</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> logs</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> deployment/</span><span style="color:#D73A49;--shiki-dark:#F97583">&#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">caller-ap</span><span style="color:#24292E;--shiki-dark:#E1E4E8">p</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --since=30m</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  |</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> grep</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -F</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> '&#x3C;old-service-ip>'</span></span></code></pre>
+<p>候選設定與新日誌中都不應再出現舊 Service IP。</p>
+<h2 id="第-10-步依-data-id-回滾">第 10 步：依 Data ID 回滾</h2>
+<p>如果業務驗收失敗：</p>
+<ol>
+<li>停止繼續發布其他 Data ID。</li>
+<li>使用 Nacos 歷史版本還原剛才修改的內容。</li>
+<li>回讀確認還原成功。</li>
+<li>滾動剛才受影響的用戶端。</li>
+<li>保存故障日誌與失敗請求。</li>
+</ol>
+<p>不要匯入整個舊 namespace 壓縮檔，否則會覆寫遷移期間其他團隊已發布的正常設定。</p>
+<h2 id="為什麼固定-clusterip-會成為遷移負債">為什麼固定 ClusterIP 會成為遷移負債</h2>
+<p>ClusterIP 的生命週期屬於 Service 物件。刪除並重建 Service 後，如果沒有明確指定 <code>clusterIP</code>，位址可能改變。</p>
+<p>下面這種設定把應用與某一次叢集狀態綁在一起：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="properties"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">rbac.api.url</span><span style="color:#24292E;--shiki-dark:#E1E4E8">=http://10.x.y.z:8082</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">spring.data.redis.host</span><span style="color:#24292E;--shiki-dark:#E1E4E8">=10.x.y.z</span></span></code></pre>
+<p>更穩定的寫法是：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="properties"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">rbac.api.url</span><span style="color:#24292E;--shiki-dark:#E1E4E8">=http://rbac-api.app-test.svc.cluster.local:8082</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">spring.data.redis.host</span><span style="color:#24292E;--shiki-dark:#E1E4E8">=redis-service.app-test.svc.cluster.local</span></span></code></pre>
+<p>只要 Service 名稱與 namespace 保持不變，Pod、Endpoint 與 ClusterIP 的變化都不會影響呼叫方。</p>
+<h2 id="先建立來源而不是直接替換">先建立來源，而不是直接替換</h2>
+<p>對每個 Nacos 設定參照，需要同時收集四類資料：</p>
+<ol>
+<li>舊叢集 Service 名稱、namespace、ClusterIP 與連接埠。</li>
+<li>新叢集 Service 名稱、namespace、ClusterIP 與連接埠。</li>
+<li>正式環境或其他同構環境中的穩定設定。</li>
+<li>目前 Deployment、StatefulSet 與 Endpoint 的實際存在狀態。</li>
+</ol>
+<p>隨後為每個位址建立分類：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>類型</th><th>處理方式</th></tr></thead><tbody><tr><td>目前存在的 Kubernetes Service</td><td>改為完整 Service DNS，並核對連接埠</td></tr><tr><td>已刪除或未遷移的 Service</td><td>不自動替換，先確認要還原還是移除路由</td></tr><tr><td>Pod IP</td><td>禁止保留，找到對應的 Service</td></tr><tr><td>Kafka broker 位址</td><td>單獨設計 listener，不做一般 DNS 替換</td></tr><tr><td>節點上的 hostNetwork 服務</td><td>評估能否改為 Service；不行時登記例外</td></tr><tr><td>外部資料庫、簡訊、專網系統</td><td>保留原有外部位址</td></tr></tbody></table>
+<p>這一步決定了治理是否安全。正規表達式只能找到位址，無法判斷位址的所有權。</p>
+<h2 id="為什麼不能把所有-ip-都替換掉">為什麼不能把所有 IP 都替換掉</h2>
+<h3 id="已刪除服務">已刪除服務</h3>
+<p>如果一個舊位址指向已經不存在的 Service，把它改成：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>missing-service.app-test.svc.cluster.local</span></span></code></pre>
+<p>只會把連線逾時變成 DNS 解析失敗。正確選擇只有兩個：還原目標 Service，或刪除不再使用的設定與路由。</p>
+<h3 id="kafka-advertised-listener">Kafka advertised listener</h3>
+<p>Kafka 用戶端不是只連一個入口。Bootstrap Server 會回傳 broker 的 advertised address，用戶端隨後直連具體的 broker。</p>
+<p>因此，原本依 broker 暴露的 NodePort 或節點位址，不能簡單改成一個一般 ClusterIP。需要先設計：</p>
+<ul>
+<li>內外部 listener。</li>
+<li>每個 broker 的 Service。</li>
+<li>advertised listener。</li>
+<li>DNS、NodePort 或負載平衡入口。</li>
+</ul>
+<p>Kafka 位址治理應作為獨立專案執行。</p>
+<h3 id="外部依賴">外部依賴</h3>
+<p>簡訊、雲端資料庫、合作方介面與專網系統並不屬於 Kubernetes。只因為它們也是 IP，並不代表應該改成 <code>svc.cluster.local</code>。</p>
+<h2 id="設定發布必須可回滾">設定發布必須可回滾</h2>
+<p>每次修改前保存：</p>
+<ul>
+<li>namespace。</li>
+<li>group。</li>
+<li>dataId。</li>
+<li>原始內容。</li>
+<li>MD5 或其他校驗值。</li>
+</ul>
+<p>發布流程：</p>
+<pre><code class="language-mermaid">flowchart LR
+  A["匯出設定"] --> B["識別 IP 和 URL"]
+  B --> C["關聯 Service 與連接埠"]
+  C --> D["產生候選變更"]
+  D --> E["人工審閱例外"]
+  E --> F["逐 dataId 發布"]
+  F --> G["回讀並比對校驗值"]
+  G --> H["滾動用戶端並驗證"]
+</code></pre>
+<p>不要一次覆寫整個 namespace，也不要把備份檔提交到 Git。回滾應精確到單一 dataId，而不是用舊匯出包覆寫之後產生的其他正常變更。</p>
+<h2 id="連接埠必須與-service-一起校驗">連接埠必須與 Service 一起校驗</h2>
+<p>DNS 正確不代表設定正確。常見問題是服務名稱已改，連接埠卻仍來自舊環境。</p>
+<p>可以把參照解析成：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>namespace / service / configured-port</span></span></code></pre>
+<p>再與 Kubernetes Service 的 <code>port</code>、<code>targetPort</code> 與實際 Endpoint 比對。最終要求：</p>
+<ul>
+<li>DNS 能解析。</li>
+<li>Service 存在。</li>
+<li>設定連接埠與 Service port 一致。</li>
+<li>Endpoint 不為空。</li>
+<li>目標 Pod 真實監聽對應連接埠。</li>
+</ul>
+<h2 id="redis-設定需要相容不同-spring-boot-版本">Redis 設定需要相容不同 Spring Boot 版本</h2>
+<p>不同服務可能分別讀取：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="properties"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">spring.data.redis.host</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">spring.redis.host</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">gateway.oauth2.redis.host</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">platform.redis.host</span></span></code></pre>
+<p>如果系統正在跨 Spring Boot 版本升級，可以先以新屬性為來源，並為舊服務保留暫時別名：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="properties"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">spring.data.redis.host</span><span style="color:#24292E;--shiki-dark:#E1E4E8">=redis-service.app-test.svc.cluster.local</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">spring.data.redis.port</span><span style="color:#24292E;--shiki-dark:#E1E4E8">=6379</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">spring.redis.host</span><span style="color:#24292E;--shiki-dark:#E1E4E8">=${spring.data.redis.host}</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">spring.redis.port</span><span style="color:#24292E;--shiki-dark:#E1E4E8">=${spring.data.redis.port}</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">spring.redis.password</span><span style="color:#24292E;--shiki-dark:#E1E4E8">=${spring.data.redis.password}</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">spring.redis.database</span><span style="color:#24292E;--shiki-dark:#E1E4E8">=${spring.data.redis.database}</span></span></code></pre>
+<p>相容別名需要註明移除條件，避免永久維護兩套設定。</p>
+<p>如果舊應用已經回退到 <code>localhost:6379</code>，或補充 Lettuce pool 參數後出現 <code>commons-pool2</code> 類別缺失，可繼續閱讀<a href="/zh-tw/kubernetes/spring-boot-2-3-nacos-redis-property-postmortem/">Boot 2/3 Redis 設定回退故障復盤</a>。</p>
+<h2 id="驗證不能停在-nacos-頁面">驗證不能停在 Nacos 頁面</h2>
+<p>設定發布後依五層驗證：</p>
+<h3 id="1-設定回讀">1. 設定回讀</h3>
+<p>確認 namespace、group、dataId、內容與 MD5 和發布結果一致。</p>
+<h3 id="2-dns-解析">2. DNS 解析</h3>
+<p>從真實業務 Pod 中執行：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">getent</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> hosts</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> redis-service.app-test.svc.cluster.local</span></span></code></pre>
+<h3 id="3-service-與-endpoint">3. Service 與 Endpoint</h3>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> app-test</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> get</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> svc</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> redis-service</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> app-test</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> get</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> endpointslice</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -l</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> kubernetes.io/service-name=redis-service</span></span></code></pre>
+<h3 id="4-網路連線">4. 網路連線</h3>
+<p>從呼叫方 Pod 存取 Service DNS 與連接埠。若 Endpoint 可達而 Service 不可達，排查請求來源節點的 kube-proxy；若 Pod IP 跨節點不可達，排查 CNI 與 firewalld。</p>
+<h3 id="5-真實業務請求">5. 真實業務請求</h3>
+<p>重啟或刷新對應用戶端後，執行登入、快取、訊息或內部 API 請求。日誌中不應繼續出現舊位址。</p>
+<h2 id="nacos-服務發現與設定中心要分開看">Nacos 服務發現與設定中心要分開看</h2>
+<p>Nacos 同時承擔設定中心與服務發現，兩個問題經常被混在一起：</p>
+<ul>
+<li>設定中心決定 Redis、資料庫、內部 API 等 URL。</li>
+<li>服務發現決定某個服務是否有健康實例。</li>
+</ul>
+<p>當閘道提示「沒有可用服務」時，應檢查 Nacos instance list；當應用連線到舊 ClusterIP 時，應檢查設定內容。只重啟 Pod 可能讓現象短暫改變，卻不會修復錯誤的來源設定。</p>
+<h2 id="自動化稽核建議">自動化稽核建議</h2>
+<p>持續治理可以包含這些檢查：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>1. 扫描所有 IPv4、URL 和主机名</span></span>
+<span class="line"><span>2. 判断是否属于 Pod CIDR、Service CIDR 或节点网段</span></span>
+<span class="line"><span>3. 将 Service IP 反查到 namespace/service</span></span>
+<span class="line"><span>4. 校验配置端口和 Service port</span></span>
+<span class="line"><span>5. 标记不存在的 Service DNS</span></span>
+<span class="line"><span>6. 生成例外清单，而不是自动覆盖</span></span></code></pre>
+<p>新增設定可以在 CI 中設定規則：</p>
+<ul>
+<li>禁止寫入 Pod CIDR。</li>
+<li>預設禁止寫入 Service CIDR。</li>
+<li>允許完整 Service DNS。</li>
+<li>固定 ClusterIP 必須參照白名單紀錄。</li>
+<li>Secret 與設定匯出不得進入存放庫。</li>
+</ul>
+<h2 id="最終經驗">最終經驗</h2>
+<p>這次治理最重要的結果不是替換了多少位址，而是建立了明確邊界：</p>
+<ol>
+<li>Kubernetes 內部依賴優先使用 Service DNS。</li>
+<li>已刪除服務不能靠虛構的 DNS 修復。</li>
+<li>Kafka、hostNetwork 與外部系統必須單獨分類。</li>
+<li>每次 Nacos 修改都要備份、逐項發布、回讀與真實請求驗證。</li>
+</ol>
+<p>固定 IP 並不總是錯誤，但它必須是有負責人、有原因、有移除計畫的明確相容項目，而不是沒人知道來源的歷史字串。</p>
+<p>位址遷移穩定後，可繼續依<a href="/zh-tw/kubernetes/spring-boot-3-nacos-global-configuration-baseline/">Spring Boot 3 Nacos 全域設定基線</a>治理 Redis、Redisson、RabbitMQ、Hikari、Tomcat 與設定覆蓋關係。</p> </div> <aside class="table-of-contents" aria-label="文章目錄" data-pagefind-ignore> <p>ON THIS PAGE</p> <ol> <li> <a href="#第-1-步建立隔離的工作目錄" data-analytics-event="toc_click" data-analytics-target="第-1-步建立隔離的工作目錄"> 第 1 步：建立隔離的工作目錄 </a> </li><li> <a href="#第-2-步匯出-nacos-設定" data-analytics-event="toc_click" data-analytics-target="第-2-步匯出-nacos-設定"> 第 2 步：匯出 Nacos 設定 </a> </li><li> <a href="#第-3-步匯出新舊叢集-service-清單" data-analytics-event="toc_click" data-analytics-target="第-3-步匯出新舊叢集-service-清單"> 第 3 步：匯出新舊叢集 Service 清單 </a> </li><li> <a href="#第-4-步逐條確認目標-service-與連接埠" data-analytics-event="toc_click" data-analytics-target="第-4-步逐條確認目標-service-與連接埠"> 第 4 步：逐條確認目標 Service 與連接埠 </a> </li><li> <a href="#第-5-步產生候選檔不直接發布" data-analytics-event="toc_click" data-analytics-target="第-5-步產生候選檔不直接發布"> 第 5 步：產生候選檔，不直接發布 </a> </li><li> <a href="#第-6-步在業務-pod-中提早驗證-dns" data-analytics-event="toc_click" data-analytics-target="第-6-步在業務-pod-中提早驗證-dns"> 第 6 步：在業務 Pod 中提早驗證 DNS </a> </li><li> <a href="#第-7-步逐個-data-id-發布" data-analytics-event="toc_click" data-analytics-target="第-7-步逐個-data-id-發布"> 第 7 步：逐個 Data ID 發布 </a> </li><li> <a href="#第-8-步只滾動受影響的用戶端" data-analytics-event="toc_click" data-analytics-target="第-8-步只滾動受影響的用戶端"> 第 8 步：只滾動受影響的用戶端 </a> </li><li> <a href="#第-9-步執行真實請求並搜尋舊位址" data-analytics-event="toc_click" data-analytics-target="第-9-步執行真實請求並搜尋舊位址"> 第 9 步：執行真實請求並搜尋舊位址 </a> </li><li> <a href="#第-10-步依-data-id-回滾" data-analytics-event="toc_click" data-analytics-target="第-10-步依-data-id-回滾"> 第 10 步：依 Data ID 回滾 </a> </li><li> <a href="#為什麼固定-clusterip-會成為遷移負債" data-analytics-event="toc_click" data-analytics-target="為什麼固定-clusterip-會成為遷移負債"> 為什麼固定 ClusterIP 會成為遷移負債 </a> </li><li> <a href="#先建立來源而不是直接替換" data-analytics-event="toc_click" data-analytics-target="先建立來源而不是直接替換"> 先建立來源，而不是直接替換 </a> </li><li> <a href="#為什麼不能把所有-ip-都替換掉" data-analytics-event="toc_click" data-analytics-target="為什麼不能把所有-ip-都替換掉"> 為什麼不能把所有 IP 都替換掉 </a> </li><li class="nested"> <a href="#已刪除服務" data-analytics-event="toc_click" data-analytics-target="已刪除服務"> 已刪除服務 </a> </li><li class="nested"> <a href="#kafka-advertised-listener" data-analytics-event="toc_click" data-analytics-target="kafka-advertised-listener"> Kafka advertised listener </a> </li><li class="nested"> <a href="#外部依賴" data-analytics-event="toc_click" data-analytics-target="外部依賴"> 外部依賴 </a> </li><li> <a href="#設定發布必須可回滾" data-analytics-event="toc_click" data-analytics-target="設定發布必須可回滾"> 設定發布必須可回滾 </a> </li><li> <a href="#連接埠必須與-service-一起校驗" data-analytics-event="toc_click" data-analytics-target="連接埠必須與-service-一起校驗"> 連接埠必須與 Service 一起校驗 </a> </li><li> <a href="#redis-設定需要相容不同-spring-boot-版本" data-analytics-event="toc_click" data-analytics-target="redis-設定需要相容不同-spring-boot-版本"> Redis 設定需要相容不同 Spring Boot 版本 </a> </li><li> <a href="#驗證不能停在-nacos-頁面" data-analytics-event="toc_click" data-analytics-target="驗證不能停在-nacos-頁面"> 驗證不能停在 Nacos 頁面 </a> </li><li class="nested"> <a href="#1-設定回讀" data-analytics-event="toc_click" data-analytics-target="1-設定回讀"> 1. 設定回讀 </a> </li><li class="nested"> <a href="#2-dns-解析" data-analytics-event="toc_click" data-analytics-target="2-dns-解析"> 2. DNS 解析 </a> </li><li class="nested"> <a href="#3-service-與-endpoint" data-analytics-event="toc_click" data-analytics-target="3-service-與-endpoint"> 3. Service 與 Endpoint </a> </li><li class="nested"> <a href="#4-網路連線" data-analytics-event="toc_click" data-analytics-target="4-網路連線"> 4. 網路連線 </a> </li><li class="nested"> <a href="#5-真實業務請求" data-analytics-event="toc_click" data-analytics-target="5-真實業務請求"> 5. 真實業務請求 </a> </li><li> <a href="#nacos-服務發現與設定中心要分開看" data-analytics-event="toc_click" data-analytics-target="nacos-服務發現與設定中心要分開看"> Nacos 服務發現與設定中心要分開看 </a> </li><li> <a href="#自動化稽核建議" data-analytics-event="toc_click" data-analytics-target="自動化稽核建議"> 自動化稽核建議 </a> </li><li> <a href="#最終經驗" data-analytics-event="toc_click" data-analytics-target="最終經驗"> 最終經驗 </a> </li> </ol> </aside> </div> <script type="module" src="/_astro/MermaidEnhancer.astro_astro_type_script_index_0_lang.DTQ20dni.js"></script> <dialog class="image-lightbox" data-image-lightbox data-locale="zh-TW" aria-labelledby="lightbox-caption"> <div class="image-lightbox-inner"> <button type="button" class="image-lightbox-close" aria-label="關閉圖片預覽">
+×
+</button> <img alt="" decoding="async"> <p id="lightbox-caption" hidden></p> </div> </dialog> <script type="module" src="/_astro/ImageLightbox.astro_astro_type_script_index_0_lang.CmAf__MV.js"></script> <div class="reading-progress" aria-hidden="true"><span></span></div> <div class="article-actions" data-reading-tools data-locale="zh-TW" data-title="把 Nacos 裡的固定 Service IP 改成 Kubernetes DNS：一次配置治理實戰" data-href="https://lucaslz.com/zh-tw/kubernetes/nacos-service-dns-migration/"> <button type="button" data-share aria-label="分享"> 分享 </button> <button type="button" data-copy-link aria-label="複製連結"> 複製連結 </button> <button type="button" data-bookmark aria-label="收藏" aria-pressed="false"> 收藏 </button> </div> <button class="back-to-top" type="button" aria-label="返回頂端" hidden>↑</button> <div class="reading-toast" role="status" aria-live="polite"></div> <script type="module" src="/_astro/ReadingTools.astro_astro_type_script_index_0_lang.FOex6a9j.js"></script> <footer class="post-footer page-shell narrow-shell" data-pagefind-ignore> <div class="post-end-mark"><span>END</span></div> <p>感謝閱讀。你可以分享、收藏，或在下方參與討論。</p> <section class="related-posts" aria-labelledby="related-title"> <div class="related-heading"> <span>CONTINUE READING</span> <h2 id="related-title">相關文章</h2> </div> <div class="related-grid"> <article class="article-card compact"> <a class="article-card-link" href="/zh-tw/kubernetes/spring-boot-3-nacos-global-configuration-baseline/" data-analytics-event="article_click" data-analytics-impression="article_impression" data-analytics-target="/zh-tw/kubernetes/spring-boot-3-nacos-global-configuration-baseline/"> <div class="article-card-top"> <span class="article-index">01</span> <span class="article-date">2026.08.09</span> </div> <h3>Spring Boot 3 的 Nacos 完整生產基線：Redis、RabbitMQ、Hikari 與探針</h3> <p>給出一套可落地的 Spring Boot 3 Nacos 分層設定，重點治理 Redis 連線數、RabbitMQ 併發與預取、資料庫連線池、Tomcat、優雅停機與 Actuator。</p> <div class="article-card-bottom"> <div class="article-tags"> <span data-href="/zh-tw/tags/spring-boot/">
+#Spring Boot </span><span data-href="/zh-tw/tags/nacos/">
+#Nacos </span><span data-href="/zh-tw/tags/redis/">
+#Redis </span> </div> <span class="read-time">14 分鐘閱讀 <b>↗</b></span> </div> </a> </article><article class="article-card compact"> <a class="article-card-link" href="/zh-tw/kubernetes/spring-boot-2-3-nacos-redis-property-postmortem/" data-analytics-event="article_click" data-analytics-impression="article_impression" data-analytics-target="/zh-tw/kubernetes/spring-boot-2-3-nacos-redis-property-postmortem/"> <div class="article-card-top"> <span class="article-index">02</span> <span class="article-date">2026.08.08</span> </div> <h3>Spring Boot 2 與 3 混部：Nacos Redis 設定為什麼會回退到 localhost</h3> <p>復盤一次 Spring Boot 2 服務在 Kubernetes 中讀取不到 Boot 3 Redis 設定的問題，涵蓋屬性前綴、Nacos dataId、延遲建連、滾動發布與 commons-pool2 相依套件陷阱。</p> <div class="article-card-bottom"> <div class="article-tags"> <span data-href="/zh-tw/tags/spring-boot/">
+#Spring Boot </span><span data-href="/zh-tw/tags/nacos/">
+#Nacos </span><span data-href="/zh-tw/tags/redis/">
+#Redis </span> </div> <span class="read-time">12 分鐘閱讀 <b>↗</b></span> </div> </a> </article><article class="article-card compact"> <a class="article-card-link" href="/zh-tw/kubernetes/nacos-discovery-to-kubernetes-service-dns/" data-analytics-event="article_click" data-analytics-impression="article_impression" data-analytics-target="/zh-tw/kubernetes/nacos-discovery-to-kubernetes-service-dns/"> <div class="article-card-top"> <span class="article-index">03</span> <span class="article-date">2026.06.21</span> </div> <h3>從 Nacos 服務發現遷移到 Kubernetes Service DNS：逐條呼叫鏈平滑切換</h3> <p>保留 Nacos 設定中心，逐步將 Feign、Gateway 和內部 HTTP 呼叫從註冊中心實例發現遷移到 Kubernetes Service DNS，並設計灰度、驗證與回滾。</p> <div class="article-card-bottom"> <div class="article-tags"> <span data-href="/zh-tw/tags/nacos/">
+#Nacos </span><span data-href="/zh-tw/tags/kubernetes/">
+#Kubernetes </span><span data-href="/zh-tw/tags/service-dns/">
+#Service DNS </span> </div> <span class="read-time">9 分鐘閱讀 <b>↗</b></span> </div> </a> </article> </div> </section> <div class="post-navigation"> <a href="/zh-tw/kubernetes/nacos-kubernetes-cluster-setup/" class="previous-post" data-analytics-event="article_click" data-analytics-target="/zh-tw/kubernetes/nacos-kubernetes-cluster-setup/">  <small>← 上一篇</small> <strong>在 Kubernetes 搭建三節點 Nacos 叢集：從 Service 到 StatefulSet</strong>  </a> <a href="/zh-tw/kubernetes/nacos-discovery-to-kubernetes-service-dns/" class="next-post" data-analytics-event="article_click" data-analytics-target="/zh-tw/kubernetes/nacos-discovery-to-kubernetes-service-dns/">  <small>下一篇 →</small> <strong>從 Nacos 服務發現遷移到 Kubernetes Service DNS：逐條呼叫鏈平滑切換</strong>  </a> </div> </footer> </article> <div class="page-shell narrow-shell" data-pagefind-ignore> <section class="comments-section" aria-labelledby="comments-title" data-giscus-comments data-repo="lucaslz2020/lucasleelz.github.io" data-repo-id="MDEwOlJlcG9zaXRvcnkyNzcxNjkwNw==" data-category="Announcements" data-category-id="DIC_kwDOAabtK84DCw-x" data-discussion-path="/kubernetes/nacos-service-dns-migration/" data-giscus-language="zh-TW"> <div class="comments-heading"> <p class="eyebrow"> <span></span>
+DISCUSSION
+</p> <h2 id="comments-title">討論與回饋</h2> </div> <div class="giscus" aria-live="polite"></div> </section> <script type="module">var e=()=>document.documentElement.dataset.theme===`dark`?`noborder_dark`:`noborder_light`,t=t=>{if(t.dataset.loaded===`true`)return;let n=t.querySelector(`.giscus`);if(!n)return;let r=document.createElement(`script`);r.src=`https://giscus.app/client.js`,r.async=!0,r.crossOrigin=`anonymous`,r.dataset.repo=t.dataset.repo??``,r.dataset.repoId=t.dataset.repoId??``,r.dataset.category=t.dataset.category??``,r.dataset.categoryId=t.dataset.categoryId??``,r.dataset.mapping=`specific`,r.dataset.term=t.dataset.discussionPath??window.location.pathname,r.dataset.strict=`1`,r.dataset.reactionsEnabled=`1`,r.dataset.emitMetadata=`0`,r.dataset.inputPosition=`top`,r.dataset.theme=e(),r.dataset.lang=t.dataset.giscusLanguage??`zh-CN`,r.dataset.loading=`lazy`,t.dataset.loaded=`true`,n.append(r)},n=document.querySelector(`[data-giscus-comments]`);if(n)if(`IntersectionObserver`in window){let e=new IntersectionObserver(r=>{r.some(e=>e.isIntersecting)&&(t(n),e.disconnect())},{rootMargin:`500px 0px`});e.observe(n)}else t(n);window.addEventListener(`theme-change`,()=>{document.querySelector(`iframe.giscus-frame`)?.contentWindow?.postMessage({giscus:{setConfig:{theme:e()}}},`https://giscus.app`)});</script> </div>  </main> <footer class="site-footer"> <div class="footer-inner"> <div class="footer-brand"> <img class="brand-mark" src="/brand/avatar.svg" alt="" width="42" height="42" loading="lazy" decoding="async"> <div> <strong>lucaslz</strong> <p>關於軟體工程、Web、Java 與持續學習的長期技術筆記。</p> </div> </div> <div class="footer-links"> <a href="/zh-tw/rss.xml">RSS</a> <a href="/zh-tw/archive/">彙整</a> <a href="/zh-tw/tags/">標籤</a> <a href="https://github.com/lucaslz2020" target="_blank" rel="noreferrer">GitHub</a> </div> </div> <div class="footer-bottom"> <span>© 2026 lucaslz</span> <span>Built with Astro + React · Deployed on Cloudflare Pages</span> </div> </footer> <script type="module" src="/_astro/Analytics.astro_astro_type_script_index_0_lang.C6zUefo_.js"></script> <aside class="pwa-notice" data-pwa-notice data-locale="zh-TW" data-mode="status" aria-label="應用狀態" aria-live="polite" aria-atomic="true" hidden> <span class="pwa-notice-icon" data-pwa-icon aria-hidden="true">↧</span> <p> <strong data-pwa-title>離線閱讀已就緒</strong> <small data-pwa-message>造訪過的文章可以在離線時繼續閱讀。</small> </p> <div class="pwa-notice-actions"> <button type="button" data-pwa-action hidden> 立即安裝 </button> <button type="button" data-pwa-dismiss>知道了</button> </div> </aside> <script type="module" src="/_astro/Pwa.astro_astro_type_script_index_0_lang.ErCGOlnE.js"></script> </body> </html>
