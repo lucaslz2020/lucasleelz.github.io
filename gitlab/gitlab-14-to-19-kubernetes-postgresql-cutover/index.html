@@ -1,0 +1,501 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light" data-locale="zh-CN"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="generator" content="Astro v7.2.0"><meta name="author" content="lucaslz"><meta name="theme-color" content="#f5f1e8" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)"><meta name="description" content="记录一套自建 GitLab 从 14.9.3 逐级升级到 19.2.1，并迁入 Kubernetes、切换外部 PostgreSQL、同步最终增量、保留原入口地址的完整方法。"><meta name="google-site-verification" content="o_QOQN3-adA79KPRfqy1wAj9zviE8hyD5jvfdQEMVco"><meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"><meta name="keywords" content="GitLab, Kubernetes, PostgreSQL, DevOps, 迁移, GitLab 14 升级 GitLab 19, GitLab required upgrade stops, GitLab Kubernetes, GitLab PostgreSQL 17, GitLab 增量迁移, GitLab batched background migrations"><link rel="canonical" href="https://lucaslz.com/gitlab/gitlab-14-to-19-kubernetes-postgresql-cutover/"><link rel="alternate" hreflang="zh-CN" href="https://lucaslz.com/gitlab/gitlab-14-to-19-kubernetes-postgresql-cutover/"><link rel="alternate" hreflang="x-default" href="https://lucaslz.com/gitlab/gitlab-14-to-19-kubernetes-postgresql-cutover/"><link rel="author" href="https://github.com/lucaslz2020"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon.ico" sizes="any"><link rel="apple-touch-icon" href="/icons/apple-touch-icon.png"><link rel="alternate" type="application/rss+xml" title="lucaslz · 工程笔记" href="/rss.xml"><link rel="manifest" href="/site.webmanifest"><title>从 GitLab CE 14.9.3 平滑升级到 19.2.1：Kubernetes、PostgreSQL 17 与增量切流实战 · lucaslz</title><meta property="og:type" content="article"><meta property="og:site_name" content="lucaslz · 工程笔记"><meta property="og:title" content="从 GitLab CE 14.9.3 平滑升级到 19.2.1：Kubernetes、PostgreSQL 17 与增量切流实战 · lucaslz"><meta property="og:description" content="记录一套自建 GitLab 从 14.9.3 逐级升级到 19.2.1，并迁入 Kubernetes、切换外部 PostgreSQL、同步最终增量、保留原入口地址的完整方法。"><meta property="og:url" content="https://lucaslz.com/gitlab/gitlab-14-to-19-kubernetes-postgresql-cutover/"><meta property="og:image" content="https://lucaslz.com/og/gitlab/gitlab-14-to-19-kubernetes-postgresql-cutover.png"><meta property="og:image:type" content="image/png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="从 GitLab CE 14.9.3 平滑升级到 19.2.1：Kubernetes、PostgreSQL 17 与增量切流实战 的分享图片"><meta property="og:locale" content="zh_CN"><meta property="article:published_time" content="2026-08-08T00:00:00.000Z"><meta property="article:author" content="https://github.com/lucaslz2020"><meta property="article:tag" content="GitLab"><meta property="article:tag" content="Kubernetes"><meta property="article:tag" content="PostgreSQL"><meta property="article:tag" content="DevOps"><meta property="article:tag" content="迁移"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="从 GitLab CE 14.9.3 平滑升级到 19.2.1：Kubernetes、PostgreSQL 17 与增量切流实战 · lucaslz"><meta name="twitter:description" content="记录一套自建 GitLab 从 14.9.3 逐级升级到 19.2.1，并迁入 Kubernetes、切换外部 PostgreSQL、同步最终增量、保留原入口地址的完整方法。"><meta name="twitter:image" content="https://lucaslz.com/og/gitlab/gitlab-14-to-19-kubernetes-postgresql-cutover.png"><script>
+      (() => {
+        const saved = localStorage.getItem("theme");
+        const dark = saved
+          ? saved === "dark"
+          : matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+      })();
+    </script><script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Person","@id":"https://lucaslz.com/#person","name":"lucaslz","url":"https://lucaslz.com","sameAs":["https://github.com/lucaslz2020"]},{"@type":"WebSite","@id":"https://lucaslz.com/#website","name":"lucaslz · 工程笔记","alternateName":"lucaslz","description":"关于软件工程、Web、Java 与持续学习的长期技术笔记。","url":"https://lucaslz.com","inLanguage":"zh-CN","publisher":{"@id":"https://lucaslz.com/#person"}},{"@type":"BlogPosting","@id":"https://lucaslz.com/gitlab/gitlab-14-to-19-kubernetes-postgresql-cutover/#article","url":"https://lucaslz.com/gitlab/gitlab-14-to-19-kubernetes-postgresql-cutover/","headline":"从 GitLab CE 14.9.3 平滑升级到 19.2.1：Kubernetes、PostgreSQL 17 与增量切流实战","description":"记录一套自建 GitLab 从 14.9.3 逐级升级到 19.2.1，并迁入 Kubernetes、切换外部 PostgreSQL、同步最终增量、保留原入口地址的完整方法。","inLanguage":"zh-CN","datePublished":"2026-08-08T00:00:00.000Z","dateModified":"2026-08-08T00:00:00.000Z","author":{"@id":"https://lucaslz.com/#person","name":"lucaslz"},"publisher":{"@id":"https://lucaslz.com/#person"},"isPartOf":{"@id":"https://lucaslz.com/#website"},"mainEntityOfPage":{"@type":"WebPage","@id":"https://lucaslz.com/gitlab/gitlab-14-to-19-kubernetes-postgresql-cutover/"},"image":{"@type":"ImageObject","url":"https://lucaslz.com/og/gitlab/gitlab-14-to-19-kubernetes-postgresql-cutover.png","width":1200,"height":630},"articleSection":["GitLab","Kubernetes","PostgreSQL","DevOps","迁移"],"keywords":"GitLab, Kubernetes, PostgreSQL, DevOps, 迁移, GitLab 14 升级 GitLab 19, GitLab required upgrade stops, GitLab Kubernetes, GitLab PostgreSQL 17, GitLab 增量迁移, GitLab batched background migrations","wordCount":4794},{"@type":"BreadcrumbList","@id":"https://lucaslz.com/gitlab/gitlab-14-to-19-kubernetes-postgresql-cutover/#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"首页","item":"https://lucaslz.com/"},{"@type":"ListItem","position":2,"name":"从 GitLab CE 14.9.3 平滑升级到 19.2.1：Kubernetes、PostgreSQL 17 与增量切流实战","item":"https://lucaslz.com/gitlab/gitlab-14-to-19-kubernetes-postgresql-cutover/"}]}]}</script><style>@layer astro.images{:where([data-astro-image]){height:auto}:where([data-astro-image=full-width]){width:100%}:where([data-astro-image=constrained]){max-width:100%}[data-astro-image-fit=fill]{object-fit:fill}[data-astro-image-fit=contain]{object-fit:contain}[data-astro-image-fit=cover]{object-fit:cover}[data-astro-image-fit=scale-down]{object-fit:scale-down}[data-astro-image-pos=top]{object-position:top}[data-astro-image-pos=bottom]{object-position:bottom}[data-astro-image-pos=left]{object-position:left}[data-astro-image-pos=right]{object-position:right}[data-astro-image-pos=center]{object-position:center}[data-astro-image-pos=top-bottom]{object-position:top bottom}[data-astro-image-pos=top-left]{object-position:top left}[data-astro-image-pos=top-right]{object-position:top right}[data-astro-image-pos=top-center]{object-position:top center}[data-astro-image-pos=bottom-top]{object-position:bottom top}[data-astro-image-pos=bottom-left]{object-position:bottom left}[data-astro-image-pos=bottom-right]{object-position:bottom right}[data-astro-image-pos=bottom-center]{object-position:bottom center}[data-astro-image-pos=left-top]{object-position:left top}[data-astro-image-pos=left-bottom]{object-position:left bottom}[data-astro-image-pos=left-right]{object-position:left right}[data-astro-image-pos=left-center]{object-position:left center}[data-astro-image-pos=right-top]{object-position:right top}[data-astro-image-pos=right-bottom]{object-position:right bottom}[data-astro-image-pos=right-left]{object-position:right left}[data-astro-image-pos=right-center]{object-position:right center}[data-astro-image-pos=center-top]{object-position:center top}[data-astro-image-pos=center-bottom]{object-position:center bottom}[data-astro-image-pos=center-left]{object-position:center left}[data-astro-image-pos=center-right]{object-position:center right}}
+</style><link rel="stylesheet" href="/_astro/BaseLayout.CLKWFEQG.css"><script type="module" src="/_astro/page.CQWjsXKf.js"></script></head> <body> <a class="skip-link" href="#main-content">跳到主要内容</a> <header class="site-header"> <div class="header-inner"> <a class="brand" href="/" title="首页" data-analytics-event="nav_click" data-analytics-target="home"> <img class="brand-mark" src="/brand/avatar.svg" alt="" width="42" height="42" decoding="async"> <span class="brand-copy"> <strong>lucaslz</strong> <small>ENGINEERING NOTES</small> </span> </a> <nav class="desktop-nav" aria-label="主要导航"> <a href="/" data-analytics-event="nav_click" data-analytics-target="首页"> 首页 </a><a href="/archive/" data-analytics-event="nav_click" data-analytics-target="归档"> 归档 </a><a href="/tags/" data-analytics-event="nav_click" data-analytics-target="标签"> 标签 </a> <a href="https://github.com/lucaslz2020" target="_blank" rel="noreferrer">GitHub ↗</a> </nav> <style>astro-island,astro-slot,astro-static-slot{display:contents}</style><script>(()=>{var e=async t=>{await(await t())()};(self.Astro||(self.Astro={})).load=e;window.dispatchEvent(new Event("astro:load"));})();</script><script>(()=>{var g=Object.defineProperty;var w=(a,s,c)=>s in a?g(a,s,{enumerable:!0,configurable:!0,writable:!0,value:c}):a[s]=c;var l=(a,s,c)=>w(a,typeof s!="symbol"?s+"":s,c);var E=new Set(["__proto__","constructor","prototype"]);{let a={0:t=>y(t),1:t=>c(t),2:t=>new RegExp(t),3:t=>new Date(t),4:t=>new Map(c(t)),5:t=>new Set(c(t)),6:t=>BigInt(t),7:t=>new URL(t),8:t=>new Uint8Array(t),9:t=>new Uint16Array(t),10:t=>new Uint32Array(t),11:t=>Number.POSITIVE_INFINITY*t},s=t=>{let[p,e]=t;return p in a?a[p](e):void 0},c=t=>t.map(s),y=t=>typeof t!="object"||t===null?t:Object.fromEntries(Object.entries(t).map(([p,e])=>[p,s(e)]));class f extends HTMLElement{constructor(){super(...arguments);l(this,"Component");l(this,"hydrator");l(this,"hydrate",async()=>{var b;if(!this.hydrator||!this.isConnected)return;let e=(b=this.parentElement)==null?void 0:b.closest("astro-island[ssr]");if(e){e.addEventListener("astro:hydrate",this.hydrate,{once:!0});return}let r=this.querySelectorAll("astro-slot"),n={},d=this.querySelectorAll("template[data-astro-template]");for(let o of d){let i=o.closest(this.tagName);i!=null&&i.isSameNode(this)&&(n[o.getAttribute("data-astro-template")||"default"]=o.innerHTML,o.remove())}for(let o of r){let i=o.closest(this.tagName);i!=null&&i.isSameNode(this)&&(n[o.getAttribute("name")||"default"]=o.innerHTML)}let u;try{u=this.hasAttribute("props")?y(JSON.parse(this.getAttribute("props"))):{}}catch(o){let i=this.getAttribute("component-url")||"<unknown>",v=this.getAttribute("component-export");throw v&&(i+=` (export ${v})`),console.error(`[hydrate] Error parsing props for component ${i}`,this.getAttribute("props"),o),o}let h;await this.hydrator(this)(this.Component,u,n,{client:this.getAttribute("client")}),this.removeAttribute("ssr"),this.dispatchEvent(new CustomEvent("astro:hydrate"))});l(this,"unmount",()=>{this.isConnected||this.dispatchEvent(new CustomEvent("astro:unmount"))})}disconnectedCallback(){document.removeEventListener("astro:after-swap",this.unmount),document.addEventListener("astro:after-swap",this.unmount,{once:!0})}connectedCallback(){if(!this.hasAttribute("await-children")||document.readyState==="interactive"||document.readyState==="complete")this.childrenConnectedCallback();else{let e=()=>{document.removeEventListener("DOMContentLoaded",e),r.disconnect(),this.childrenConnectedCallback()},r=new MutationObserver(()=>{var n;((n=this.lastChild)==null?void 0:n.nodeType)===Node.COMMENT_NODE&&this.lastChild.nodeValue==="astro:end"&&(this.lastChild.remove(),e())});r.observe(this,{childList:!0}),document.addEventListener("DOMContentLoaded",e)}}async childrenConnectedCallback(){let e=this.getAttribute("before-hydration-url");e&&await import(e),this.start()}getRetryImportUrl(e){let r=new URL(e,document.baseURI);return r.searchParams.set("astro-retry",Date.now().toString()),r.toString()}async importWithRetry(e){try{return await import(e)}catch(r){return await new Promise(n=>setTimeout(n,1e3)),import(this.getRetryImportUrl(e))}}handleHydrationError(e){let r=this.getAttribute("component-url"),n=new CustomEvent("astro:hydration-error",{cancelable:!0,bubbles:!0,composed:!0,detail:{error:e,componentUrl:r}});this.dispatchEvent(n)&&console.error(`[astro-island] Error hydrating ${r}`,e)}async start(){let e=JSON.parse(this.getAttribute("opts")),r=this.getAttribute("client");if(Astro[r]===void 0){window.addEventListener(`astro:${r}`,()=>this.start(),{once:!0});return}try{await Astro[r](async()=>{let n=this.getAttribute("renderer-url");try{let[d,{default:u}]=await Promise.all([this.importWithRetry(this.getAttribute("component-url")),n?this.importWithRetry(n):Promise.resolve({default:()=>()=>{}})]),h=this.getAttribute("component-export")||"default";if(h.includes(".")){this.Component=d;for(let m of h.split(".")){if(E.has(m)||!this.Component||typeof this.Component!="object"&&typeof this.Component!="function"||!Object.hasOwn(this.Component,m))throw new Error(`Invalid component export path: ${h}`);this.Component=this.Component[m]}}else{if(E.has(h))throw new Error(`Invalid component export path: ${h}`);this.Component=d[h]}return this.hydrator=u,this.hydrate}catch(d){return this.handleHydrationError(d),()=>{}}},e,this)}catch(n){this.handleHydrationError(n)}}attributeChangedCallback(){this.hydrate()}}l(f,"observedAttributes",["props"]),customElements.get("astro-island")||customElements.define("astro-island",f)}})();</script><astro-island uid="K0IrP" prefix="r1" component-url="/_astro/HeaderControls.OxnzT7iM.js" component-export="default" renderer-url="/_astro/client.BvqO7VYE.js" props="{&quot;githubUrl&quot;:[0,&quot;https://github.com/lucaslz2020&quot;],&quot;locale&quot;:[0,&quot;zh-CN&quot;],&quot;languageTargets&quot;:[0,{&quot;zh-CN&quot;:[0,&quot;/gitlab/gitlab-14-to-19-kubernetes-postgresql-cutover/&quot;],&quot;en&quot;:[0,&quot;/en/&quot;],&quot;zh-TW&quot;:[0,&quot;/zh-tw/&quot;],&quot;de&quot;:[0,&quot;/de/&quot;],&quot;zh-HK&quot;:[0,&quot;/zh-hk/&quot;]}]}" ssr client="load" opts="{&quot;name&quot;:&quot;HeaderControls&quot;,&quot;value&quot;:true}" await-children><div class="header-controls"><div class="language-switcher"><button type="button" class="language-switcher-trigger" aria-haspopup="menu" aria-expanded="false" aria-label="语言"><span aria-hidden="true">简</span><span class="language-switcher-caret" aria-hidden="true">▾</span></button></div><button class="icon-button search-trigger" type="button" aria-label="搜索"><span aria-hidden="true">⌕</span><span class="search-label">搜索</span><kbd>⌘K</kbd></button><button class="icon-button theme-trigger" type="button" aria-label="切换到深色模式"><span aria-hidden="true">◐</span></button><button class="icon-button menu-trigger" type="button" aria-label="打开导航"><span aria-hidden="true">☰</span></button></div><!--astro:end--></astro-island> </div> </header> <main id="main-content">  <article class="post-page" data-pagefind-body> <meta data-pagefind-filter="locale[content]" content="zh-CN"> <header class="post-header page-shell narrow-shell"> <a class="back-link" href="/">← 返回文章列表</a> <p class="eyebrow"> <span></span>ENGINEERING NOTE · 2026年8月8日 </p> <h1 data-pagefind-meta="title">从 GitLab CE 14.9.3 平滑升级到 19.2.1：Kubernetes、PostgreSQL 17 与增量切流实战</h1> <p class="post-description" data-pagefind-meta="description"> 记录一套自建 GitLab 从 14.9.3 逐级升级到 19.2.1，并迁入 Kubernetes、切换外部 PostgreSQL、同步最终增量、保留原入口地址的完整方法。 </p> <meta data-pagefind-meta="date" content="2026-08-08"> <meta data-pagefind-meta="tags" content="GitLab, Kubernetes, PostgreSQL, DevOps, 迁移"> <div class="post-meta-row"> <div class="post-author"> <img class="mini-avatar" src="/brand/avatar.svg" alt="" width="36" height="36" decoding="async"> <span><strong>lucaslz</strong><small>作者</small></span> </div> <div class="post-facts"> <time datetime="2026-08-08T00:00:00.000Z">2026年8月8日</time>  <span>24 分钟阅读</span> <span class="post-view-count" data-page-views hidden></span> </div> </div> <div class="post-tag-row"> <a href="/tags/gitlab/" data-analytics-event="tag_click" data-analytics-target="GitLab">
+#GitLab </a><a href="/tags/kubernetes/" data-analytics-event="tag_click" data-analytics-target="Kubernetes">
+#Kubernetes </a><a href="/tags/postgresql/" data-analytics-event="tag_click" data-analytics-target="PostgreSQL">
+#PostgreSQL </a><a href="/tags/devops/" data-analytics-event="tag_click" data-analytics-target="DevOps">
+#DevOps </a><a href="/tags/迁移/" data-analytics-event="tag_click" data-analytics-target="迁移">
+#迁移 </a> </div>    </header> <div class="post-divider"> <span></span><b>&#123; &#125;</b><span></span> </div> <div class="post-layout page-shell"> <div class="post-content prose">  <blockquote>
+<p>本文来自一次真实生产迁移。IP、域名、节点名、项目名、仓库数量、用户数量、镜像仓库、备份文件名和校验值均已脱敏或泛化；Secret、密码和内部地址只使用占位符。</p>
+</blockquote>
+<blockquote>
+<p>GitLab 的升级停靠点和 PostgreSQL 支持矩阵会继续变化。执行前必须重新核对 <a href="https://docs.gitlab.com/update/upgrade_paths/">GitLab 官方升级路径</a> 与 <a href="https://docs.gitlab.com/install/requirements/">安装要求</a>，不能把本文的版本组合当作永久规则。</p>
+</blockquote>
+<p>这次迁移的起点是一台运行多年的 GitLab CE 14.9.3。它使用 Omnibus 一体化部署，Git 仓库、PostgreSQL、Redis、配置和日志都集中在同一台虚拟机上。</p>
+<p>终点是：</p>
+<ul>
+<li>GitLab CE 19.2.1。</li>
+<li>以单副本 StatefulSet 运行在 Kubernetes。</li>
+<li>Git 仓库、上传文件和配置保存在 <code>Retain</code> 本地持久卷。</li>
+<li>PostgreSQL 使用集群内的独立数据库和账号。</li>
+<li>PostgreSQL 最终升级到 17。</li>
+<li>对外域名、服务 IP 和 SSH 入口保持不变。</li>
+<li>旧服务器在最终增量同步后关机，并保留一段时间作为回滚点。</li>
+</ul>
+<p>这不是一次“换镜像然后等待 Pod 变绿”的升级。真正需要处理的是四条相互约束的链路：</p>
+<pre><code class="language-mermaid">flowchart LR
+  A["GitLab 14.9.3&#x3C;br/>旧 Omnibus"] --> B["GitLab 15&#x3C;br/>内置 PostgreSQL"]
+  B --> C["GitLab 16&#x3C;br/>外部 PostgreSQL 14"]
+  C --> D["GitLab 17&#x3C;br/>PostgreSQL 14 / 16"]
+  D --> E["GitLab 18&#x3C;br/>PostgreSQL 16 / 17"]
+  E --> F["GitLab 19.2.1&#x3C;br/>PostgreSQL 17"]
+  G["required stops"] --> A
+  G --> B
+  G --> C
+  G --> D
+  G --> E
+  H["备份与回滚点"] --> B
+  H --> C
+  H --> D
+  H --> E
+  H --> F
+</code></pre>
+<p>每个阶段都必须同时满足：版本路径正确、后台迁移完成、数据库版本受支持、回滚数据可用。</p>
+<h2 id="为什么必须升级但不能直接跨版本">为什么必须升级，但不能直接跨版本</h2>
+<p>继续运行 14.x 的问题不只是“版本旧”：</p>
+<ul>
+<li>安全更新和缺陷修复无法持续获得。</li>
+<li>新版 Runner、浏览器、Git 客户端和集成组件的兼容范围不断前移。</li>
+<li>老版本 PostgreSQL 和操作系统也会进入维护末期。</li>
+<li>后续想迁入 Kubernetes 时，旧配置、旧数据库和旧存储会一起成为阻碍。</li>
+</ul>
+<p>但 GitLab 的数据库结构变化很多，大版本之间还存在 Batched Background Migration。直接从 14.9 跳到 19.x，极易遇到缺失迁移类、表结构不匹配、数据库版本不支持或者加密配置无法解密。</p>
+<p>GitLab 官方要求经过特定的 required upgrade stops。每到一个停靠点，都要使用该 minor 的最新 patch，等待后台迁移全部结束，再进入下一站。</p>
+<p>本次实际验证的保守路径是：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>14.9.3</span></span>
+<span class="line"><span>→ 14.9.5</span></span>
+<span class="line"><span>→ 14.10.5</span></span>
+<span class="line"><span>→ 15.0.5</span></span>
+<span class="line"><span>→ 15.4.6</span></span>
+<span class="line"><span>→ 15.11.13</span></span>
+<span class="line"><span>→ 16.0.10</span></span>
+<span class="line"><span>→ 16.1.8</span></span>
+<span class="line"><span>→ 16.2.11</span></span>
+<span class="line"><span>→ 16.3.9</span></span>
+<span class="line"><span>→ 16.7.10</span></span>
+<span class="line"><span>→ 16.11.10</span></span>
+<span class="line"><span>→ 17.3.7</span></span>
+<span class="line"><span>→ 17.5.5</span></span>
+<span class="line"><span>→ 17.8.7</span></span>
+<span class="line"><span>→ 17.11.7</span></span>
+<span class="line"><span>→ 18.2.8</span></span>
+<span class="line"><span>→ 18.5.7</span></span>
+<span class="line"><span>→ 18.8.11</span></span>
+<span class="line"><span>→ 18.11.9</span></span>
+<span class="line"><span>→ 19.2.1</span></span></code></pre>
+<p>其中某些旧版本停靠点是条件性的。例如，本次在确认只有一个 Web 节点、相关业务表数据量不触发条件后，才跳过了不适用的停靠点。</p>
+<p>不要照抄结论。正确做法是把源版本、目标版本、实例规模和相关表数据输入 GitLab Upgrade Path 工具，再逐项阅读各版本 Upgrade Notes。</p>
+<h2 id="第-1-步先固定迁移基线">第 1 步：先固定迁移基线</h2>
+<p>开始前记录一组可重复查询的基线。后续每升级一站，都用相同脚本检查。</p>
+<p>至少包括：</p>
+<ul>
+<li>GitLab 版本。</li>
+<li>用户、组、项目、Merge Request、Pipeline 和 Job 数量。</li>
+<li>仓库总量和关键默认分支 tip。</li>
+<li>LFS、Upload、Artifact、Package 占用。</li>
+<li>PostgreSQL 版本、数据库大小和扩展。</li>
+<li>Sidekiq、Gitaly、Puma、Workhorse、GitLab Shell 状态。</li>
+<li>普通数据库迁移和批量后台迁移状态。</li>
+</ul>
+<p>示例：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">gitlab-rake</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> gitlab:env:info</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">gitlab-rake</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> gitlab:check</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> SANITIZE=</span><span style="color:#005CC5;--shiki-dark:#79B8FF">true</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">gitlab-rails</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> runner</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> '</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">puts({</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  users: User.count,</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  groups: Group.count,</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  projects: Project.count,</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  merge_requests: MergeRequest.count,</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  builds: Ci::Build.count</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">}.inspect)</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">'</span></span></code></pre>
+<p>只看 <code>gitlab:check</code> 不够。它能够发现常见的配置、权限和服务问题，却不能替代业务数据计数、仓库 refs 比对和真实 clone/push。</p>
+<h2 id="第-2-步备份不只是一个-tar-包">第 2 步：备份不只是一个 tar 包</h2>
+<p>GitLab 应用备份与配置备份是两套东西。应用备份包含数据库和业务文件，但 <code>/etc/gitlab/gitlab-secrets.json</code> 中保存着数据库加密密钥、CI/CD 变量、2FA 等敏感数据的解密能力。</p>
+<p>GitLab 官方也明确要求把配置和 Secret 单独保存在安全位置，参见 <a href="https://docs.gitlab.com/omnibus/settings/backups/">Backup</a> 和 <a href="https://docs.gitlab.com/administration/backup_restore/restore_gitlab/">Restore GitLab</a>。</p>
+<p>本次每个关键阶段至少保留：</p>
+<ol>
+<li>GitLab 应用备份。</li>
+<li>PostgreSQL 独立 dump。</li>
+<li><code>/etc/gitlab</code> 配置归档。</li>
+<li><code>gitlab-secrets.json</code>。</li>
+<li>SSH Host Key。</li>
+<li>备份文件大小和 SHA-256。</li>
+<li>当前 StatefulSet、Service、PV、PVC、Secret 和 ConfigMap 清单。</li>
+</ol>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">umask</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 077</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">gitlab-backup</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> create</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">gitlab-ctl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> backup-etc</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">tar</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -C</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /etc</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -czf</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /backup/ssh-host-keys.tar.gz</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ssh</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">sha256sum</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /backup/</span><span style="color:#005CC5;--shiki-dark:#79B8FF">*</span><span style="color:#D73A49;--shiki-dark:#F97583"> ></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /backup/SHA256SUMS</span></span></code></pre>
+<p>恢复演练必须使用相同 GitLab 版本。不能把 14.x 备份直接恢复进 19.x 容器。</p>
+<p>还有一个容易踩的坑：执行外部 PostgreSQL dump 时，<code>pg_dump</code> 客户端主版本不能低于服务端主版本。如果 GitLab 容器里自带的客户端过旧，应在 PostgreSQL Pod 或匹配版本的临时工具容器中生成 dump。</p>
+<h2 id="第-3-步先在-kubernetes-恢复同版本">第 3 步：先在 Kubernetes 恢复同版本</h2>
+<p>不要一边改变运行平台，一边跨多个 GitLab 大版本。第一步应先把 14.9.3 恢复进 Kubernetes，同版本通过验收后，再开始逐级升级。</p>
+<p>这次采用单副本 StatefulSet，核心设计如下：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">apiVersion</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">v1</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">kind</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">PersistentVolume</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">metadata</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  name</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">gitlab-data</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">spec</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  capacity</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    storage</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#x3C;capacity></span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  accessModes</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">ReadWriteOnce</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  persistentVolumeReclaimPolicy</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">Retain</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  storageClassName</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">gitlab-local</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  hostPath</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    path</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">/data/gitlab</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  nodeAffinity</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    required</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">      nodeSelectorTerms</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">        - </span><span style="color:#22863A;--shiki-dark:#85E89D">matchExpressions</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">            - </span><span style="color:#22863A;--shiki-dark:#85E89D">key</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">kubernetes.io/hostname</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">              operator</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">In</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">              values</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">gitlab-node</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span></code></pre>
+<p>StatefulSet 使用 <code>OnDelete</code>：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">apiVersion</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">apps/v1</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">kind</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">StatefulSet</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">metadata</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  name</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">gitlab</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">spec</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  replicas</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  updateStrategy</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    type</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">OnDelete</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  template</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">    spec</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">      nodeSelector</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">        app-type</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">gitlab</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">      tolerations</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">        - </span><span style="color:#22863A;--shiki-dark:#85E89D">key</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">app-type</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">          operator</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">Equal</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">          value</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">gitlab</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">          effect</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">NoSchedule</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">      terminationGracePeriodSeconds</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">300</span></span></code></pre>
+<p>使用 <code>OnDelete</code> 的目的不是偷懒，而是防止修改镜像后 StatefulSet 立刻滚动。运维人员必须先确认当前停靠点的后台迁移和备份完成，再显式删除 Pod 进入下一版本。</p>
+<p>PV 使用 <code>Retain</code> 同样重要。误删 StatefulSet 或 PVC 时，宿主机 <code>/data/gitlab</code> 不会跟着被回收。</p>
+<h2 id="第-4-步每个-gitlab-停靠点都执行同一套闸门">第 4 步：每个 GitLab 停靠点都执行同一套闸门</h2>
+<p>每一站的操作顺序固定为：</p>
+<ol>
+<li>确认前一版本所有迁移完成。</li>
+<li>创建当前版本回滚备份。</li>
+<li>把下一版本镜像同步到内部镜像仓库。</li>
+<li>记录镜像 digest，并在目标节点预拉取。</li>
+<li>修改 StatefulSet 镜像。</li>
+<li>显式删除 Pod。</li>
+<li>观察 <code>reconfigure</code>、数据库迁移、Puma、Sidekiq 和 Gitaly 日志。</li>
+<li>等待 Pod Ready。</li>
+<li>检查数据库迁移与后台迁移。</li>
+<li>执行 HTTP、SSH、核心计数和 <code>gitlab:check</code>。</li>
+</ol>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">namespac</span><span style="color:#24292E;--shiki-dark:#E1E4E8">e</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> set</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> image</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> statefulset/gitlab</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  gitlab=</span><span style="color:#D73A49;--shiki-dark:#F97583">&#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">registr</span><span style="color:#24292E;--shiki-dark:#E1E4E8">y</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#032F62;--shiki-dark:#9ECBFF">/gitlab-ce:</span><span style="color:#D73A49;--shiki-dark:#F97583">&#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">next-versio</span><span style="color:#24292E;--shiki-dark:#E1E4E8">n</span><span style="color:#D73A49;--shiki-dark:#F97583">></span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">namespac</span><span style="color:#24292E;--shiki-dark:#E1E4E8">e</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> delete</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> pod</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> gitlab-0</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">namespac</span><span style="color:#24292E;--shiki-dark:#E1E4E8">e</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> wait</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --for=condition=Ready</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  pod/gitlab-0</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --timeout=30m</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">namespac</span><span style="color:#24292E;--shiki-dark:#E1E4E8">e</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> exec</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> gitlab-0</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  gitlab-rake</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> gitlab:check</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> SANITIZE=</span><span style="color:#005CC5;--shiki-dark:#79B8FF">true</span></span></code></pre>
+<p>首次启动几分钟没有 Ready，不等于进程卡死。应同时检查：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">namespac</span><span style="color:#24292E;--shiki-dark:#E1E4E8">e</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> get</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> pod</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> gitlab-0</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -o</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> wide</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">namespac</span><span style="color:#24292E;--shiki-dark:#E1E4E8">e</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> describe</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> pod</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> gitlab-0</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">namespac</span><span style="color:#24292E;--shiki-dark:#E1E4E8">e</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> logs</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -f</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> gitlab-0</span></span></code></pre>
+<p>镜像拉取、Chef reconfigure、数据库锁、后台迁移、仓库校验和磁盘 IO 都可能让启动变慢。不要因为一个等待超时就并发启动多个 Rails Runner 或完整 checksum，它们会进一步放大磁盘竞争。</p>
+<h2 id="第-5-步正确识别-batched-background-migration">第 5 步：正确识别 Batched Background Migration</h2>
+<p>这是整个升级过程中最容易误判的地方。</p>
+<p>旧脚本曾使用：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="sql"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">WHERE</span><span style="color:#D73A49;--shiki-dark:#F97583"> status</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;></span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 3</span></span></code></pre>
+<p>GitLab 17 之后，<code>6</code> 表示 <code>finalized</code>。继续使用旧条件会把已经完成的迁移当成未完成，甚至调用当前版本已经不存在的迁移类。</p>
+<p>更稳妥的 SQL 是：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="sql"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">SELECT</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> id, job_class_name, table_name, </span><span style="color:#D73A49;--shiki-dark:#F97583">status</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">FROM</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> batched_background_migrations</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">WHERE</span><span style="color:#D73A49;--shiki-dark:#F97583"> status</span><span style="color:#D73A49;--shiki-dark:#F97583"> NOT</span><span style="color:#D73A49;--shiki-dark:#F97583"> IN</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> (</span><span style="color:#005CC5;--shiki-dark:#79B8FF">3</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">6</span><span style="color:#24292E;--shiki-dark:#E1E4E8">);</span></span></code></pre>
+<p>或者在对应版本 Rails 环境中使用模型提供的 scope：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">gitlab-rails</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> runner</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> '</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">puts Gitlab::Database::BackgroundMigration::BatchedMigration.unfinished.count</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">'</span></span></code></pre>
+<p>GitLab 新版本还提供了更完整的 Rake Task。官方文档要求进入下一停靠点前所有后台迁移都必须结束，参见 <a href="https://docs.gitlab.com/update/background_migrations/">Check migrations before upgrade</a>。</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">gitlab-rake</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> gitlab:background_migrations:list</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">gitlab-rake</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> gitlab:background_migrations:status</span></span></code></pre>
+<p>不要直接把失败迁移改成 finished。先检查父迁移、子任务、业务数据和当前版本实现。只有确认迁移逻辑对现存数据确实不适用，并且已经创建可恢复备份后，才考虑使用当前版本官方提供的 finalize/execute 任务。</p>
+<h2 id="第-6-步让-postgresql-升级节奏跟上-gitlab">第 6 步：让 PostgreSQL 升级节奏跟上 GitLab</h2>
+<p>GitLab 与 PostgreSQL 不能各自独立升级。本次采用以下节奏：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>阶段</th><th>GitLab</th><th>PostgreSQL 策略</th></tr></thead><tbody><tr><td>起点</td><td>14 / 15</td><td>保留 Omnibus 内置 PostgreSQL</td></tr><tr><td>中段</td><td>16</td><td>迁移到外部 PostgreSQL 14</td></tr><tr><td>进入 17 前</td><td>16.11</td><td>PostgreSQL 14 升到最新兼容小版本</td></tr><tr><td>进入 18 前</td><td>17.11</td><td>PostgreSQL 14 → 16</td></tr><tr><td>进入 19 前</td><td>18.11</td><td>PostgreSQL 16 → 17</td></tr><tr><td>终点</td><td>19.2</td><td>外部 PostgreSQL 17</td></tr></tbody></table>
+<p>GitLab 19 要求 PostgreSQL 17。官方支持矩阵见 <a href="https://docs.gitlab.com/install/requirements/">GitLab installation requirements</a>。</p>
+<p>外部数据库必须使用独立数据库、账号和 Secret：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="ruby"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">postgresql[</span><span style="color:#032F62;--shiki-dark:#9ECBFF">'enable'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">] </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> false</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">gitlab_rails[</span><span style="color:#032F62;--shiki-dark:#9ECBFF">'db_adapter'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">] </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'postgresql'</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">gitlab_rails[</span><span style="color:#032F62;--shiki-dark:#9ECBFF">'db_host'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">] </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'postgresql.&#x3C;namespace>.svc.cluster.local'</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">gitlab_rails[</span><span style="color:#032F62;--shiki-dark:#9ECBFF">'db_port'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">] </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 5432</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">gitlab_rails[</span><span style="color:#032F62;--shiki-dark:#9ECBFF">'db_database'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">] </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'gitlabhq_production'</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">gitlab_rails[</span><span style="color:#032F62;--shiki-dark:#9ECBFF">'db_username'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">] </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> 'gitlab'</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">gitlab_rails[</span><span style="color:#032F62;--shiki-dark:#9ECBFF">'db_password'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">] </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> File</span><span style="color:#24292E;--shiki-dark:#E1E4E8">.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">read</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">'/run/secrets/gitlab-db/password'</span><span style="color:#24292E;--shiki-dark:#E1E4E8">).</span><span style="color:#6F42C1;--shiki-dark:#B392F0">strip</span></span></code></pre>
+<p>PostgreSQL 大版本升级前先做 <code>pg_upgrade --check</code>：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">pg_upgrade</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --old-datadir=</span><span style="color:#D73A49;--shiki-dark:#F97583">&#x3C;</span><span style="color:#005CC5;--shiki-dark:#79B8FF">old-data</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --new-datadir=</span><span style="color:#D73A49;--shiki-dark:#F97583">&#x3C;</span><span style="color:#005CC5;--shiki-dark:#79B8FF">new-data</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --old-bindir=</span><span style="color:#D73A49;--shiki-dark:#F97583">&#x3C;</span><span style="color:#005CC5;--shiki-dark:#79B8FF">old-bin</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --new-bindir=</span><span style="color:#D73A49;--shiki-dark:#F97583">&#x3C;</span><span style="color:#005CC5;--shiki-dark:#79B8FF">new-bin</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --check</span></span></code></pre>
+<p>本次数据卷使用支持 reflink 的 XFS，因此实际升级采用 <code>--clone</code>，避免再复制一份完整数据库：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">pg_upgrade</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --old-datadir=</span><span style="color:#D73A49;--shiki-dark:#F97583">&#x3C;</span><span style="color:#005CC5;--shiki-dark:#79B8FF">old-data</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --new-datadir=</span><span style="color:#D73A49;--shiki-dark:#F97583">&#x3C;</span><span style="color:#005CC5;--shiki-dark:#79B8FF">new-data</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --old-bindir=</span><span style="color:#D73A49;--shiki-dark:#F97583">&#x3C;</span><span style="color:#005CC5;--shiki-dark:#79B8FF">old-bin</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --new-bindir=</span><span style="color:#D73A49;--shiki-dark:#F97583">&#x3C;</span><span style="color:#005CC5;--shiki-dark:#79B8FF">new-bin</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --clone</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --jobs=4</span></span></code></pre>
+<p><code>--clone</code> 不是备份。旧数据目录必须继续保留，直到 GitLab 最终版本、增量切流和业务验收全部完成。不要提前运行生成的 <code>delete_old_cluster.sh</code>。</p>
+<p>升级完成后更新优化器统计信息：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">vacuumdb</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --all</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --analyze-in-stages</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --jobs=4</span></span></code></pre>
+<p>然后从 GitLab Rails 内确认真实连接目标和数据库版本，而不是只看 PostgreSQL Pod 日志。</p>
+<h2 id="第-7-步处理几个真实的升级故障">第 7 步：处理几个真实的升级故障</h2>
+<h3 id="1-status--3-把-finalized-当成失败">1. <code>status &#x3C;> 3</code> 把 finalized 当成失败</h3>
+<p>原因是 GitLab 17 引入了新的迁移状态。修复不是“强制标记完成”，而是使用当前版本的 <code>unfinished</code> scope 或 <code>NOT IN (3, 6)</code>。</p>
+<h3 id="2-历史分区数据阻塞后台迁移">2. 历史分区数据阻塞后台迁移</h3>
+<p>某个后台任务处理历史通知数据时，发现记录时间早于现有月分区范围。此时不能伪造业务记录，也不能直接跳过。</p>
+<p>正确处理思路是：</p>
+<ol>
+<li>找到具体迁移和源记录。</li>
+<li>确认记录是否仍有有效业务关联。</li>
+<li>检查目标表分区边界。</li>
+<li>在停写和备份条件下为合法历史数据准备兜底分区。</li>
+<li>使用当前 GitLab 版本的官方任务重新执行或 finalize。</li>
+<li>再次检查未完成迁移数和数据完整性。</li>
+</ol>
+<h3 id="3-gitlab-19-首次启动因旧组件状态退出">3. GitLab 19 首次启动因旧组件状态退出</h3>
+<p>从 GitLab 18 进入 19 时，第一次 reconfigure 检测到历史组件遗留状态并退出。没有立即手工删除整个 Secret，而是先保留备份，确认新版本会重新生成不再需要的配置块，再启动一次。随后 schema migration 正常完成。</p>
+<p>这类问题必须区分：</p>
+<ul>
+<li>配置确实已被新版本移除。</li>
+<li>Secret 丢失或损坏。</li>
+<li>数据库中的加密值无法解密。</li>
+</ul>
+<p>三种情况的处理方式完全不同。</p>
+<h3 id="4-最终版本完整备份可能挤爆磁盘">4. 最终版本完整备份可能挤爆磁盘</h3>
+<p>迁移末期磁盘剩余空间不足以再暂存一份完整仓库归档。最终版本只创建数据库保护备份，同时继续保留上一关键版本已经校验过的完整备份、仓库数据卷和配置归档。</p>
+<p>这是一种受控取舍，但前提是清楚记录“哪一个备份包含数据库，哪一个包含仓库”，不能把 database-only 备份误当成完整恢复点。</p>
+<h2 id="第-8-步为什么升级完成后仍不能立刻切流">第 8 步：为什么升级完成后仍不能立刻切流</h2>
+<p>初始备份只是一个时间点。升级期间旧 GitLab 如果仍对开发者开放，就会继续产生 push、权限修改、CI 变量、Merge Request 和构建记录。</p>
+<p>因此最终切流前必须做增量审计。</p>
+<p>先冻结旧实例：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">gitlab-ctl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> stop</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> nginx</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">gitlab-ctl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> stop</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> gitlab-workhorse</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">gitlab-ctl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> stop</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> puma</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">gitlab-ctl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> stop</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> sidekiq</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">gitlab-ctl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> stop</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> gitlab-kas</span></span></code></pre>
+<p>同时禁止 <code>git</code> 用户继续通过 SSH 写入，但保留运维 root 通道。冻结后比较新旧两边：</p>
+<ul>
+<li>用户、组、项目、MR、CI Job 等核心计数。</li>
+<li>最新 Project/Event 时间。</li>
+<li>默认分支和活跃分支 tip。</li>
+<li>LFS、Artifact、Upload、Package 是否有增量。</li>
+<li>GitLab 审计/事件记录。</li>
+</ul>
+<p>本次数据库对象计数没有新增，但发现数百条 push 事件，涉及十余个仓库。这说明只同步数据库或只比较项目数量都会漏数据。</p>
+<h2 id="第-9-步只同步发生变化的仓库">第 9 步：只同步发生变化的仓库</h2>
+<p>先从事件和项目时间定位变更仓库，再同步对应的 hashed repository 目录。不要在不了解差异时对整个仓库目录执行 <code>rsync --delete</code>。</p>
+<p>同步后至少完成三层校验。</p>
+<h3 id="文件所有权">文件所有权</h3>
+<p>不同 GitLab 镜像中的 <code>git</code> UID/GID 可能不同。使用 <code>rsync --numeric-ids</code> 会把旧 UID 原样带过来，导致目标 Gitaly 无权访问。</p>
+<p>同步后以目标容器实际 UID/GID 修复，而不是复制旧数字：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">chown</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -R</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">target-git-ui</span><span style="color:#24292E;--shiki-dark:#E1E4E8">d</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#032F62;--shiki-dark:#9ECBFF">:</span><span style="color:#D73A49;--shiki-dark:#F97583">&#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">target-git-gi</span><span style="color:#24292E;--shiki-dark:#E1E4E8">d</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">affected-repositor</span><span style="color:#24292E;--shiki-dark:#E1E4E8">y</span><span style="color:#D73A49;--shiki-dark:#F97583">></span></span></code></pre>
+<h3 id="refs-完全一致">refs 完全一致</h3>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">git</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -C</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">source-repositor</span><span style="color:#24292E;--shiki-dark:#E1E4E8">y</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> for-each-ref</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --format=</span><span style="color:#032F62;--shiki-dark:#9ECBFF">'%(refname) %(objectname)'</span><span style="color:#D73A49;--shiki-dark:#F97583"> |</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> sort</span><span style="color:#D73A49;--shiki-dark:#F97583"> ></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> source.refs</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">git</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -C</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">target-repositor</span><span style="color:#24292E;--shiki-dark:#E1E4E8">y</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> for-each-ref</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  --format=</span><span style="color:#032F62;--shiki-dark:#9ECBFF">'%(refname) %(objectname)'</span><span style="color:#D73A49;--shiki-dark:#F97583"> |</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> sort</span><span style="color:#D73A49;--shiki-dark:#F97583"> ></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> target.refs</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">diff</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -u</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> source.refs</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> target.refs</span></span></code></pre>
+<h3 id="对象完整性">对象完整性</h3>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">git</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -C</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">target-repositor</span><span style="color:#24292E;--shiki-dark:#E1E4E8">y</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> fsck</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --no-dangling</span></span></code></pre>
+<p>旧 commit-graph 缓存可能引用已经不存在的对象。不要删除 Git 对象来“修复”，而是先保留旧缓存目录，再从当前可达 refs 重建 commit-graph。</p>
+<p>最后更新项目活动时间并清理 Rails Cache，避免首页仍显示初始备份时刻。</p>
+<h2 id="第-10-步保留原-ip同时让节点名与-ip-一致">第 10 步：保留原 IP，同时让节点名与 IP 一致</h2>
+<p>为了不批量修改开发机、Jenkins 和历史仓库地址，最终继续使用原 GitLab 服务 IP。</p>
+<p>切换过程是：</p>
+<ol>
+<li>GitLab StatefulSet 缩容到 0。</li>
+<li>确认旧服务器已经停写并关机，原 IP 不再响应。</li>
+<li>把目标 Kubernetes 节点主机名和管理 IP 改成最终值。</li>
+<li>执行 <code>kubeadm reset</code> 后以新节点名重新加入集群。</li>
+<li>恢复 GitLab 专用标签与污点。</li>
+<li>重新绑定本地 PV。</li>
+<li>StatefulSet 扩容到 1。</li>
+<li>验证 HTTP、SSH、Gitaly、数据库和仓库。</li>
+</ol>
+<pre><code class="language-mermaid">sequenceDiagram
+  participant Old as 旧 GitLab
+  participant API as Kubernetes API
+  participant Node as 新 GitLab 节点
+  participant GitLab as GitLab 19
+
+  Old->>Old: 冻结 HTTP / SSH Git 写入
+  Old->>Node: 同步最终仓库增量
+  Old->>Old: 关机并释放服务 IP
+  Node->>Node: 修改 hostname 与静态 IP
+  Node->>API: kubeadm join --node-name &#x3C;final-node>
+  API->>Node: 恢复 label / taint
+  API->>GitLab: 绑定 PV 并启动 StatefulSet
+  GitLab->>GitLab: HTTP、SSH、数据库、仓库验收
+</code></pre>
+<p>这里有一个 Kubernetes 陷阱：PV 的 <code>nodeAffinity</code> 是不可变字段。节点改名后不能直接 patch。</p>
+<p>正确做法是：</p>
+<ol>
+<li>GitLab Pod 保持停止。</li>
+<li>确认 PV 回收策略为 <code>Retain</code>。</li>
+<li>删除 PVC/PV <strong>对象</strong>。</li>
+<li>保留宿主机 <code>/data/gitlab</code> 实际目录。</li>
+<li>使用新节点名重建 PV/PVC，并指向同一目录。</li>
+<li>等 PVC <code>Bound</code> 后再启动 GitLab。</li>
+</ol>
+<p>这一步删除的是 Kubernetes 元数据，不是仓库数据。操作前必须再次检查 Pod 已停止、路径正确、回收策略正确。</p>
+<p>旧服务器不能带着原 IP 直接再次开机。应在虚拟化平台先断开虚拟网卡，从控制台重装或修改成已经释放的其他地址，再连接网络，否则会产生 IP 冲突。</p>
+<h2 id="第-11-步最终验收不要只看-pod-ready">第 11 步：最终验收不要只看 Pod Ready</h2>
+<p>最终验收分成六层。</p>
+<h3 id="kubernetes-层">Kubernetes 层</h3>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> get</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> node</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">gitlab-nod</span><span style="color:#24292E;--shiki-dark:#E1E4E8">e</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -o</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> wide</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">namespac</span><span style="color:#24292E;--shiki-dark:#E1E4E8">e</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> get</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> pod</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> gitlab-0</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -o</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> wide</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#D73A49;--shiki-dark:#F97583"> &#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">namespac</span><span style="color:#24292E;--shiki-dark:#E1E4E8">e</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#032F62;--shiki-dark:#9ECBFF"> get</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> pvc</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">kubectl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> get</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> pv</span></span></code></pre>
+<p>确认：</p>
+<ul>
+<li>节点名、InternalIP 和主机名一致。</li>
+<li>Pod 在预期节点运行且没有重启。</li>
+<li>PVC 为 <code>Bound</code>。</li>
+<li>PV 为 <code>Retain</code>，nodeAffinity 指向最终节点。</li>
+</ul>
+<h3 id="gitlab-服务层">GitLab 服务层</h3>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">gitlab-ctl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> status</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">gitlab-rake</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> gitlab:check</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> SANITIZE=</span><span style="color:#005CC5;--shiki-dark:#79B8FF">true</span></span></code></pre>
+<p>检查 GitLab Shell、Gitaly、Sidekiq、Redis、数据库迁移、Uploads 权限和 hashed storage。</p>
+<h3 id="数据库层">数据库层</h3>
+<ul>
+<li>核心对象计数与冻结源一致。</li>
+<li>PostgreSQL 为目标版本。</li>
+<li>所有 schema migration 已完成。</li>
+<li>Batched Background Migration 未完成数为 0。</li>
+<li><code>gitlab:doctor:secrets</code> 能够解密关键数据。</li>
+</ul>
+<h3 id="仓库层">仓库层</h3>
+<ul>
+<li>所有发生增量的仓库 refs 完全一致。</li>
+<li><code>git fsck --no-dangling</code> 通过。</li>
+<li>抽样执行 clone、fetch、push、merge。</li>
+</ul>
+<h3 id="http-与-ssh-层">HTTP 与 SSH 层</h3>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">curl</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -fsS</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> http://</span><span style="color:#D73A49;--shiki-dark:#F97583">&#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">gitlab-hos</span><span style="color:#24292E;--shiki-dark:#E1E4E8">t</span><span style="color:#D73A49;--shiki-dark:#F97583">></span><span style="color:#032F62;--shiki-dark:#9ECBFF">/users/sign_in</span><span style="color:#D73A49;--shiki-dark:#F97583"> ></span><span style="color:#032F62;--shiki-dark:#9ECBFF">/dev/null</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">ssh</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -T</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> git@</span><span style="color:#D73A49;--shiki-dark:#F97583">&#x3C;</span><span style="color:#032F62;--shiki-dark:#9ECBFF">gitlab-hos</span><span style="color:#24292E;--shiki-dark:#E1E4E8">t</span><span style="color:#D73A49;--shiki-dark:#F97583">></span></span></code></pre>
+<h3 id="真实业务层">真实业务层</h3>
+<ul>
+<li>Jenkins 能拉取源码并提交状态。</li>
+<li>Webhook 能正常投递。</li>
+<li>Runner 能领取任务。</li>
+<li>CI/CD 变量可以解密。</li>
+<li>用户登录、2FA、Personal Access Token 正常。</li>
+</ul>
+<p>只有六层全部通过，才算迁移完成。</p>
+<h2 id="回滚策略">回滚策略</h2>
+<p>最终切流后不要立刻删除旧服务器、旧 PostgreSQL 目录和中间版本镜像。</p>
+<p>建议至少保留：</p>
+<ul>
+<li>旧 GitLab 虚拟机，保持关机和断网。</li>
+<li>最后一个已验证完整 GitLab 备份。</li>
+<li>每个关键大版本的数据库 dump 与配置归档。</li>
+<li>PostgreSQL 旧数据目录。</li>
+<li>GitLab 18 的最终完整恢复点。</li>
+<li>GitLab 19 的数据库保护备份。</li>
+<li>实际使用过的 GitLab/PostgreSQL 镜像及 digest。</li>
+<li>最终增量仓库清单和 refs 校验结果。</li>
+</ul>
+<p>回滚也分层：</p>
+<ol>
+<li>入口异常但数据正常：切回旧入口。</li>
+<li>GitLab Pod 异常：恢复前一个镜像和对应数据库状态。</li>
+<li>PostgreSQL 异常：切回保留的旧数据目录。</li>
+<li>数据完整性异常：关闭新实例写入，恢复最后完整备份，并重新计算增量。</li>
+</ol>
+<p>任何回滚都要避免让新旧两边同时接受写入。</p>
+<h2 id="这次升级最重要的经验">这次升级最重要的经验</h2>
+<h3 id="1-gitlab-升级的最小单位不是镜像而是版本--数据库--后台迁移">1. GitLab 升级的最小单位不是镜像，而是“版本 + 数据库 + 后台迁移”</h3>
+<p>Pod Ready 只表示进程通过探针。真正的停靠点完成条件是：版本正确、数据库受支持、普通迁移完成、后台迁移完成、备份可恢复、真实请求通过。</p>
+<h3 id="2-迁入-kubernetes-不等于高可用">2. 迁入 Kubernetes 不等于高可用</h3>
+<p>单副本 GitLab 加本地 PV 仍然是单节点有状态服务。Kubernetes 提供的是声明式部署、探针、调度、资源限制和统一运维入口，不会自动把本地存储变成高可用。</p>
+<h3 id="3-初始恢复成功不代表可以切流">3. 初始恢复成功不代表可以切流</h3>
+<p>只要旧实例还开放，就必须把最终增量分成数据库对象、Git 仓库、LFS/Artifact/Upload 和配置四类分别核对。</p>
+<h3 id="4-保留原-ip-能减少客户端改动但必须处理节点身份">4. 保留原 IP 能减少客户端改动，但必须处理节点身份</h3>
+<p>IP、主机名、Kubernetes Node 名和 PV nodeAffinity 最好保持一致。否则半年后排查问题时，很难解释为什么某个地址对应另一个节点名。</p>
+<h3 id="5-不要提前清理回滚点">5. 不要提前清理回滚点</h3>
+<p>迁移最危险的清理动作往往看起来最合理：删除旧 PostgreSQL 目录、释放旧 VM、清空中间镜像、删除完整备份。等完整业务验收和观察期结束后再做。</p>
+<h2 id="结语">结语</h2>
+<p>从 GitLab 14.9.3 升级到 19.2.1，真正耗时的不是下载二十个镜像，而是每一站都愿意停下来验证。</p>
+<p>一条可靠的迁移路径可以归纳为：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>盘点</span></span>
+<span class="line"><span>→ 同版本恢复</span></span>
+<span class="line"><span>→ required stops</span></span>
+<span class="line"><span>→ 每站清空后台迁移</span></span>
+<span class="line"><span>→ PostgreSQL 分阶段升级</span></span>
+<span class="line"><span>→ 每站创建回滚点</span></span>
+<span class="line"><span>→ 冻结旧实例</span></span>
+<span class="line"><span>→ 同步最终增量</span></span>
+<span class="line"><span>→ refs 与对象校验</span></span>
+<span class="line"><span>→ 保留原入口切流</span></span>
+<span class="line"><span>→ 六层验收</span></span>
+<span class="line"><span>→ 观察期后再清理</span></span></code></pre>
+<p>越是跨度大的基础设施升级，越不能依赖“一次成功启动”的运气。把每个阶段变成有输入、有输出、有验收、有回滚的独立步骤，升级才真正可控。</p>
+<p>延伸阅读：<a href="/kubernetes/kubeadm-cluster-rebuild-migration-retrospective">从零搭建 Kubernetes v1.36.3：Rocky Linux 与 kubeadm 完整教程</a>。</p> </div> <aside class="table-of-contents" aria-label="文章目录" data-pagefind-ignore> <p>ON THIS PAGE</p> <ol> <li> <a href="#为什么必须升级但不能直接跨版本" data-analytics-event="toc_click" data-analytics-target="为什么必须升级但不能直接跨版本"> 为什么必须升级，但不能直接跨版本 </a> </li><li> <a href="#第-1-步先固定迁移基线" data-analytics-event="toc_click" data-analytics-target="第-1-步先固定迁移基线"> 第 1 步：先固定迁移基线 </a> </li><li> <a href="#第-2-步备份不只是一个-tar-包" data-analytics-event="toc_click" data-analytics-target="第-2-步备份不只是一个-tar-包"> 第 2 步：备份不只是一个 tar 包 </a> </li><li> <a href="#第-3-步先在-kubernetes-恢复同版本" data-analytics-event="toc_click" data-analytics-target="第-3-步先在-kubernetes-恢复同版本"> 第 3 步：先在 Kubernetes 恢复同版本 </a> </li><li> <a href="#第-4-步每个-gitlab-停靠点都执行同一套闸门" data-analytics-event="toc_click" data-analytics-target="第-4-步每个-gitlab-停靠点都执行同一套闸门"> 第 4 步：每个 GitLab 停靠点都执行同一套闸门 </a> </li><li> <a href="#第-5-步正确识别-batched-background-migration" data-analytics-event="toc_click" data-analytics-target="第-5-步正确识别-batched-background-migration"> 第 5 步：正确识别 Batched Background Migration </a> </li><li> <a href="#第-6-步让-postgresql-升级节奏跟上-gitlab" data-analytics-event="toc_click" data-analytics-target="第-6-步让-postgresql-升级节奏跟上-gitlab"> 第 6 步：让 PostgreSQL 升级节奏跟上 GitLab </a> </li><li> <a href="#第-7-步处理几个真实的升级故障" data-analytics-event="toc_click" data-analytics-target="第-7-步处理几个真实的升级故障"> 第 7 步：处理几个真实的升级故障 </a> </li><li class="nested"> <a href="#1-status--3-把-finalized-当成失败" data-analytics-event="toc_click" data-analytics-target="1-status--3-把-finalized-当成失败"> 1. status &lt;&gt; 3 把 finalized 当成失败 </a> </li><li class="nested"> <a href="#2-历史分区数据阻塞后台迁移" data-analytics-event="toc_click" data-analytics-target="2-历史分区数据阻塞后台迁移"> 2. 历史分区数据阻塞后台迁移 </a> </li><li class="nested"> <a href="#3-gitlab-19-首次启动因旧组件状态退出" data-analytics-event="toc_click" data-analytics-target="3-gitlab-19-首次启动因旧组件状态退出"> 3. GitLab 19 首次启动因旧组件状态退出 </a> </li><li class="nested"> <a href="#4-最终版本完整备份可能挤爆磁盘" data-analytics-event="toc_click" data-analytics-target="4-最终版本完整备份可能挤爆磁盘"> 4. 最终版本完整备份可能挤爆磁盘 </a> </li><li> <a href="#第-8-步为什么升级完成后仍不能立刻切流" data-analytics-event="toc_click" data-analytics-target="第-8-步为什么升级完成后仍不能立刻切流"> 第 8 步：为什么升级完成后仍不能立刻切流 </a> </li><li> <a href="#第-9-步只同步发生变化的仓库" data-analytics-event="toc_click" data-analytics-target="第-9-步只同步发生变化的仓库"> 第 9 步：只同步发生变化的仓库 </a> </li><li class="nested"> <a href="#文件所有权" data-analytics-event="toc_click" data-analytics-target="文件所有权"> 文件所有权 </a> </li><li class="nested"> <a href="#refs-完全一致" data-analytics-event="toc_click" data-analytics-target="refs-完全一致"> refs 完全一致 </a> </li><li class="nested"> <a href="#对象完整性" data-analytics-event="toc_click" data-analytics-target="对象完整性"> 对象完整性 </a> </li><li> <a href="#第-10-步保留原-ip同时让节点名与-ip-一致" data-analytics-event="toc_click" data-analytics-target="第-10-步保留原-ip同时让节点名与-ip-一致"> 第 10 步：保留原 IP，同时让节点名与 IP 一致 </a> </li><li> <a href="#第-11-步最终验收不要只看-pod-ready" data-analytics-event="toc_click" data-analytics-target="第-11-步最终验收不要只看-pod-ready"> 第 11 步：最终验收不要只看 Pod Ready </a> </li><li class="nested"> <a href="#kubernetes-层" data-analytics-event="toc_click" data-analytics-target="kubernetes-层"> Kubernetes 层 </a> </li><li class="nested"> <a href="#gitlab-服务层" data-analytics-event="toc_click" data-analytics-target="gitlab-服务层"> GitLab 服务层 </a> </li><li class="nested"> <a href="#数据库层" data-analytics-event="toc_click" data-analytics-target="数据库层"> 数据库层 </a> </li><li class="nested"> <a href="#仓库层" data-analytics-event="toc_click" data-analytics-target="仓库层"> 仓库层 </a> </li><li class="nested"> <a href="#http-与-ssh-层" data-analytics-event="toc_click" data-analytics-target="http-与-ssh-层"> HTTP 与 SSH 层 </a> </li><li class="nested"> <a href="#真实业务层" data-analytics-event="toc_click" data-analytics-target="真实业务层"> 真实业务层 </a> </li><li> <a href="#回滚策略" data-analytics-event="toc_click" data-analytics-target="回滚策略"> 回滚策略 </a> </li><li> <a href="#这次升级最重要的经验" data-analytics-event="toc_click" data-analytics-target="这次升级最重要的经验"> 这次升级最重要的经验 </a> </li><li class="nested"> <a href="#1-gitlab-升级的最小单位不是镜像而是版本--数据库--后台迁移" data-analytics-event="toc_click" data-analytics-target="1-gitlab-升级的最小单位不是镜像而是版本--数据库--后台迁移"> 1. GitLab 升级的最小单位不是镜像，而是“版本 + 数据库 + 后台迁移” </a> </li><li class="nested"> <a href="#2-迁入-kubernetes-不等于高可用" data-analytics-event="toc_click" data-analytics-target="2-迁入-kubernetes-不等于高可用"> 2. 迁入 Kubernetes 不等于高可用 </a> </li><li class="nested"> <a href="#3-初始恢复成功不代表可以切流" data-analytics-event="toc_click" data-analytics-target="3-初始恢复成功不代表可以切流"> 3. 初始恢复成功不代表可以切流 </a> </li><li class="nested"> <a href="#4-保留原-ip-能减少客户端改动但必须处理节点身份" data-analytics-event="toc_click" data-analytics-target="4-保留原-ip-能减少客户端改动但必须处理节点身份"> 4. 保留原 IP 能减少客户端改动，但必须处理节点身份 </a> </li><li class="nested"> <a href="#5-不要提前清理回滚点" data-analytics-event="toc_click" data-analytics-target="5-不要提前清理回滚点"> 5. 不要提前清理回滚点 </a> </li><li> <a href="#结语" data-analytics-event="toc_click" data-analytics-target="结语"> 结语 </a> </li> </ol> </aside> </div> <script type="module" src="/_astro/MermaidEnhancer.astro_astro_type_script_index_0_lang.DnWaDEwA.js"></script> <dialog class="image-lightbox" data-image-lightbox data-locale="zh-CN" aria-labelledby="lightbox-caption"> <div class="image-lightbox-inner"> <button type="button" class="image-lightbox-close" aria-label="关闭图片预览">
+×
+</button> <img alt="" decoding="async"> <p id="lightbox-caption" hidden></p> </div> </dialog> <script type="module" src="/_astro/ImageLightbox.astro_astro_type_script_index_0_lang.Db8U22Iw.js"></script> <div class="reading-progress" aria-hidden="true"><span></span></div> <div class="article-actions" data-reading-tools data-locale="zh-CN" data-title="从 GitLab CE 14.9.3 平滑升级到 19.2.1：Kubernetes、PostgreSQL 17 与增量切流实战" data-href="https://lucaslz.com/gitlab/gitlab-14-to-19-kubernetes-postgresql-cutover/"> <button type="button" data-share aria-label="分享"> 分享 </button> <button type="button" data-copy-link aria-label="复制链接"> 复制链接 </button> <button type="button" data-bookmark aria-label="收藏" aria-pressed="false"> 收藏 </button> </div> <button class="back-to-top" type="button" aria-label="返回顶部" hidden>↑</button> <div class="reading-toast" role="status" aria-live="polite"></div> <script type="module" src="/_astro/ReadingTools.astro_astro_type_script_index_0_lang.CXpXB1Lm.js"></script> <footer class="post-footer page-shell narrow-shell" data-pagefind-ignore> <div class="post-end-mark"><span>END</span></div> <p>感谢阅读。你可以分享、收藏，或在下方参与讨论。</p> <section class="related-posts" aria-labelledby="related-title"> <div class="related-heading"> <span>CONTINUE READING</span> <h2 id="related-title">相关文章</h2> </div> <div class="related-grid"> <article class="article-card compact"> <a class="article-card-link" href="/nexus/nexus2-to-nexus3-kubernetes-postgresql/" data-analytics-event="article_click" data-analytics-impression="article_impression" data-analytics-target="/nexus/nexus2-to-nexus3-kubernetes-postgresql/"> <div class="article-card-top"> <span class="article-index">01</span> <span class="article-date">2026.07.12</span> </div> <h3>从 Nexus Repository 2 平滑迁移到 Nexus 3：Kubernetes、PostgreSQL 与 VIP 切换</h3> <p>记录 Nexus2 到 Nexus3 的完整迁移路径：官方升级向导、H2 版本升级、PostgreSQL 数据迁移、Kubernetes StatefulSet、旧路径兼容与 VIP 回滚。</p> <div class="article-card-bottom"> <div class="article-tags"> <span data-href="/tags/nexus/">
+#Nexus </span><span data-href="/tags/kubernetes/">
+#Kubernetes </span><span data-href="/tags/postgresql/">
+#PostgreSQL </span> </div> <span class="read-time">12 min <b>↗</b></span> </div> </a> </article><article class="article-card compact"> <a class="article-card-link" href="/nexus/nexus3-kubernetes-cutover-runbook/" data-analytics-event="article_click" data-analytics-impression="article_impression" data-analytics-target="/nexus/nexus3-kubernetes-cutover-runbook/"> <div class="article-card-top"> <span class="article-index">02</span> <span class="article-date">2026.08.05</span> </div> <h3>Nexus3 Kubernetes 迁移 Runbook：H2、PostgreSQL、探针与无感切换</h3> <p>将 Nexus2 到 Nexus3 的迁移拆成可执行 Kubernetes Runbook，覆盖资源创建、Upgrade Wizard、H2 升级、Database Migrator、验证和 VIP 回滚。</p> <div class="article-card-bottom"> <div class="article-tags"> <span data-href="/tags/nexus/">
+#Nexus </span><span data-href="/tags/kubernetes/">
+#Kubernetes </span><span data-href="/tags/runbook/">
+#Runbook </span> </div> <span class="read-time">9 min <b>↗</b></span> </div> </a> </article><article class="article-card compact"> <a class="article-card-link" href="/nexus/nexus3-kubernetes-deployment/" data-analytics-event="article_click" data-analytics-impression="article_impression" data-analytics-target="/nexus/nexus3-kubernetes-deployment/"> <div class="article-card-top"> <span class="article-index">03</span> <span class="article-date">2026.07.11</span> </div> <h3>在 Kubernetes 从零部署 Nexus Repository 3：PostgreSQL、PVC 与 Ingress</h3> <p>从命名空间、PostgreSQL、Secret、PVC、StatefulSet、Service 和 Ingress 开始，逐步部署可持久化、可备份、可升级的 Nexus Repository 3。</p> <div class="article-card-bottom"> <div class="article-tags"> <span data-href="/tags/nexus/">
+#Nexus </span><span data-href="/tags/kubernetes/">
+#Kubernetes </span><span data-href="/tags/postgresql/">
+#PostgreSQL </span> </div> <span class="read-time">9 min <b>↗</b></span> </div> </a> </article> </div> </section> <div class="post-navigation"> <a href="/java/spring-boot-3-container-startup-compatibility-postmortem/" class="previous-post" data-analytics-event="article_click" data-analytics-target="/java/spring-boot-3-container-startup-compatibility-postmortem/">  <small>← 上一篇</small> <strong>Spring Boot 3 容器启动异常复盘：目录、废弃属性、日志桥与可选驱动</strong>  </a> <a href="/kubernetes/zookeeper-kubernetes-memory-rightsizing/" class="next-post" data-analytics-event="article_click" data-analytics-target="/kubernetes/zookeeper-kubernetes-memory-rightsizing/">  <small>下一篇 →</small> <strong>ZooKeeper 每个 Pod 接近 2G：从固定堆到 Kubernetes 资源收缩</strong>  </a> </div> </footer> </article> <div class="page-shell narrow-shell" data-pagefind-ignore> <section class="comments-section" aria-labelledby="comments-title" data-giscus-comments data-repo="lucaslz2020/lucasleelz.github.io" data-repo-id="MDEwOlJlcG9zaXRvcnkyNzcxNjkwNw==" data-category="Announcements" data-category-id="DIC_kwDOAabtK84DCw-x" data-discussion-path="/gitlab/gitlab-14-to-19-kubernetes-postgresql-cutover/" data-giscus-language="zh-CN"> <div class="comments-heading"> <p class="eyebrow"> <span></span>
+DISCUSSION
+</p> <h2 id="comments-title">讨论与反馈</h2> </div> <div class="giscus" aria-live="polite"></div> </section> <script type="module">var e=()=>document.documentElement.dataset.theme===`dark`?`noborder_dark`:`noborder_light`,t=t=>{if(t.dataset.loaded===`true`)return;let n=t.querySelector(`.giscus`);if(!n)return;let r=document.createElement(`script`);r.src=`https://giscus.app/client.js`,r.async=!0,r.crossOrigin=`anonymous`,r.dataset.repo=t.dataset.repo??``,r.dataset.repoId=t.dataset.repoId??``,r.dataset.category=t.dataset.category??``,r.dataset.categoryId=t.dataset.categoryId??``,r.dataset.mapping=`specific`,r.dataset.term=t.dataset.discussionPath??window.location.pathname,r.dataset.strict=`1`,r.dataset.reactionsEnabled=`1`,r.dataset.emitMetadata=`0`,r.dataset.inputPosition=`top`,r.dataset.theme=e(),r.dataset.lang=t.dataset.giscusLanguage??`zh-CN`,r.dataset.loading=`lazy`,t.dataset.loaded=`true`,n.append(r)},n=document.querySelector(`[data-giscus-comments]`);if(n){if(`IntersectionObserver`in window){let e=new IntersectionObserver(r=>{r.some(e=>e.isIntersecting)&&(t(n),e.disconnect())},{rootMargin:`500px 0px`});e.observe(n)}else t(n)}window.addEventListener(`theme-change`,()=>{document.querySelector(`iframe.giscus-frame`)?.contentWindow?.postMessage({giscus:{setConfig:{theme:e()}}},`https://giscus.app`)});</script> </div>  </main> <footer class="site-footer"> <div class="footer-inner"> <div class="footer-brand"> <img class="brand-mark" src="/brand/avatar.svg" alt="" width="42" height="42" loading="lazy" decoding="async"> <div> <strong>lucaslz</strong> <p>关于软件工程、Web、Java 与持续学习的长期技术笔记。</p> </div> </div> <div class="footer-links"> <a href="/rss.xml">RSS</a> <a href="/archive/">归档</a> <a href="/tags/">标签</a> <a href="https://github.com/lucaslz2020" target="_blank" rel="noreferrer">GitHub</a> </div> </div> <div class="footer-bottom"> <span>© 2013 ~ 2026 lucaslz</span> <span>Built with Astro + React · Deployed on Cloudflare Pages</span> </div> </footer> <script type="module" src="/_astro/Analytics.astro_astro_type_script_index_0_lang.EOcdV3vz.js"></script> <aside class="pwa-notice" data-pwa-notice data-locale="zh-CN" data-mode="status" aria-label="应用状态" aria-live="polite" aria-atomic="true" hidden> <span class="pwa-notice-icon" data-pwa-icon aria-hidden="true">↧</span> <p> <strong data-pwa-title>离线阅读已就绪</strong> <small data-pwa-message>访问过的文章可以在断网时继续阅读。</small> </p> <div class="pwa-notice-actions"> <button type="button" data-pwa-action hidden> 立即安装 </button> <button type="button" data-pwa-dismiss>知道了</button> </div> </aside> <script type="module" src="/_astro/Pwa.astro_astro_type_script_index_0_lang.goX2jG5I.js"></script> </body> </html>
