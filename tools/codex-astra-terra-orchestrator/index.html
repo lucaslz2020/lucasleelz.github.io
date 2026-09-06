@@ -1,0 +1,236 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light" data-locale="zh-CN"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="generator" content="Astro v7.2.0"><meta name="author" content="lucaslz"><meta name="theme-color" content="#f5f1e8" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)"><meta name="description" content="从一次真实项目接入出发，整理 Codex 按需多代理方案：Astra 负责设计与审查，Terra 执行局部任务，明确触发、限制并发、保全工作区，并区分配置加载与实际模型的验证证据。附可复用的开源配置。"><meta name="google-site-verification" content="o_QOQN3-adA79KPRfqy1wAj9zviE8hyD5jvfdQEMVco"><meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"><meta name="keywords" content="Codex, AI 编程, 多代理协作, 开源, Codex 多代理, Astra Terra, Codex skills, AGENTS.md, 子代理, 按需协作"><link rel="canonical" href="https://lucaslz.com/tools/codex-astra-terra-orchestrator/"><link rel="alternate" hreflang="zh-CN" href="https://lucaslz.com/tools/codex-astra-terra-orchestrator/"><link rel="alternate" hreflang="x-default" href="https://lucaslz.com/tools/codex-astra-terra-orchestrator/"><link rel="author" href="https://github.com/lucaslz2020"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon.ico" sizes="any"><link rel="apple-touch-icon" href="/icons/apple-touch-icon.png"><link rel="alternate" type="application/rss+xml" title="lucaslz · 工程笔记" href="/rss.xml"><link rel="manifest" href="/site.webmanifest"><title>让 Codex 按需协作：Astra 统筹、Terra 执行的项目级多代理配置 · lucaslz</title><meta property="og:type" content="article"><meta property="og:site_name" content="lucaslz · 工程笔记"><meta property="og:title" content="让 Codex 按需协作：Astra 统筹、Terra 执行的项目级多代理配置 · lucaslz"><meta property="og:description" content="从一次真实项目接入出发，整理 Codex 按需多代理方案：Astra 负责设计与审查，Terra 执行局部任务，明确触发、限制并发、保全工作区，并区分配置加载与实际模型的验证证据。附可复用的开源配置。"><meta property="og:url" content="https://lucaslz.com/tools/codex-astra-terra-orchestrator/"><meta property="og:image" content="https://lucaslz.com/og/tools/codex-astra-terra-orchestrator.png"><meta property="og:image:type" content="image/png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="让 Codex 按需协作：Astra 统筹、Terra 执行的项目级多代理配置 的分享图片"><meta property="og:locale" content="zh_CN"><meta property="article:published_time" content="2026-09-07T00:00:00.000Z"><meta property="article:author" content="https://github.com/lucaslz2020"><meta property="article:tag" content="Codex"><meta property="article:tag" content="AI 编程"><meta property="article:tag" content="多代理协作"><meta property="article:tag" content="开源"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="让 Codex 按需协作：Astra 统筹、Terra 执行的项目级多代理配置 · lucaslz"><meta name="twitter:description" content="从一次真实项目接入出发，整理 Codex 按需多代理方案：Astra 负责设计与审查，Terra 执行局部任务，明确触发、限制并发、保全工作区，并区分配置加载与实际模型的验证证据。附可复用的开源配置。"><meta name="twitter:image" content="https://lucaslz.com/og/tools/codex-astra-terra-orchestrator.png"><script>
+      (() => {
+        const saved = localStorage.getItem("theme");
+        const dark = saved
+          ? saved === "dark"
+          : matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+      })();
+    </script><script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Person","@id":"https://lucaslz.com/#person","name":"lucaslz","url":"https://lucaslz.com","sameAs":["https://github.com/lucaslz2020"]},{"@type":"WebSite","@id":"https://lucaslz.com/#website","name":"lucaslz · 工程笔记","alternateName":"lucaslz","description":"关于软件工程、Web、Java 与持续学习的长期技术笔记。","url":"https://lucaslz.com","inLanguage":"zh-CN","publisher":{"@id":"https://lucaslz.com/#person"}},{"@type":"BlogPosting","@id":"https://lucaslz.com/tools/codex-astra-terra-orchestrator/#article","url":"https://lucaslz.com/tools/codex-astra-terra-orchestrator/","headline":"让 Codex 按需协作：Astra 统筹、Terra 执行的项目级多代理配置","description":"从一次真实项目接入出发，整理 Codex 按需多代理方案：Astra 负责设计与审查，Terra 执行局部任务，明确触发、限制并发、保全工作区，并区分配置加载与实际模型的验证证据。附可复用的开源配置。","inLanguage":"zh-CN","datePublished":"2026-09-07T00:00:00.000Z","dateModified":"2026-09-07T00:00:00.000Z","author":{"@id":"https://lucaslz.com/#person","name":"lucaslz"},"publisher":{"@id":"https://lucaslz.com/#person"},"isPartOf":{"@id":"https://lucaslz.com/#website"},"mainEntityOfPage":{"@type":"WebPage","@id":"https://lucaslz.com/tools/codex-astra-terra-orchestrator/"},"image":{"@type":"ImageObject","url":"https://lucaslz.com/og/tools/codex-astra-terra-orchestrator.png","width":1200,"height":630},"articleSection":["Codex","AI 编程","多代理协作","开源"],"keywords":"Codex, AI 编程, 多代理协作, 开源, Codex 多代理, Astra Terra, Codex skills, AGENTS.md, 子代理, 按需协作","wordCount":3441},{"@type":"BreadcrumbList","@id":"https://lucaslz.com/tools/codex-astra-terra-orchestrator/#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"首页","item":"https://lucaslz.com/"},{"@type":"ListItem","position":2,"name":"让 Codex 按需协作：Astra 统筹、Terra 执行的项目级多代理配置","item":"https://lucaslz.com/tools/codex-astra-terra-orchestrator/"}]}]}</script><style>@layer astro.images{:where([data-astro-image]){height:auto}:where([data-astro-image=full-width]){width:100%}:where([data-astro-image=constrained]){max-width:100%}[data-astro-image-fit=fill]{object-fit:fill}[data-astro-image-fit=contain]{object-fit:contain}[data-astro-image-fit=cover]{object-fit:cover}[data-astro-image-fit=scale-down]{object-fit:scale-down}[data-astro-image-pos=top]{object-position:top}[data-astro-image-pos=bottom]{object-position:bottom}[data-astro-image-pos=left]{object-position:left}[data-astro-image-pos=right]{object-position:right}[data-astro-image-pos=center]{object-position:center}[data-astro-image-pos=top-bottom]{object-position:top bottom}[data-astro-image-pos=top-left]{object-position:top left}[data-astro-image-pos=top-right]{object-position:top right}[data-astro-image-pos=top-center]{object-position:top center}[data-astro-image-pos=bottom-top]{object-position:bottom top}[data-astro-image-pos=bottom-left]{object-position:bottom left}[data-astro-image-pos=bottom-right]{object-position:bottom right}[data-astro-image-pos=bottom-center]{object-position:bottom center}[data-astro-image-pos=left-top]{object-position:left top}[data-astro-image-pos=left-bottom]{object-position:left bottom}[data-astro-image-pos=left-right]{object-position:left right}[data-astro-image-pos=left-center]{object-position:left center}[data-astro-image-pos=right-top]{object-position:right top}[data-astro-image-pos=right-bottom]{object-position:right bottom}[data-astro-image-pos=right-left]{object-position:right left}[data-astro-image-pos=right-center]{object-position:right center}[data-astro-image-pos=center-top]{object-position:center top}[data-astro-image-pos=center-bottom]{object-position:center bottom}[data-astro-image-pos=center-left]{object-position:center left}[data-astro-image-pos=center-right]{object-position:center right}}
+</style><link rel="stylesheet" href="/_astro/BaseLayout.CLKWFEQG.css"><script type="module" src="/_astro/page.CQWjsXKf.js"></script></head> <body> <a class="skip-link" href="#main-content">跳到主要内容</a> <header class="site-header"> <div class="header-inner"> <a class="brand" href="/" title="首页" data-analytics-event="nav_click" data-analytics-target="home"> <img class="brand-mark" src="/brand/avatar.svg" alt="" width="42" height="42" decoding="async"> <span class="brand-copy"> <strong>lucaslz</strong> <small>ENGINEERING NOTES</small> </span> </a> <nav class="desktop-nav" aria-label="主要导航"> <a href="/" data-analytics-event="nav_click" data-analytics-target="首页"> 首页 </a><a href="/archive/" data-analytics-event="nav_click" data-analytics-target="归档"> 归档 </a><a href="/tags/" data-analytics-event="nav_click" data-analytics-target="标签"> 标签 </a> <a href="https://github.com/lucaslz2020" target="_blank" rel="noreferrer">GitHub ↗</a> </nav> <style>astro-island,astro-slot,astro-static-slot{display:contents}</style><script>(()=>{var e=async t=>{await(await t())()};(self.Astro||(self.Astro={})).load=e;window.dispatchEvent(new Event("astro:load"));})();</script><script>(()=>{var g=Object.defineProperty;var w=(a,s,c)=>s in a?g(a,s,{enumerable:!0,configurable:!0,writable:!0,value:c}):a[s]=c;var l=(a,s,c)=>w(a,typeof s!="symbol"?s+"":s,c);var E=new Set(["__proto__","constructor","prototype"]);{let a={0:t=>y(t),1:t=>c(t),2:t=>new RegExp(t),3:t=>new Date(t),4:t=>new Map(c(t)),5:t=>new Set(c(t)),6:t=>BigInt(t),7:t=>new URL(t),8:t=>new Uint8Array(t),9:t=>new Uint16Array(t),10:t=>new Uint32Array(t),11:t=>Number.POSITIVE_INFINITY*t},s=t=>{let[p,e]=t;return p in a?a[p](e):void 0},c=t=>t.map(s),y=t=>typeof t!="object"||t===null?t:Object.fromEntries(Object.entries(t).map(([p,e])=>[p,s(e)]));class f extends HTMLElement{constructor(){super(...arguments);l(this,"Component");l(this,"hydrator");l(this,"hydrate",async()=>{var b;if(!this.hydrator||!this.isConnected)return;let e=(b=this.parentElement)==null?void 0:b.closest("astro-island[ssr]");if(e){e.addEventListener("astro:hydrate",this.hydrate,{once:!0});return}let r=this.querySelectorAll("astro-slot"),n={},d=this.querySelectorAll("template[data-astro-template]");for(let o of d){let i=o.closest(this.tagName);i!=null&&i.isSameNode(this)&&(n[o.getAttribute("data-astro-template")||"default"]=o.innerHTML,o.remove())}for(let o of r){let i=o.closest(this.tagName);i!=null&&i.isSameNode(this)&&(n[o.getAttribute("name")||"default"]=o.innerHTML)}let u;try{u=this.hasAttribute("props")?y(JSON.parse(this.getAttribute("props"))):{}}catch(o){let i=this.getAttribute("component-url")||"<unknown>",v=this.getAttribute("component-export");throw v&&(i+=` (export ${v})`),console.error(`[hydrate] Error parsing props for component ${i}`,this.getAttribute("props"),o),o}let h;await this.hydrator(this)(this.Component,u,n,{client:this.getAttribute("client")}),this.removeAttribute("ssr"),this.dispatchEvent(new CustomEvent("astro:hydrate"))});l(this,"unmount",()=>{this.isConnected||this.dispatchEvent(new CustomEvent("astro:unmount"))})}disconnectedCallback(){document.removeEventListener("astro:after-swap",this.unmount),document.addEventListener("astro:after-swap",this.unmount,{once:!0})}connectedCallback(){if(!this.hasAttribute("await-children")||document.readyState==="interactive"||document.readyState==="complete")this.childrenConnectedCallback();else{let e=()=>{document.removeEventListener("DOMContentLoaded",e),r.disconnect(),this.childrenConnectedCallback()},r=new MutationObserver(()=>{var n;((n=this.lastChild)==null?void 0:n.nodeType)===Node.COMMENT_NODE&&this.lastChild.nodeValue==="astro:end"&&(this.lastChild.remove(),e())});r.observe(this,{childList:!0}),document.addEventListener("DOMContentLoaded",e)}}async childrenConnectedCallback(){let e=this.getAttribute("before-hydration-url");e&&await import(e),this.start()}getRetryImportUrl(e){let r=new URL(e,document.baseURI);return r.searchParams.set("astro-retry",Date.now().toString()),r.toString()}async importWithRetry(e){try{return await import(e)}catch(r){return await new Promise(n=>setTimeout(n,1e3)),import(this.getRetryImportUrl(e))}}handleHydrationError(e){let r=this.getAttribute("component-url"),n=new CustomEvent("astro:hydration-error",{cancelable:!0,bubbles:!0,composed:!0,detail:{error:e,componentUrl:r}});this.dispatchEvent(n)&&console.error(`[astro-island] Error hydrating ${r}`,e)}async start(){let e=JSON.parse(this.getAttribute("opts")),r=this.getAttribute("client");if(Astro[r]===void 0){window.addEventListener(`astro:${r}`,()=>this.start(),{once:!0});return}try{await Astro[r](async()=>{let n=this.getAttribute("renderer-url");try{let[d,{default:u}]=await Promise.all([this.importWithRetry(this.getAttribute("component-url")),n?this.importWithRetry(n):Promise.resolve({default:()=>()=>{}})]),h=this.getAttribute("component-export")||"default";if(h.includes(".")){this.Component=d;for(let m of h.split(".")){if(E.has(m)||!this.Component||typeof this.Component!="object"&&typeof this.Component!="function"||!Object.hasOwn(this.Component,m))throw new Error(`Invalid component export path: ${h}`);this.Component=this.Component[m]}}else{if(E.has(h))throw new Error(`Invalid component export path: ${h}`);this.Component=d[h]}return this.hydrator=u,this.hydrate}catch(d){return this.handleHydrationError(d),()=>{}}},e,this)}catch(n){this.handleHydrationError(n)}}attributeChangedCallback(){this.hydrate()}}l(f,"observedAttributes",["props"]),customElements.get("astro-island")||customElements.define("astro-island",f)}})();</script><astro-island uid="Z1DLgaf" prefix="r1" component-url="/_astro/HeaderControls.OxnzT7iM.js" component-export="default" renderer-url="/_astro/client.BvqO7VYE.js" props="{&quot;githubUrl&quot;:[0,&quot;https://github.com/lucaslz2020&quot;],&quot;locale&quot;:[0,&quot;zh-CN&quot;],&quot;languageTargets&quot;:[0,{&quot;zh-CN&quot;:[0,&quot;/tools/codex-astra-terra-orchestrator/&quot;],&quot;en&quot;:[0,&quot;/en/&quot;],&quot;zh-TW&quot;:[0,&quot;/zh-tw/&quot;],&quot;de&quot;:[0,&quot;/de/&quot;],&quot;zh-HK&quot;:[0,&quot;/zh-hk/&quot;]}]}" ssr client="load" opts="{&quot;name&quot;:&quot;HeaderControls&quot;,&quot;value&quot;:true}" await-children><div class="header-controls"><div class="language-switcher"><button type="button" class="language-switcher-trigger" aria-haspopup="menu" aria-expanded="false" aria-label="语言"><span aria-hidden="true">简</span><span class="language-switcher-caret" aria-hidden="true">▾</span></button></div><button class="icon-button search-trigger" type="button" aria-label="搜索"><span aria-hidden="true">⌕</span><span class="search-label">搜索</span><kbd>⌘K</kbd></button><button class="icon-button theme-trigger" type="button" aria-label="切换到深色模式"><span aria-hidden="true">◐</span></button><button class="icon-button menu-trigger" type="button" aria-label="打开导航"><span aria-hidden="true">☰</span></button></div><!--astro:end--></astro-island> </div> </header> <main id="main-content">  <article class="post-page" data-pagefind-body> <meta data-pagefind-filter="locale[content]" content="zh-CN"> <header class="post-header page-shell narrow-shell"> <a class="back-link" href="/">← 返回文章列表</a> <p class="eyebrow"> <span></span>ENGINEERING NOTE · 2026年9月7日 </p> <h1 data-pagefind-meta="title">让 Codex 按需协作：Astra 统筹、Terra 执行的项目级多代理配置</h1> <p class="post-description" data-pagefind-meta="description"> 从一次真实项目接入出发，整理 Codex 按需多代理方案：Astra 负责设计与审查，Terra 执行局部任务，明确触发、限制并发、保全工作区，并区分配置加载与实际模型的验证证据。附可复用的开源配置。 </p> <meta data-pagefind-meta="date" content="2026-09-07"> <meta data-pagefind-meta="tags" content="Codex, AI 编程, 多代理协作, 开源"> <div class="post-meta-row"> <div class="post-author"> <img class="mini-avatar" src="/brand/avatar.svg" alt="" width="36" height="36" decoding="async"> <span><strong>lucaslz</strong><small>作者</small></span> </div> <div class="post-facts"> <time datetime="2026-09-07T00:00:00.000Z">2026年9月7日</time>  <span>18 分钟阅读</span> <span class="post-view-count" data-page-views hidden></span> </div> </div> <div class="post-tag-row"> <a href="/tags/codex/" data-analytics-event="tag_click" data-analytics-target="Codex">
+#Codex </a><a href="/tags/ai-编程/" data-analytics-event="tag_click" data-analytics-target="AI 编程">
+#AI 编程 </a><a href="/tags/多代理协作/" data-analytics-event="tag_click" data-analytics-target="多代理协作">
+#多代理协作 </a><a href="/tags/开源/" data-analytics-event="tag_click" data-analytics-target="开源">
+#开源 </a> </div> <div class="tested-with"> <span>验证环境</span> <dl aria-label="文章验证环境"> <div> <dt>codex</dt> <dd>0.153.0（源项目实测）</dd> </div><div> <dt>mainModel</dt> <dd>gpt-6-astra / high</dd> </div><div> <dt>requestedSubagentModel</dt> <dd>gpt-5.6-terra / high</dd> </div> </dl> </div>   </header> <div class="post-divider"> <span></span><b>&#123; &#125;</b><span></span> </div> <div class="post-layout page-shell"> <div class="post-content prose">  <p>我把一套项目内的 Codex 多代理配置整理成了开源项目：<a href="https://github.com/lucaslz2020/codex-astra-terra-orchestrator">codex-astra-terra-orchestrator</a>。它包含五个角色、一个明确调用的技能、项目规则入口和验证指南，可以审阅后合并进已有仓库。</p>
+<p>这套方案的默认行为很简单：<strong>普通任务由主代理直接处理，只有明确要求协作时才启动子代理。</strong> 启用后，Astra 负责整体设计、复杂实现和最终交付，Terra 处理边界明确的调查、局部实现与验证，独立审查仍交给 Astra。</p>
+<p>最初的参考是 <a href="https://github.com/donvito/codex-astra-luna-orchestrator/tree/b6fe51c90e548cf334b7be40fc36bbec97883df0">donvito/codex-astra-luna-orchestrator</a>。我保留了角色分工的思路，重新编写了精简配置与提示词，把普通角色统一改为 Terra / high，并按现有项目的工作方式加入显式触发、文件归属和验收要求。</p>
+<h2 id="先明确什么时候值得委派">先明确什么时候值得委派</h2>
+<p>在一个已经有需求文档、架构约束和未提交修改的工程里，多代理首先带来的是协调问题：谁可以改哪些文件，公共接口由谁确定，测试失败后谁处理，以及最终由谁确认交付完整。</p>
+<p>如果这些问题没有答案，同时运行更多代理很容易增加返工。例如，一个代理改接口字段，另一个代理按旧字段写页面，两边各自检查通过，整合时仍然会失败。</p>
+<p>所以我把适合委派的任务限定为目标清楚、输入充分、结果容易复核的工作：</p>
+<ul>
+<li>追踪一条调用链，找出相关需求和已有测试。</li>
+<li>按确定的接口修改几个明确分配的文件。</li>
+<li>执行一组针对性检查，报告真实失败。</li>
+<li>核实某个框架版本的官方接口。</li>
+<li>独立检查一份已经形成的差异。</li>
+</ul>
+<p>涉及授权、数据隔离、事务、消息幂等、并发和公共契约的设计与复杂实现，仍由主代理承担。这样划分是这套配置的选择，不是对某个模型能力的普遍判断。</p>
+<h2 id="五个角色与一个交付责任人">五个角色与一个交付责任人</h2>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>角色</th><th>请求模型与强度</th><th>职责与写入范围</th></tr></thead><tbody><tr><td>主代理</td><td>Astra / high</td><td>整体设计、复杂实现、公共文件协调、最终验收</td></tr><tr><td>explorer</td><td>Terra / high</td><td>只读追踪调用链、模块关系、需求与测试</td></tr><tr><td>worker</td><td>Terra / high</td><td>只修改明确分配的文件，完成局部实现</td></tr><tr><td>tester</td><td>Terra / high</td><td>执行验证；明确分配测试修改时才编辑测试源码</td></tr><tr><td>researcher</td><td>Terra / high</td><td>只读核实官方资料、版本与接口</td></tr><tr><td>reviewer</td><td>Astra / high</td><td>只读审查实际差异、架构、安全与验证缺口</td></tr></tbody></table>
+<p>开源版使用 <code>orchestrator_</code> 前缀，避免与客户端内置角色重名。一次最多同时运行两个子代理，并服从客户端更低的实际限制；不要求每个任务都启动全部角色，也不允许子代理继续创建代理。</p>
+<p>独立调查可以并行。依赖同一接口的实现按顺序推进。主代理收回结果后检查实际差异，处理审查发现，再完成项目要求的最终验证。</p>
+<h2 id="配置应该放在目标项目里">配置应该放在目标项目里</h2>
+<p>我选择把它放在项目根目录，随项目一起维护：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>your-project/</span></span>
+<span class="line"><span>├── AGENTS.md</span></span>
+<span class="line"><span>├── .codex/</span></span>
+<span class="line"><span>│   ├── config.toml</span></span>
+<span class="line"><span>│   └── agents/</span></span>
+<span class="line"><span>│       ├── orchestrator_explorer.toml</span></span>
+<span class="line"><span>│       ├── orchestrator_worker.toml</span></span>
+<span class="line"><span>│       ├── orchestrator_tester.toml</span></span>
+<span class="line"><span>│       ├── orchestrator_researcher.toml</span></span>
+<span class="line"><span>│       └── orchestrator_reviewer.toml</span></span>
+<span class="line"><span>└── .agents/skills/astra-terra-orchestrator/</span></span>
+<span class="line"><span>    ├── SKILL.md</span></span>
+<span class="line"><span>    └── agents/openai.yaml</span></span></code></pre>
+<p>其中 <code>.codex/config.toml</code> 设置模型默认值和并发上限：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="toml"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">model = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"gpt-6-astra"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">model_reasoning_effort = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"high"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">project_doc_max_bytes = </span><span style="color:#005CC5;--shiki-dark:#79B8FF">65536</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">[</span><span style="color:#6F42C1;--shiki-dark:#B392F0">agents</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">enabled = </span><span style="color:#005CC5;--shiki-dark:#79B8FF">true</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">max_concurrent_threads_per_session = </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">default_subagent_model = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"gpt-5.6-terra"</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">default_subagent_reasoning_effort = </span><span style="color:#032F62;--shiki-dark:#9ECBFF">"high"</span></span></code></pre>
+<p>每个角色文件再显式写出模型与推理强度。审查角色覆盖为 Astra，只读角色声明 <code>sandbox_mode = "read-only"</code>，worker 和 tester 使用 <code>workspace-write</code>。</p>
+<p>合并到已有项目时要逐项审阅，保留原有 Provider、审批策略、权限和其他设置。已有 <code>[agents]</code> 时合并字段，不能重复定义同一张 TOML 表。项目配置是否被信任、启动参数和界面是否覆盖了设置，也要通过实际客户端核实。相关字段以官方<a href="https://learn.chatgpt.com/docs/config-file/config-reference">配置参考</a>与<a href="https://learn.chatgpt.com/docs/agent-configuration/subagents">子代理说明</a>为依据。</p>
+<p>根 <code>AGENTS.md</code> 只追加短入口：明确要求协作时，读取对应技能。原有业务规则与架构约束继续有效。开源仓库提供了单独的入口片段，不需要拿它的根规则替换你的项目规范。</p>
+<h2 id="显式触发需要两层配合">显式触发需要两层配合</h2>
+<p>技能元数据里设置：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="yaml"><code><span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">policy</span><span style="color:#24292E;--shiki-dark:#E1E4E8">:</span></span>
+<span class="line"><span style="color:#22863A;--shiki-dark:#85E89D">  allow_implicit_invocation</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">false</span></span></code></pre>
+<p>这控制技能是否被自动选中，含义是默认不隐式加载，仍可通过 <code>$astra-terra-orchestrator</code> 明确调用。它不是所有委派行为的总开关，不能替代主代理的入口规则。技能加载机制可参阅官方<a href="https://learn.chatgpt.com/docs/build-skills">技能文档</a>。</p>
+<p>因此，根规则和技能正文还要说明授权边界：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>用户请求</th><th>是否启动协作</th></tr></thead><tbody><tr><td>“修复这个错误”</td><td>否，由主代理处理</td></tr><tr><td>“多代理方案适合这个项目吗？”</td><td>否，这是讨论</td></tr><tr><td>“explorer 这个角色负责什么？”</td><td>否，只是在询问角色</td></tr><tr><td>“使用子代理调查这条调用链”</td><td>是，范围是本次调查</td></tr><tr><td>“让 orchestrator_reviewer 审查本次差异”</td><td>是，范围是本次审查</td></tr><tr><td>明确调用 <code>$astra-terra-orchestrator</code> 并给出任务</td><td>是</td></tr></tbody></table>
+<p>授权延续到同一目标的后续修正，不自动扩展到新的无关任务。用户取消委派后，主代理停止后续创建，并协调结束已经运行的子任务。</p>
+<p>这是一组协作约定。它没有额外实现一个授权网关，文件归属也没有变成操作系统文件锁；验收时需要观察真实行为。</p>
+<h2 id="一份可执行的委派契约">一份可执行的委派契约</h2>
+<p>只给子代理一句“帮我看看这个模块”通常太宽。更有用的任务应该包含足够的输入，同时明确停止的位置。</p>
+<p>下面是一个只读调查示例，路径需替换为实际项目文件：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>角色：orchestrator_explorer</span></span>
+<span class="line"><span>请求模型与强度：gpt-5.6-terra / high</span></span>
+<span class="line"><span>目标：确认订单状态展示从接口到页面的调用链。</span></span>
+<span class="line"><span>范围：只读 src/orders/、tests/orders/ 和对应需求文档。</span></span>
+<span class="line"><span>允许修改：无，不得创建子代理。</span></span>
+<span class="line"><span>上下文：附适用项目规范、状态定义和接口签名。</span></span>
+<span class="line"><span>基线：附本轮开始时的工作区差异摘要。</span></span>
+<span class="line"><span>约束：不编辑文件，不启动或重建共享服务，不安装依赖。</span></span>
+<span class="line"><span>验收：指出状态来源、转换逻辑、展示入口和测试位置。</span></span>
+<span class="line"><span>返回：结论、准确路径与符号、证据、检查结果和未解决问题。</span></span></code></pre>
+<p>局部实现还要列出准确的可写文件和接口依据。主代理先记录已有修改，保证同一文件同时只有一个写入者。公共 SDK、Schema、依赖和锁文件、需求索引及导航由主代理协调。</p>
+<p>子代理发现文件归属冲突时返回主代理，不撤销其他任务的修改。共享 Compose 环境、数据库初始化和全量集成测试也由主代理统一调度，避免多个代理同时重建同一套环境。</p>
+<p>传递上下文时只提供必要材料，不默认复制整段历史。若委派接口支持 <code>fork_turns</code>，可以使用 <code>none</code> 并补齐任务材料；需要显式模型覆盖时，也要确认它与当前接口的历史继承方式兼容。</p>
+<h2 id="实测中两个容易忽略的问题">实测中两个容易忽略的问题</h2>
+<h3 id="文件写好了末尾规则却没有进入提示输入">文件写好了，末尾规则却没有进入提示输入</h3>
+<p>源项目的根 <code>AGENTS.md</code> 已经超过 32 KiB。追加入口后，文件本身完整，静态检查也无法发现加载截断，但客户端的默认项目指令预算不足以容纳全部内容。</p>
+<p>这次接入将 <code>project_doc_max_bytes</code> 设为 <code>65536</code>，再查看真实提示输入，确认末尾入口已经加载。</p>
+<p>这里的单位是字节，设置的是项目指令读取预算，不是模型上下文窗口。64 KiB 也不是所有项目都适用的固定答案。验收应确认需要的规则实际进入上下文，而不是只检查某个配置数字。</p>
+<h3 id="命令行与应用内置客户端的版本不同">命令行与应用内置客户端的版本不同</h3>
+<p>本次环境中的命令行 Codex 0.152.0 请求 Astra 时，被服务端拒绝并提示升级。应用内置的 0.153.0 可以成功发起请求，后续新会话验证使用了这一版本。</p>
+<p>这个结果只说明当时两套客户端在该账号下的表现，不能推出一个通用的最低支持版本。排查时应记录实际执行的客户端及版本，再验证模型请求，而不能仅凭桌面应用已经升级就判断终端调用也已更新。</p>
+<h2 id="怎样描述验证通过才准确">怎样描述“验证通过”才准确</h2>
+<p>这次验证分成静态检查、客户端加载、委派行为和权限边界几层。</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>检查</th><th>源项目中的观察结果</th></tr></thead><tbody><tr><td>配置与技能</td><td>六份 TOML 解析通过，技能校验通过，客户端可以发现技能</td></tr><tr><td>有效配置</td><td>返回 Astra/high 主模型、Terra/high 默认子模型和并发上限二</td></tr><tr><td>普通任务与方案讨论</td><td>新会话没有创建子代理；讨论场景未隐式选中技能</td></tr><tr><td>明确调用</td><td>技能正文被选中，具名角色实际创建并完成任务</td></tr><tr><td>首轮只读协作</td><td>两个独立调查角色返回可复核结果，审查角色复核，整轮约 143 秒</td></tr><tr><td>文件归属冲突</td><td>worker 报告文件被另一 active owner 持有，没有写入</td></tr><tr><td>缺失输入</td><td>tester 的真实检查失败，没有补造文件或跳过断言</td></tr><tr><td>工作区保全</td><td>隔离夹具哈希不变，原工作区基线中的无关修改得到保全</td></tr></tbody></table>
+<p>冲突与失败回报那一轮约 110 秒。它只允许代理读取夹具目录，没有提供完整项目上下文；代理报告了材料缺失且未越界。因此，这轮可以支持“冲突与失败被如实回报”的结论，不能被记作“全部前置阅读都完成”。</p>
+<p>还有两个没有完整验证的部分。</p>
+<p>第一，子代理调用事件记录了请求模型与 <code>high</code>，也确认了具名角色创建和完成，但没有返回独立的实际模型与推理强度快照。尝试读取临时子会话也没有取得该快照。因此，<strong>请求了 Terra/high 不等于已经独立证明最终运行的是 Terra/high</strong>。这一项保留为“无法验证”，不采用代理自述来补齐证据。</p>
+<p>第二，只读角色没有修改文件，并不能证明沙箱一定拦截写入。角色配置是否被加载、父会话实时权限是否继续作用于子代理，要看实际客户端证据。这次没有完整验证沙箱写入拦截，也没有尝试超过两个子代理的并发上限。</p>
+<p>如果某个委派接口不能选择自定义角色，只能传入角色指令和模型参数，还应说明这是受限方式，不能声称已经加载同等角色沙箱。</p>
+<p>源项目同时执行了自己的文档、前端和 Compose 检查；后端仍有失败项。没有在干净基线上复现的失败，不能直接称为“历史问题”。这些业务检查与通用模板的验证也要分别记录，局部协作成功不代表整个工程已经交付。</p>
+<h2 id="把配置接入自己的项目">把配置接入自己的项目</h2>
+<p>完整文件、入口片段、任务示例和验证指南都在 <a href="https://github.com/lucaslz2020/codex-astra-terra-orchestrator">GitHub 开源仓库</a>，采用 Apache-2.0 许可。</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">git</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> clone</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> https://github.com/lucaslz2020/codex-astra-terra-orchestrator.git</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">cd</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> codex-astra-terra-orchestrator</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">python3</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> scripts/check_config.py</span></span></code></pre>
+<p>检查脚本需要 Python 3.11+，只使用标准库。它检查 TOML 配置的一致性，不负责安装，也不证明实际模型路由或沙箱生效。Codex 使用模板本身不依赖 Python。</p>
+<p>接入时，先记录目标项目的已有差异，再合并 <code>.codex/config.toml</code>、复制五份角色文件和技能目录，最后追加 <code>AGENTS.md</code> 入口。同名文件需要逐项审阅，不覆盖原有规则，不写入全局配置。</p>
+<p>开源版对角色名前缀和项目引用做了通用化。前面的运行结果来自源项目的那次接入；通用版静态检查通过，不代表更名后的配置已经在每个目标客户端运行验收。首次使用可以从这条明确、只读的任务开始：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="text"><code><span class="line"><span>$astra-terra-orchestrator</span></span>
+<span class="line"><span>先用两个只读代理分别调查调用链和测试覆盖，再由独立审查代理复核。</span></span>
+<span class="line"><span>仅处理我指定的模块，本轮不修改业务文件。</span></span></code></pre>
+<p>随后在隔离目录验证普通任务不委派、明确调用可以委派、冲突会返回、失败会报告，再进入真实业务写入。需要回退时，按差异移除新增配置、角色、技能和入口即可，保留之后其他任务的修改，没有业务数据迁移。</p>
+<p>我更关注这套配置是否让任务范围、修改归属和验证结论变得清楚。单次测试的耗时没有单代理对照组，也没有成本基线，不能据此给出节省比例。让协作按要求发生，并留下可复核的结果，是这次接入的完成标准。</p> </div> <aside class="table-of-contents" aria-label="文章目录" data-pagefind-ignore> <p>ON THIS PAGE</p> <ol> <li> <a href="#先明确什么时候值得委派" data-analytics-event="toc_click" data-analytics-target="先明确什么时候值得委派"> 先明确什么时候值得委派 </a> </li><li> <a href="#五个角色与一个交付责任人" data-analytics-event="toc_click" data-analytics-target="五个角色与一个交付责任人"> 五个角色与一个交付责任人 </a> </li><li> <a href="#配置应该放在目标项目里" data-analytics-event="toc_click" data-analytics-target="配置应该放在目标项目里"> 配置应该放在目标项目里 </a> </li><li> <a href="#显式触发需要两层配合" data-analytics-event="toc_click" data-analytics-target="显式触发需要两层配合"> 显式触发需要两层配合 </a> </li><li> <a href="#一份可执行的委派契约" data-analytics-event="toc_click" data-analytics-target="一份可执行的委派契约"> 一份可执行的委派契约 </a> </li><li> <a href="#实测中两个容易忽略的问题" data-analytics-event="toc_click" data-analytics-target="实测中两个容易忽略的问题"> 实测中两个容易忽略的问题 </a> </li><li class="nested"> <a href="#文件写好了末尾规则却没有进入提示输入" data-analytics-event="toc_click" data-analytics-target="文件写好了末尾规则却没有进入提示输入"> 文件写好了，末尾规则却没有进入提示输入 </a> </li><li class="nested"> <a href="#命令行与应用内置客户端的版本不同" data-analytics-event="toc_click" data-analytics-target="命令行与应用内置客户端的版本不同"> 命令行与应用内置客户端的版本不同 </a> </li><li> <a href="#怎样描述验证通过才准确" data-analytics-event="toc_click" data-analytics-target="怎样描述验证通过才准确"> 怎样描述“验证通过”才准确 </a> </li><li> <a href="#把配置接入自己的项目" data-analytics-event="toc_click" data-analytics-target="把配置接入自己的项目"> 把配置接入自己的项目 </a> </li> </ol> </aside> </div> <script type="module" src="/_astro/MermaidEnhancer.astro_astro_type_script_index_0_lang.DnWaDEwA.js"></script> <dialog class="image-lightbox" data-image-lightbox data-locale="zh-CN" aria-labelledby="lightbox-caption"> <div class="image-lightbox-inner"> <button type="button" class="image-lightbox-close" aria-label="关闭图片预览">
+×
+</button> <img alt="" decoding="async"> <p id="lightbox-caption" hidden></p> </div> </dialog> <script type="module" src="/_astro/ImageLightbox.astro_astro_type_script_index_0_lang.Db8U22Iw.js"></script> <div class="reading-progress" aria-hidden="true"><span></span></div> <div class="article-actions" data-reading-tools data-locale="zh-CN" data-title="让 Codex 按需协作：Astra 统筹、Terra 执行的项目级多代理配置" data-href="https://lucaslz.com/tools/codex-astra-terra-orchestrator/"> <button type="button" data-share aria-label="分享"> 分享 </button> <button type="button" data-copy-link aria-label="复制链接"> 复制链接 </button> <button type="button" data-bookmark aria-label="收藏" aria-pressed="false"> 收藏 </button> </div> <button class="back-to-top" type="button" aria-label="返回顶部" hidden>↑</button> <div class="reading-toast" role="status" aria-live="polite"></div> <script type="module" src="/_astro/ReadingTools.astro_astro_type_script_index_0_lang.CXpXB1Lm.js"></script> <footer class="post-footer page-shell narrow-shell" data-pagefind-ignore> <div class="post-end-mark"><span>END</span></div> <p>感谢阅读。你可以分享、收藏，或在下方参与讨论。</p> <section class="related-posts" aria-labelledby="related-title"> <div class="related-heading"> <span>CONTINUE READING</span> <h2 id="related-title">相关文章</h2> </div> <div class="related-grid"> <article class="article-card compact"> <a class="article-card-link" href="/tools/codex-opencode-go-deepseek-v4-flash/" data-analytics-event="article_click" data-analytics-impression="article_impression" data-analytics-target="/tools/codex-opencode-go-deepseek-v4-flash/"> <div class="article-card-top"> <span class="article-index">01</span> <span class="article-date">2026.08.06</span> </div> <h3>在 Codex 中接入 OpenCode Go 的 DeepSeek V4 Flash：Responses API、模型目录与 Profile 切换</h3> <p>按真实时间线复盘把 DeepSeek V4 Flash 通过 OpenCode Go Responses API 接入 Codex 的全过程，包括协议验证、代理误判、无明文密钥认证、模型目录、双 Profile 切换、exec 兼容性修复与文件修改实测。</p> <div class="article-card-bottom"> <div class="article-tags"> <span data-href="/tags/codex/">
+#Codex </span><span data-href="/tags/deepseek/">
+#DeepSeek </span><span data-href="/tags/opencode/">
+#OpenCode </span> </div> <span class="read-time">36 min <b>↗</b></span> </div> </a> </article> </div> </section> <div class="post-navigation"> <a href="/gitlab/gitlab-kubernetes-final-delta-cutover/" class="previous-post" data-analytics-event="article_click" data-analytics-target="/gitlab/gitlab-kubernetes-final-delta-cutover/">  <small>← 上一篇</small> <strong>GitLab 14 升级到 19 实战复盘（三）：Kubernetes 增量切流、保留 IP 与回滚</strong>  </a> <span></span> </div> </footer> </article> <div class="page-shell narrow-shell" data-pagefind-ignore> <section class="comments-section" aria-labelledby="comments-title" data-giscus-comments data-repo="lucaslz2020/lucasleelz.github.io" data-repo-id="MDEwOlJlcG9zaXRvcnkyNzcxNjkwNw==" data-category="Announcements" data-category-id="DIC_kwDOAabtK84DCw-x" data-discussion-path="/tools/codex-astra-terra-orchestrator/" data-giscus-language="zh-CN"> <div class="comments-heading"> <p class="eyebrow"> <span></span>
+DISCUSSION
+</p> <h2 id="comments-title">讨论与反馈</h2> </div> <div class="giscus" aria-live="polite"></div> </section> <script type="module">var e=()=>document.documentElement.dataset.theme===`dark`?`noborder_dark`:`noborder_light`,t=t=>{if(t.dataset.loaded===`true`)return;let n=t.querySelector(`.giscus`);if(!n)return;let r=document.createElement(`script`);r.src=`https://giscus.app/client.js`,r.async=!0,r.crossOrigin=`anonymous`,r.dataset.repo=t.dataset.repo??``,r.dataset.repoId=t.dataset.repoId??``,r.dataset.category=t.dataset.category??``,r.dataset.categoryId=t.dataset.categoryId??``,r.dataset.mapping=`specific`,r.dataset.term=t.dataset.discussionPath??window.location.pathname,r.dataset.strict=`1`,r.dataset.reactionsEnabled=`1`,r.dataset.emitMetadata=`0`,r.dataset.inputPosition=`top`,r.dataset.theme=e(),r.dataset.lang=t.dataset.giscusLanguage??`zh-CN`,r.dataset.loading=`lazy`,t.dataset.loaded=`true`,n.append(r)},n=document.querySelector(`[data-giscus-comments]`);if(n){if(`IntersectionObserver`in window){let e=new IntersectionObserver(r=>{r.some(e=>e.isIntersecting)&&(t(n),e.disconnect())},{rootMargin:`500px 0px`});e.observe(n)}else t(n)}window.addEventListener(`theme-change`,()=>{document.querySelector(`iframe.giscus-frame`)?.contentWindow?.postMessage({giscus:{setConfig:{theme:e()}}},`https://giscus.app`)});</script> </div>  </main> <footer class="site-footer"> <div class="footer-inner"> <div class="footer-brand"> <img class="brand-mark" src="/brand/avatar.svg" alt="" width="42" height="42" loading="lazy" decoding="async"> <div> <strong>lucaslz</strong> <p>关于软件工程、Web、Java 与持续学习的长期技术笔记。</p> </div> </div> <div class="footer-links"> <a href="/rss.xml">RSS</a> <a href="/archive/">归档</a> <a href="/tags/">标签</a> <a href="https://github.com/lucaslz2020" target="_blank" rel="noreferrer">GitHub</a> </div> </div> <div class="footer-bottom"> <span>© 2013 ~ 2026 lucaslz</span> <span>Built with Astro + React · Deployed on Cloudflare Pages</span> </div> </footer> <script type="module" src="/_astro/Analytics.astro_astro_type_script_index_0_lang.EOcdV3vz.js"></script> <aside class="pwa-notice" data-pwa-notice data-locale="zh-CN" data-mode="status" aria-label="应用状态" aria-live="polite" aria-atomic="true" hidden> <span class="pwa-notice-icon" data-pwa-icon aria-hidden="true">↧</span> <p> <strong data-pwa-title>离线阅读已就绪</strong> <small data-pwa-message>访问过的文章可以在断网时继续阅读。</small> </p> <div class="pwa-notice-actions"> <button type="button" data-pwa-action hidden> 立即安装 </button> <button type="button" data-pwa-dismiss>知道了</button> </div> </aside> <script type="module" src="/_astro/Pwa.astro_astro_type_script_index_0_lang.goX2jG5I.js"></script> </body> </html>
