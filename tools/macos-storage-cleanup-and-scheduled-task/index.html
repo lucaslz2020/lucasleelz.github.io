@@ -1,0 +1,236 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light" data-locale="zh-CN"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="generator" content="Astro v7.3.3"><meta name="author" content="lucaslz"><meta name="theme-color" content="#f5f1e8" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)"><meta name="description" content="记录一次 macOS 治理实战：从 du 逐层定位 178GB 占用并释放 21GB，到 9 步清理脚本 + launchd 每周自动执行，再到终端工具链统一迁移 brew、maven 与 IDEA 全栈统一 Oracle JDK25。"><meta name="google-site-verification" content="o_QOQN3-adA79KPRfqy1wAj9zviE8hyD5jvfdQEMVco"><meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"><meta name="keywords" content="macOS, 存储清理, launchd, 自动化, 磁盘管理, macOS 清理, 磁盘空间, launchd 定时任务, brew cleanup, 系统垃圾"><link rel="canonical" href="https://lucaslz.com/tools/macos-storage-cleanup-and-scheduled-task/"><link rel="alternate" hreflang="zh-CN" href="https://lucaslz.com/tools/macos-storage-cleanup-and-scheduled-task/"><link rel="alternate" hreflang="x-default" href="https://lucaslz.com/tools/macos-storage-cleanup-and-scheduled-task/"><link rel="author" href="https://github.com/lucaslz2020"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon.ico" sizes="any"><link rel="apple-touch-icon" href="/icons/apple-touch-icon.png"><link rel="alternate" type="application/rss+xml" title="lucaslz · 工程笔记" href="/rss.xml"><link rel="manifest" href="/site.webmanifest"><title>macOS 存储清理实战：定位垃圾数据并用 launchd 实现每周自动清理 · lucaslz</title><meta property="og:type" content="article"><meta property="og:site_name" content="lucaslz · 工程笔记"><meta property="og:title" content="macOS 存储清理实战：定位垃圾数据并用 launchd 实现每周自动清理 · lucaslz"><meta property="og:description" content="记录一次 macOS 治理实战：从 du 逐层定位 178GB 占用并释放 21GB，到 9 步清理脚本 + launchd 每周自动执行，再到终端工具链统一迁移 brew、maven 与 IDEA 全栈统一 Oracle JDK25。"><meta property="og:url" content="https://lucaslz.com/tools/macos-storage-cleanup-and-scheduled-task/"><meta property="og:image" content="https://lucaslz.com/og/tools/macos-storage-cleanup-and-scheduled-task.png"><meta property="og:image:type" content="image/png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:alt" content="macOS 存储清理实战：定位垃圾数据并用 launchd 实现每周自动清理 的分享图片"><meta property="og:locale" content="zh_CN"><meta property="article:published_time" content="2026-09-22T00:00:00.000Z"><meta property="article:author" content="https://github.com/lucaslz2020"><meta property="article:tag" content="macOS"><meta property="article:tag" content="存储清理"><meta property="article:tag" content="launchd"><meta property="article:tag" content="自动化"><meta property="article:tag" content="磁盘管理"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="macOS 存储清理实战：定位垃圾数据并用 launchd 实现每周自动清理 · lucaslz"><meta name="twitter:description" content="记录一次 macOS 治理实战：从 du 逐层定位 178GB 占用并释放 21GB，到 9 步清理脚本 + launchd 每周自动执行，再到终端工具链统一迁移 brew、maven 与 IDEA 全栈统一 Oracle JDK25。"><meta name="twitter:image" content="https://lucaslz.com/og/tools/macos-storage-cleanup-and-scheduled-task.png"><script>
+      (() => {
+        const saved = localStorage.getItem("theme");
+        const dark = saved
+          ? saved === "dark"
+          : matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+      })();
+    </script><script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Person","@id":"https://lucaslz.com/#person","name":"lucaslz","url":"https://lucaslz.com","sameAs":["https://github.com/lucaslz2020"]},{"@type":"WebSite","@id":"https://lucaslz.com/#website","name":"lucaslz · 工程笔记","alternateName":"lucaslz","description":"关于软件工程、Web、Java 与持续学习的长期技术笔记。","url":"https://lucaslz.com","inLanguage":"zh-CN","publisher":{"@id":"https://lucaslz.com/#person"}},{"@type":"BlogPosting","@id":"https://lucaslz.com/tools/macos-storage-cleanup-and-scheduled-task/#article","url":"https://lucaslz.com/tools/macos-storage-cleanup-and-scheduled-task/","headline":"macOS 存储清理实战：定位垃圾数据并用 launchd 实现每周自动清理","description":"记录一次 macOS 治理实战：从 du 逐层定位 178GB 占用并释放 21GB，到 9 步清理脚本 + launchd 每周自动执行，再到终端工具链统一迁移 brew、maven 与 IDEA 全栈统一 Oracle JDK25。","inLanguage":"zh-CN","datePublished":"2026-09-22T00:00:00.000Z","dateModified":"2026-09-22T00:00:00.000Z","author":{"@id":"https://lucaslz.com/#person","name":"lucaslz"},"publisher":{"@id":"https://lucaslz.com/#person"},"isPartOf":{"@id":"https://lucaslz.com/#website"},"mainEntityOfPage":{"@type":"WebPage","@id":"https://lucaslz.com/tools/macos-storage-cleanup-and-scheduled-task/"},"image":{"@type":"ImageObject","url":"https://lucaslz.com/og/tools/macos-storage-cleanup-and-scheduled-task.png","width":1200,"height":630},"articleSection":["macOS","存储清理","launchd","自动化","磁盘管理"],"keywords":"macOS, 存储清理, launchd, 自动化, 磁盘管理, macOS 清理, 磁盘空间, launchd 定时任务, brew cleanup, 系统垃圾","wordCount":2615},{"@type":"BreadcrumbList","@id":"https://lucaslz.com/tools/macos-storage-cleanup-and-scheduled-task/#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"首页","item":"https://lucaslz.com/"},{"@type":"ListItem","position":2,"name":"macOS 存储清理实战：定位垃圾数据并用 launchd 实现每周自动清理","item":"https://lucaslz.com/tools/macos-storage-cleanup-and-scheduled-task/"}]}]}</script><style>@layer astro.images{:where([data-astro-image]){height:auto}:where([data-astro-image=full-width]){width:100%}:where([data-astro-image=constrained]){max-width:100%}[data-astro-image-fit=fill]{object-fit:fill}[data-astro-image-fit=contain]{object-fit:contain}[data-astro-image-fit=cover]{object-fit:cover}[data-astro-image-fit=scale-down]{object-fit:scale-down}[data-astro-image-pos=top]{object-position:top}[data-astro-image-pos=bottom]{object-position:bottom}[data-astro-image-pos=left]{object-position:left}[data-astro-image-pos=right]{object-position:right}[data-astro-image-pos=center]{object-position:center}[data-astro-image-pos=top-bottom]{object-position:top bottom}[data-astro-image-pos=top-left]{object-position:top left}[data-astro-image-pos=top-right]{object-position:top right}[data-astro-image-pos=top-center]{object-position:top center}[data-astro-image-pos=bottom-top]{object-position:bottom top}[data-astro-image-pos=bottom-left]{object-position:bottom left}[data-astro-image-pos=bottom-right]{object-position:bottom right}[data-astro-image-pos=bottom-center]{object-position:bottom center}[data-astro-image-pos=left-top]{object-position:left top}[data-astro-image-pos=left-bottom]{object-position:left bottom}[data-astro-image-pos=left-right]{object-position:left right}[data-astro-image-pos=left-center]{object-position:left center}[data-astro-image-pos=right-top]{object-position:right top}[data-astro-image-pos=right-bottom]{object-position:right bottom}[data-astro-image-pos=right-left]{object-position:right left}[data-astro-image-pos=right-center]{object-position:right center}[data-astro-image-pos=center-top]{object-position:center top}[data-astro-image-pos=center-bottom]{object-position:center bottom}[data-astro-image-pos=center-left]{object-position:center left}[data-astro-image-pos=center-right]{object-position:center right}}
+</style><link rel="stylesheet" href="/_astro/BaseLayout.CLKWFEQG.css"><script type="module" src="/_astro/page.CQWjsXKf.js"></script></head> <body> <a class="skip-link" href="#main-content">跳到主要内容</a> <header class="site-header"> <div class="header-inner"> <a class="brand" href="/" title="首页" data-analytics-event="nav_click" data-analytics-target="home"> <img class="brand-mark" src="/brand/avatar.svg" alt="" width="42" height="42" decoding="async"> <span class="brand-copy"> <strong>lucaslz</strong> <small>ENGINEERING NOTES</small> </span> </a> <nav class="desktop-nav" aria-label="主要导航"> <a href="/" data-analytics-event="nav_click" data-analytics-target="首页"> 首页 </a><a href="/archive/" data-analytics-event="nav_click" data-analytics-target="归档"> 归档 </a><a href="/tags/" data-analytics-event="nav_click" data-analytics-target="标签"> 标签 </a> <a href="https://github.com/lucaslz2020" target="_blank" rel="noreferrer">GitHub ↗</a> </nav> <style>astro-island,astro-slot,astro-static-slot{display:contents}</style><script>(()=>{var e=async t=>{await(await t())()};(self.Astro||(self.Astro={})).load=e;window.dispatchEvent(new Event("astro:load"));})();</script><script>(()=>{var g=Object.defineProperty;var w=(a,s,c)=>s in a?g(a,s,{enumerable:!0,configurable:!0,writable:!0,value:c}):a[s]=c;var l=(a,s,c)=>w(a,typeof s!="symbol"?s+"":s,c);var E=new Set(["__proto__","constructor","prototype"]);{let a={0:t=>y(t),1:t=>c(t),2:t=>new RegExp(t),3:t=>new Date(t),4:t=>new Map(c(t)),5:t=>new Set(c(t)),6:t=>BigInt(t),7:t=>new URL(t),8:t=>new Uint8Array(t),9:t=>new Uint16Array(t),10:t=>new Uint32Array(t),11:t=>Number.POSITIVE_INFINITY*t},s=t=>{let[p,e]=t;return p in a?a[p](e):void 0},c=t=>t.map(s),y=t=>typeof t!="object"||t===null?t:Object.fromEntries(Object.entries(t).map(([p,e])=>[p,s(e)]));class f extends HTMLElement{constructor(){super(...arguments);l(this,"Component");l(this,"hydrator");l(this,"hydrate",async()=>{var b;if(!this.hydrator||!this.isConnected)return;let e=(b=this.parentElement)==null?void 0:b.closest("astro-island[ssr]");if(e){e.addEventListener("astro:hydrate",this.hydrate,{once:!0});return}let r=this.querySelectorAll("astro-slot"),n={},d=this.querySelectorAll("template[data-astro-template]");for(let o of d){let i=o.closest(this.tagName);i!=null&&i.isSameNode(this)&&(n[o.getAttribute("data-astro-template")||"default"]=o.innerHTML,o.remove())}for(let o of r){let i=o.closest(this.tagName);i!=null&&i.isSameNode(this)&&(n[o.getAttribute("name")||"default"]=o.innerHTML)}let u;try{u=this.hasAttribute("props")?y(JSON.parse(this.getAttribute("props"))):{}}catch(o){let i=this.getAttribute("component-url")||"<unknown>",v=this.getAttribute("component-export");throw v&&(i+=` (export ${v})`),console.error(`[hydrate] Error parsing props for component ${i}`,this.getAttribute("props"),o),o}let h;await this.hydrator(this)(this.Component,u,n,{client:this.getAttribute("client")}),this.removeAttribute("ssr"),this.dispatchEvent(new CustomEvent("astro:hydrate"))});l(this,"unmount",()=>{this.isConnected||this.dispatchEvent(new CustomEvent("astro:unmount"))})}disconnectedCallback(){document.removeEventListener("astro:after-swap",this.unmount),document.addEventListener("astro:after-swap",this.unmount,{once:!0})}connectedCallback(){if(!this.hasAttribute("await-children")||document.readyState==="interactive"||document.readyState==="complete")this.childrenConnectedCallback();else{let e=()=>{document.removeEventListener("DOMContentLoaded",e),r.disconnect(),this.childrenConnectedCallback()},r=new MutationObserver(()=>{var n;((n=this.lastChild)==null?void 0:n.nodeType)===Node.COMMENT_NODE&&this.lastChild.nodeValue==="astro:end"&&(this.lastChild.remove(),e())});r.observe(this,{childList:!0}),document.addEventListener("DOMContentLoaded",e)}}async childrenConnectedCallback(){let e=this.getAttribute("before-hydration-url");e&&await import(e),this.start()}getRetryImportUrl(e){let r=new URL(e,document.baseURI);return r.searchParams.set("astro-retry",Date.now().toString()),r.toString()}async importWithRetry(e){try{return await import(e)}catch(r){return await new Promise(n=>setTimeout(n,1e3)),import(this.getRetryImportUrl(e))}}handleHydrationError(e){let r=this.getAttribute("component-url"),n=new CustomEvent("astro:hydration-error",{cancelable:!0,bubbles:!0,composed:!0,detail:{error:e,componentUrl:r}});this.dispatchEvent(n)&&console.error(`[astro-island] Error hydrating ${r}`,e)}async start(){let e=JSON.parse(this.getAttribute("opts")),r=this.getAttribute("client");if(Astro[r]===void 0){window.addEventListener(`astro:${r}`,()=>this.start(),{once:!0});return}try{await Astro[r](async()=>{let n=this.getAttribute("renderer-url");try{let[d,{default:u}]=await Promise.all([this.importWithRetry(this.getAttribute("component-url")),n?this.importWithRetry(n):Promise.resolve({default:()=>()=>{}})]),h=this.getAttribute("component-export")||"default";if(h.includes(".")){this.Component=d;for(let m of h.split(".")){if(E.has(m)||!this.Component||typeof this.Component!="object"&&typeof this.Component!="function"||!Object.hasOwn(this.Component,m))throw new Error(`Invalid component export path: ${h}`);this.Component=this.Component[m]}}else{if(E.has(h))throw new Error(`Invalid component export path: ${h}`);this.Component=d[h]}return this.hydrator=u,this.hydrate}catch(d){return this.handleHydrationError(d),()=>{}}},e,this)}catch(n){this.handleHydrationError(n)}}attributeChangedCallback(){this.hydrate()}}l(f,"observedAttributes",["props"]),customElements.get("astro-island")||customElements.define("astro-island",f)}})();</script><astro-island uid="1ypIyF" prefix="r1" component-url="/_astro/HeaderControls.DuiUZlSK.js" component-export="default" renderer-url="/_astro/client.BAdzVFPW.js" props="{&quot;githubUrl&quot;:[0,&quot;https://github.com/lucaslz2020&quot;],&quot;locale&quot;:[0,&quot;zh-CN&quot;],&quot;languageTargets&quot;:[0,{&quot;zh-CN&quot;:[0,&quot;/tools/macos-storage-cleanup-and-scheduled-task/&quot;],&quot;en&quot;:[0,&quot;/en/&quot;],&quot;zh-TW&quot;:[0,&quot;/zh-tw/&quot;],&quot;de&quot;:[0,&quot;/de/&quot;],&quot;zh-HK&quot;:[0,&quot;/zh-hk/&quot;]}]}" ssr client="load" opts="{&quot;name&quot;:&quot;HeaderControls&quot;,&quot;value&quot;:true}" await-children><div class="header-controls"><div class="language-switcher"><button type="button" class="language-switcher-trigger" aria-haspopup="menu" aria-expanded="false" aria-label="语言"><span aria-hidden="true">简</span><span class="language-switcher-caret" aria-hidden="true">▾</span></button></div><button class="icon-button search-trigger" type="button" aria-label="搜索"><span aria-hidden="true">⌕</span><span class="search-label">搜索</span><kbd>⌘K</kbd></button><button class="icon-button theme-trigger" type="button" aria-label="切换到深色模式"><span aria-hidden="true">◐</span></button><button class="icon-button menu-trigger" type="button" aria-label="打开导航"><span aria-hidden="true">☰</span></button></div><!--astro:end--></astro-island> </div> </header> <main id="main-content">  <article class="post-page" data-pagefind-body> <meta data-pagefind-filter="locale[content]" content="zh-CN"> <header class="post-header page-shell narrow-shell"> <a class="back-link" href="/">← 返回文章列表</a> <p class="eyebrow"> <span></span>ENGINEERING NOTE · 2026年9月22日 </p> <h1 data-pagefind-meta="title">macOS 存储清理实战：定位垃圾数据并用 launchd 实现每周自动清理</h1> <p class="post-description" data-pagefind-meta="description"> 记录一次 macOS 治理实战：从 du 逐层定位 178GB 占用并释放 21GB，到 9 步清理脚本 + launchd 每周自动执行，再到终端工具链统一迁移 brew、maven 与 IDEA 全栈统一 Oracle JDK25。 </p> <meta data-pagefind-meta="date" content="2026-09-22"> <meta data-pagefind-meta="tags" content="macOS, 存储清理, launchd, 自动化, 磁盘管理"> <div class="post-meta-row"> <div class="post-author"> <img class="mini-avatar" src="/brand/avatar.svg" alt="" width="36" height="36" decoding="async"> <span><strong>lucaslz</strong><small>作者</small></span> </div> <div class="post-facts"> <time datetime="2026-09-22T00:00:00.000Z">2026年9月22日</time>  <span>14 分钟阅读</span> <span class="post-view-count" data-page-views hidden></span> </div> </div> <div class="post-tag-row"> <a href="/tags/macos/" data-analytics-event="tag_click" data-analytics-target="macOS">
+#macOS </a><a href="/tags/存储清理/" data-analytics-event="tag_click" data-analytics-target="存储清理">
+#存储清理 </a><a href="/tags/launchd/" data-analytics-event="tag_click" data-analytics-target="launchd">
+#launchd </a><a href="/tags/自动化/" data-analytics-event="tag_click" data-analytics-target="自动化">
+#自动化 </a><a href="/tags/磁盘管理/" data-analytics-event="tag_click" data-analytics-target="磁盘管理">
+#磁盘管理 </a> </div>    </header> <div class="post-divider"> <span></span><b>&#123; &#125;</b><span></span> </div> <div class="post-layout page-shell"> <div class="post-content prose">  <h2 id="起因">起因</h2>
+<p>926GB 的磁盘用了 178GB，剩 724GB——乍看不紧张，但 <code>~/Library</code> 一家就占了 38GB，加上散落在各处的开发构建产物、包管理器缓存、AI 工具会话，怎么看怎么像定时炸弹。正好前阵子写过 <a href="/tools/homebrew-clean-reinstall-and-weekly-upgrade/">Homebrew 每周自动更新</a>，这次照同一套路：先人工摸底清理，再把可重复的部分脚本化 + 定时化。</p>
+<h2 id="第一步逐层-du画出占用地图">第一步：逐层 du，画出占用地图</h2>
+<p>清理的第一原则是<strong>先测量再动手</strong>。几条命令层层下钻：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="shell"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">df</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -h</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> /System/Volumes/Data</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">du</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -sh</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ~/.</span><span style="color:#005CC5;--shiki-dark:#79B8FF">*</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ~/Library</span><span style="color:#D73A49;--shiki-dark:#F97583"> 2></span><span style="color:#032F62;--shiki-dark:#9ECBFF">/dev/null</span><span style="color:#D73A49;--shiki-dark:#F97583"> |</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> sort</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -hr</span><span style="color:#D73A49;--shiki-dark:#F97583"> |</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> head</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 50</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">du</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -sh</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ~/Library/</span><span style="color:#005CC5;--shiki-dark:#79B8FF">*</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ~/Library/Caches/</span><span style="color:#005CC5;--shiki-dark:#79B8FF">*</span><span style="color:#D73A49;--shiki-dark:#F97583"> 2></span><span style="color:#032F62;--shiki-dark:#9ECBFF">/dev/null</span><span style="color:#D73A49;--shiki-dark:#F97583"> |</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> sort</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -hr</span><span style="color:#D73A49;--shiki-dark:#F97583"> |</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> head</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -n</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 30</span></span></code></pre>
+<p>摸出来的大头（按可清理性分三类）：</p>
+<p><strong>可安全自动清（缓存/日志/旧版本，约 20GB）：</strong></p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>位置</th><th>大小</th><th>性质</th></tr></thead><tbody><tr><td><code>~/Library/Caches/Homebrew/downloads</code></td><td>6.1GB</td><td>brew 下载缓存</td></tr><tr><td><code>~/.npm/_cacache</code></td><td>4.8GB</td><td>npm 缓存</td></tr><tr><td><code>~/.codex/sessions</code></td><td>5.7GB</td><td>Codex 历史会话</td></tr><tr><td><code>~/Library/Caches/JetBrains/IntelliJIdea2026.1</code></td><td>3.4GB</td><td>IDE 旧版本缓存（当前 2026.2）</td></tr><tr><td><code>~/Library/Caches/ms-playwright</code></td><td>1.1GB</td><td>旧浏览器内核</td></tr><tr><td><code>~/Library/Logs/JetBrains</code></td><td>764MB</td><td>IDE 日志</td></tr></tbody></table>
+<p><strong>需手动确认（约 14GB）：</strong></p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>位置</th><th>大小</th><th>备注</th></tr></thead><tbody><tr><td><code>~/VirtualBox VMs/basic_bak</code></td><td>5.4GB</td><td>与 <code>basic</code> 重复的整机备份</td></tr><tr><td><code>~/Downloads/ubuntu-*.iso</code></td><td>2.8GB</td><td>用完即删的典型</td></tr><tr><td><code>~/Library/pnpm/store</code></td><td>5.0GB</td><td>可删一次，后续 prune 维持</td></tr><tr><td><code>~/Documents/某业务流程图.zip</code></td><td>408MB</td><td>已有同名解压目录，纯重复</td></tr></tbody></table>
+<p><strong>碰都别碰：</strong> <code>~/.m2/repository</code>（4.3GB，删了重下更慢）、项目 <code>target/build</code>（默认只报告）、各 App 的 <code>Application Support</code> 数据。</p>
+<h2 id="第二步手动清理一次释放-21gb">第二步：手动清理，一次释放 21GB</h2>
+<p>按”先大后小、先确认后删除”的顺序执行。虚拟机备份删前先确认 <code>basic</code> 目录完好；JetBrains 旧版三个位置（Caches / Application Support / Logs）要一起清，只清一处不清爽：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="shell"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">rm</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -rf</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ~/"VirtualBox VMs"/basic_bak</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  ~/Downloads/ubuntu-24.04.4-live-server-arm64.iso</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  ~/Downloads/WeChatMac_4.1.13.dmg</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  ~/Documents/某业务流程图.zip</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  ~/Library/Caches/JetBrains/IntelliJIdea2026.1</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  ~/Library/Application</span><span style="color:#005CC5;--shiki-dark:#79B8FF">\ </span><span style="color:#032F62;--shiki-dark:#9ECBFF">Support/JetBrains/IntelliJIdea2026.1</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  ~/Library/Logs/JetBrains/IntelliJIdea2026.1</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> \</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  ~/Library/pnpm/store</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">brew</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> cleanup</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -s</span><span style="color:#6A737D;--shiki-dark:#6A737D">      # 释放 3.7GB</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">npm</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> cache</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> clean</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --force</span><span style="color:#6A737D;--shiki-dark:#6A737D">  # 释放 4.8GB</span></span></code></pre>
+<p>结果：磁盘已用 184GB → 163GB。<code>pnpm store</code> 删后用 <code>corepack pnpm --version</code> 验证过（本机 pnpm 是 corepack 托管的 12.5.1），下次安装自动重建。</p>
+<h2 id="第三步写成-9-步清理脚本">第三步：写成 9 步清理脚本</h2>
+<p>手动清理不可重复，把规律性的部分写成 <code>~/scripts/system-cleanup.sh</code>，分 9 步，每一步都是”条件触发 + 可再生”：</p>
+<ol>
+<li><strong>Homebrew 缓存</strong> → <code>brew cleanup -s</code> + <code>autoremove</code></li>
+<li><strong>npm/pnpm 缓存</strong> → npm 超 1GB 才清，pnpm 只 <code>store prune</code></li>
+<li><strong>JetBrains 旧版</strong> → 自动识别版本号最大的保留，其余删除</li>
+<li><strong>Codex/Claude 会话</strong> → 默认关闭，<code>CLEAN_AI_SESSIONS=1</code> 才删（见踩坑 1）</li>
+<li><strong>Maven/Gradle</strong> → 只删 <code>*.lastUpdated</code> 失败标记，不动仓库主体</li>
+<li><strong>通用日志</strong> → <code>*.log</code> 按 14/30 天滚动</li>
+<li><strong>回收站/会话</strong> → 只清 30 天前的</li>
+<li><strong>项目构建产物</strong> → 默认关闭，<code>CLEAN_BUILD_OUTPUTS=1</code> 才删 target/build/dist</li>
+<li><strong>大户报告</strong> → iso/dmg、虚拟机、仓库主体只打印占用，不删</li>
+</ol>
+<p>工程化细节和 brew 脚本同一套：<code>mkdir</code> 原子锁防重入、日志超 5MB 轮转、删除前后统计释放量。外加两个安全开关：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="shell"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">DRY_RUN</span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#032F62;--shiki-dark:#9ECBFF">1</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> bash</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ~/scripts/system-cleanup.sh</span><span style="color:#6A737D;--shiki-dark:#6A737D">          # 预演，只报告不删除</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">CLEAN_BUILD_OUTPUTS</span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#032F62;--shiki-dark:#9ECBFF">1</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> bash</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ~/scripts/system-cleanup.sh</span><span style="color:#6A737D;--shiki-dark:#6A737D">  # 连带清构建产物</span></span></code></pre>
+<h2 id="第四步launchd-每周日自动执行">第四步：launchd 每周日自动执行</h2>
+<p>定时器 <code>~/Library/LaunchAgents/com.lucas.system-cleanup.plist</code>，每周日 03:00（特意避开周一 09:00 的 brew 任务）：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="xml"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">&#x3C;</span><span style="color:#22863A;--shiki-dark:#85E89D">key</span><span style="color:#24292E;--shiki-dark:#E1E4E8">>StartCalendarInterval&#x3C;/</span><span style="color:#22863A;--shiki-dark:#85E89D">key</span><span style="color:#24292E;--shiki-dark:#E1E4E8">></span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">&#x3C;</span><span style="color:#22863A;--shiki-dark:#85E89D">dict</span><span style="color:#24292E;--shiki-dark:#E1E4E8">></span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    &#x3C;</span><span style="color:#22863A;--shiki-dark:#85E89D">key</span><span style="color:#24292E;--shiki-dark:#E1E4E8">>Weekday&#x3C;/</span><span style="color:#22863A;--shiki-dark:#85E89D">key</span><span style="color:#24292E;--shiki-dark:#E1E4E8">></span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    &#x3C;</span><span style="color:#22863A;--shiki-dark:#85E89D">integer</span><span style="color:#24292E;--shiki-dark:#E1E4E8">>0&#x3C;/</span><span style="color:#22863A;--shiki-dark:#85E89D">integer</span><span style="color:#24292E;--shiki-dark:#E1E4E8">></span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    &#x3C;</span><span style="color:#22863A;--shiki-dark:#85E89D">key</span><span style="color:#24292E;--shiki-dark:#E1E4E8">>Hour&#x3C;/</span><span style="color:#22863A;--shiki-dark:#85E89D">key</span><span style="color:#24292E;--shiki-dark:#E1E4E8">></span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    &#x3C;</span><span style="color:#22863A;--shiki-dark:#85E89D">integer</span><span style="color:#24292E;--shiki-dark:#E1E4E8">>3&#x3C;/</span><span style="color:#22863A;--shiki-dark:#85E89D">integer</span><span style="color:#24292E;--shiki-dark:#E1E4E8">></span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    &#x3C;</span><span style="color:#22863A;--shiki-dark:#85E89D">key</span><span style="color:#24292E;--shiki-dark:#E1E4E8">>Minute&#x3C;/</span><span style="color:#22863A;--shiki-dark:#85E89D">key</span><span style="color:#24292E;--shiki-dark:#E1E4E8">></span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    &#x3C;</span><span style="color:#22863A;--shiki-dark:#85E89D">integer</span><span style="color:#24292E;--shiki-dark:#E1E4E8">>0&#x3C;/</span><span style="color:#22863A;--shiki-dark:#85E89D">integer</span><span style="color:#24292E;--shiki-dark:#E1E4E8">></span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">&#x3C;/</span><span style="color:#22863A;--shiki-dark:#85E89D">dict</span><span style="color:#24292E;--shiki-dark:#E1E4E8">></span></span></code></pre>
+<p>注册验证三件套：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="shell"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">plutil</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -lint</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ~/Library/LaunchAgents/com.lucas.system-cleanup.plist</span><span style="color:#6A737D;--shiki-dark:#6A737D">  # OK</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">launchctl</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> bootstrap</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> gui/</span><span style="color:#24292E;--shiki-dark:#E1E4E8">$(</span><span style="color:#6F42C1;--shiki-dark:#B392F0">id</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> -u</span><span style="color:#24292E;--shiki-dark:#E1E4E8">) </span><span style="color:#032F62;--shiki-dark:#9ECBFF">~/Library/LaunchAgents/com.lucas.system-cleanup.plist</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">DRY_RUN</span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#032F62;--shiki-dark:#9ECBFF">1</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> bash</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> ~/scripts/system-cleanup.sh</span><span style="color:#6A737D;--shiki-dark:#6A737D">  # 先预演再上线</span></span></code></pre>
+<p>脚本是热加载的——以后改脚本不用动定时器，下次执行自动用新版。</p>
+<h2 id="第五步终端工具链统一迁移到-brew">第五步：终端工具链统一迁移到 brew</h2>
+<p>清理磁盘时顺手盘了终端工具的家底，发现比磁盘还乱：同一个工具多处安装、有的已损坏、node 版本管理器（nvm）根本没接入 shell。原则是<strong>能进 brew 的都进 brew</strong>，这样周一的自动更新流水线顺手就管了：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>工具</th><th>之前</th><th>之后</th></tr></thead><tbody><tr><td><code>codex</code></td><td>nvm 里的 symlink 目标失踪，全终端不可用</td><td>brew 版 node 的 npm 全局重装，0.155.1 ✅</td></tr><tr><td><code>opencode</code></td><td>pnpm 版已坏 + 官方版两处重复</td><td>都不要了，三处全删</td></tr><tr><td>node 版本管理</td><td>孤儿 nvm（<code>.zshrc</code> 无加载行）+ brew node@24</td><td>删 nvm，改用 brew 多版本：<code>node@24</code>（主）+ <code>node@22</code>（LTS），<code>brew unlink/link</code> 切换</td></tr><tr><td><code>git</code></td><td>Apple Git 2.54.0</td><td>brew Git 2.55.0（配置与凭证助手通用，无缝）</td></tr><tr><td>新增</td><td>—</td><td><code>gh</code>（GitHub CLI）</td></tr><tr><td><code>python</code></td><td>3.13 + 3.14 并存</td><td>删 3.13（无反向依赖），留 3.14</td></tr><tr><td><code>openjdk27</code></td><td>brew 版（391MB）</td><td>删，见第六步</td></tr><tr><td>PATH</td><td><code>/opt/homebrew/bin</code> 重复 4 次</td><td><code>.zshrc</code> 守卫 + 末尾全局去重，多次 source 零膨胀</td></tr></tbody></table>
+<p>其中 <code>brew install codex</code> 装上的是个<strong>残的 Cask</strong>（shim 指向不存在的二进制），卸掉改走 npm CLI——别迷信包名，装完一定要 <code>which + --version</code> 双验证。</p>
+<h2 id="第六步maven-与-idea-全栈统一-oracle-jdk25">第六步：maven 与 IDEA 全栈统一 Oracle JDK25</h2>
+<p>brew 的 maven 已是最新 3.9.16，无需升级。真正的统一对象是 JDK：本机有 Oracle 25、微软 21、JetBrains 自带 JBR 17/21 四套，而项目只用到 11/17/25 三档。由于 JDK25 可向下编译（<code>release</code> 参数），<strong>构建统一用 JDK25 是可行的</strong>：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;" tabindex="0" data-language="shell"><code><span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D"># .zshrc：终端 + maven 默认 JDK25</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">if</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> [ </span><span style="color:#D73A49;--shiki-dark:#F97583">-d</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> "${</span><span style="color:#24292E;--shiki-dark:#E1E4E8">HOME</span><span style="color:#032F62;--shiki-dark:#9ECBFF">}/Library/Java/JavaVirtualMachines/openjdk-25.0.2/Contents/Home"</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> ]; </span><span style="color:#D73A49;--shiki-dark:#F97583">then</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  export</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> JAVA_HOME</span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#032F62;--shiki-dark:#9ECBFF">"${</span><span style="color:#24292E;--shiki-dark:#E1E4E8">HOME</span><span style="color:#032F62;--shiki-dark:#9ECBFF">}/Library/Java/JavaVirtualMachines/openjdk-25.0.2/Contents/Home"</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">fi</span></span></code></pre>
+<ul>
+<li><code>brew uninstall --ignore-dependencies openjdk</code> 删掉 brew JDK27（391MB）。<code>--ignore-dependencies</code> 是因为 maven 声明依赖它，但实测 maven 随 <code>JAVA_HOME</code> 走 JDK25 完全正常——注意将来 <code>brew upgrade maven</code> 可能会把它装回来，届时再卸一次即可。</li>
+<li>微软 JDK21 删除（336MB，JDK25 可覆盖其编译目标）；JBR 是 IDE 自带运行时，保留。</li>
+<li>IDEA 项目 SDK 统一：扫全部 37 个项目的 <code>.idea/misc.xml</code>，6 个异类（指向 JBR、重复命名、缺失）改成 <code>openjdk-25</code>；<code>jdk.table.xml</code> 里删掉指向已删 JDK 的死条目和重复命名。language level 保持不动（JDK_17 的项目照旧，SDK 25 完全兼容）。</li>
+<li>验证：一个 Spring Boot 4 + Java 25 的项目 <code>mvn compile</code> 一次通过。某遗留模块编不过，查明是<strong>公司内部 BOM 不在公服镜像上</strong>（需先装父工程），与 JDK 无关——失败排查要先看 ERROR 首行归因，别急着怪环境。</li>
+</ul>
+<p>最终版图：<strong>构建（maven）+ IDE 项目 + 终端全部 Oracle JDK25，IDE 自身跑 JBR</strong>（JetBrains 强制要求，动不得）。</p>
+<h2 id="第七步jdk-本体也迁入-brewide-只剩一个-sdk">第七步：JDK 本体也迁入 brew，IDE 只剩一个 SDK</h2>
+<p>第六步统一完”用哪个 JDK”，顺手把 JDK 本体也迁入 brew：<code>brew install openjdk@25</code>（25.0.4.1，比手动装的 Oracle 25.0.2 还新；keg-only，只上架不链接，不污染系统 <code>java</code>）。迁移成本比预期低很多：IDEA 里 SDK 名字保持 <code>openjdk-25</code> 不变，只改 <code>jdk.table.xml</code> 里一条 homePath（同路径替换 139 处），37 个项目的 <code>misc.xml</code> 一个都不用动；<code>.zshrc</code> 的 <code>JAVA_HOME</code> 同步换一行。</p>
+<p>然后把旧 JDK 全清掉：brew JDK27（391MB）、微软 JDK21（336MB）、Oracle 25（370MB）、JBR 17/21（562MB），一轮约 1.6GB。删 JBR 前确认三件事：IDE 没在运行、没有自定义 boot JDK 文件（<code>*.jdk</code>）、没有项目引用——IDE 自带的 JBR 在各自 <code>.app</code> 包里，不受影响。</p>
+<p>最终：<code>/Library</code> 与 <code>~/Library</code> 的 <code>JavaVirtualMachines</code> 全空，全系统只剩 brew 一个 JDK；<code>jdk.table</code> 只剩 <code>openjdk-25</code> 一条注册。四个小 App（网易云/V2rayU/豆包/Tunnelblick）因 Gatekeeper 弹窗与官方下架问题保持手动安装，见踩坑 11。</p>
+<h2 id="踩坑总结">踩坑总结</h2>
+<ol>
+<li><strong>AI 会话清理默认关闭</strong>：第一版把 Codex 30 天前的会话纳入自动清理，复核时决定太激进——会话记录可能是唯一的上下文回溯手段。改为 <code>CLEAN_AI_SESSIONS</code> 开关，默认只报告占用（5.7GB），想清再手动开。<strong>删除类自动化的默认姿态应该是保守的。</strong></li>
+<li><strong><code>brew cleanup -s</code> 删的不是”待安装文件”</strong>：有人担心刚下载还没装的包被清掉。实测验证：brew 缓存目录只有 brew 自己会写，浏览器下载的东西在 <code>~/Downloads</code>；且被清的 4 个 Cask（微信/ChatGPT/WPS/Claude）既不在 <code>brew list</code> 里，也不在 <code>/Applications</code> 里，是纯孤儿残留。最坏情况也不过是重装时重新下载一次。</li>
+<li><strong><code>MobileSync</code> 删不动是 TCC，不是权限</strong>：<code>~/Library/Application Support/MobileSync/Backup</code> 里躺着 48GB 的 iPhone 本地备份，终端 <code>rm</code> 直接 <code>Operation not permitted</code>——连 sudo 都绕不过。正确姿势是回「系统设置 → 通用 → 储存空间 → iOS文件」点删除按钮，苹果官方路径反而最干净。</li>
+<li><strong>截图的临时文件会说话</strong>：排查时遇到 <code>$TMPDIR/TemporaryItems/NSIRD_screencaptureui_xxx/</code> 下的截图暂存，点开一看正是储存空间管理里的 iOS 文件界面——顺藤摸瓜发现了上面那个 48GB 备份。临时目录（重启自动清空）本身不用管，但它的内容经常是绝佳线索。</li>
+<li><strong><code>pnpm</code> 找不到是因为 corepack</strong>：非登录 shell 里 <code>command -v pnpm</code> 为空，本机 pnpm 是 corepack 托管的。脚本里用 <code>command -v</code> 做存在性保护，找不到就跳过而不是报错——定时任务环境和交互终端的 PATH 差异，写脚本时就要预留。</li>
+<li><strong>包名不等于可用性</strong>：<code>brew install codex</code> 成功不代表 <code>codex</code> 命令可用——装上的是 Cask，shim 指向的二进制根本不存在。铁律：装完必做 <code>which xxx &#x26;&#x26; xxx --version</code> 双验证，有问题当场换渠道（这里是 brew 版 node 的 npm 全局）。</li>
+<li><strong>nvm 孤儿化检查</strong>：<code>.zshrc</code> 里没有 nvm 加载行，<code>~/.nvm</code> 就是 300 多 MB 的死目录。判断包管理器是否生效，不要看目录在不在，要看 shell 启动文件里有没有它的初始化——反之 <code>.zprofile</code> 里的 <code>brew shellenv</code> 和 OrbStack init 才是 PATH 重复的真凶，根治靠 <code>.zshrc</code> 末尾全局去重，而不是逐个加守卫。</li>
+<li><strong>IDE 配置要趁它没运行时改</strong>：<code>jdk.table.xml</code> 和 <code>misc.xml</code> 都是 IDEA 启动时读、退出时写的，开着 IDEA 改会被覆盖。动手前 <code>pgrep</code> 确认，改完先备份。</li>
+<li><strong>编译失败先看 ERROR 首行归因</strong>：遗留模块编不过，第一反应可能是 JDK 版本问题，实际是内部 BOM 缺失。养成习惯：<code>grep ERROR</code> 看前 3 行定性（依赖缺失 / 网络 / 工具链），再决定动哪儿。</li>
+<li><strong>cask 也有残次品和下架品</strong>：<code>brew install codex</code> 装上的 shim 指向不存在的二进制；<code>v2rayu</code> 直接被官方下架（过不了 Gatekeeper）。brew 不是万能药，装完 <code>which + --version</code> 双验证，不行就换渠道。</li>
+<li><strong>Gatekeeper 弹窗是非交互自动化的天敌</strong>：两个 App 的 dmg 在挂载时弹”磁盘映像可能有问题”，要图形界面点确认，脚本里直接 cancel——这类就留给人在自己终端里手动跑一次过掉，别跟自动化较劲。</li>
+<li><strong>校验脚本的 bug 也是 bug</strong>：一次复核把 JBR 标成”死链”，原因只是没展开 <code>$USER_HOME$</code> 变量。教训：先确认断言本身是对的，误报比漏报更浪费信任。</li>
+</ol> </div> <aside class="table-of-contents" aria-label="文章目录" data-pagefind-ignore> <p>ON THIS PAGE</p> <ol> <li> <a href="#起因" data-analytics-event="toc_click" data-analytics-target="起因"> 起因 </a> </li><li> <a href="#第一步逐层-du画出占用地图" data-analytics-event="toc_click" data-analytics-target="第一步逐层-du画出占用地图"> 第一步：逐层 du，画出占用地图 </a> </li><li> <a href="#第二步手动清理一次释放-21gb" data-analytics-event="toc_click" data-analytics-target="第二步手动清理一次释放-21gb"> 第二步：手动清理，一次释放 21GB </a> </li><li> <a href="#第三步写成-9-步清理脚本" data-analytics-event="toc_click" data-analytics-target="第三步写成-9-步清理脚本"> 第三步：写成 9 步清理脚本 </a> </li><li> <a href="#第四步launchd-每周日自动执行" data-analytics-event="toc_click" data-analytics-target="第四步launchd-每周日自动执行"> 第四步：launchd 每周日自动执行 </a> </li><li> <a href="#第五步终端工具链统一迁移到-brew" data-analytics-event="toc_click" data-analytics-target="第五步终端工具链统一迁移到-brew"> 第五步：终端工具链统一迁移到 brew </a> </li><li> <a href="#第六步maven-与-idea-全栈统一-oracle-jdk25" data-analytics-event="toc_click" data-analytics-target="第六步maven-与-idea-全栈统一-oracle-jdk25"> 第六步：maven 与 IDEA 全栈统一 Oracle JDK25 </a> </li><li> <a href="#第七步jdk-本体也迁入-brewide-只剩一个-sdk" data-analytics-event="toc_click" data-analytics-target="第七步jdk-本体也迁入-brewide-只剩一个-sdk"> 第七步：JDK 本体也迁入 brew，IDE 只剩一个 SDK </a> </li><li> <a href="#踩坑总结" data-analytics-event="toc_click" data-analytics-target="踩坑总结"> 踩坑总结 </a> </li> </ol> </aside> </div> <script type="module" src="/_astro/MermaidEnhancer.astro_astro_type_script_index_0_lang.JeVnloy7.js"></script> <dialog class="image-lightbox" data-image-lightbox data-locale="zh-CN" aria-labelledby="lightbox-caption"> <div class="image-lightbox-inner"> <button type="button" class="image-lightbox-close" aria-label="关闭图片预览">
+×
+</button> <img alt="" decoding="async"> <p id="lightbox-caption" hidden></p> </div> </dialog><script type="module" src="/_astro/ImageLightbox.astro_astro_type_script_index_0_lang.Db8U22Iw.js"></script> <div class="reading-progress" aria-hidden="true"><span></span></div> <div class="article-actions" data-reading-tools data-locale="zh-CN" data-title="macOS 存储清理实战：定位垃圾数据并用 launchd 实现每周自动清理" data-href="https://lucaslz.com/tools/macos-storage-cleanup-and-scheduled-task/"> <button type="button" data-share aria-label="分享"> 分享 </button> <button type="button" data-copy-link aria-label="复制链接"> 复制链接 </button> <button type="button" data-bookmark aria-label="收藏" aria-pressed="false"> 收藏 </button> </div> <button class="back-to-top" type="button" aria-label="返回顶部" hidden>↑</button> <div class="reading-toast" role="status" aria-live="polite"></div><script type="module" src="/_astro/ReadingTools.astro_astro_type_script_index_0_lang.CXpXB1Lm.js"></script> <footer class="post-footer page-shell narrow-shell" data-pagefind-ignore> <div class="post-end-mark"><span>END</span></div> <p>感谢阅读。你可以分享、收藏，或在下方参与讨论。</p> <section class="related-posts" aria-labelledby="related-title"> <div class="related-heading"> <span>CONTINUE READING</span> <h2 id="related-title">相关文章</h2> </div> <div class="related-grid"> <article class="article-card compact"> <a class="article-card-link" href="/tools/homebrew-clean-reinstall-and-weekly-upgrade/" data-analytics-event="article_click" data-analytics-impression="article_impression" data-analytics-target="/tools/homebrew-clean-reinstall-and-weekly-upgrade/"> <div class="article-card-top"> <span class="article-index">01</span> <span class="article-date">2026.09.22</span> </div> <h3>Homebrew 彻底卸载重装与每周自动更新实战</h3> <p>记录一次 macOS 上彻底卸载 Homebrew（含 Cask 应用与配置）、安装最新版、恢复 48 个 formula 与 6 个 Cask，并用 launchd 实现每周一自动更新的全过程与踩坑总结。</p> <div class="article-card-bottom"> <div class="article-tags"> <span data-href="/tags/homebrew/">
+#Homebrew </span><span data-href="/tags/macos/">
+#macOS </span><span data-href="/tags/launchd/">
+#launchd </span> </div> <span class="read-time">12 min <b>↗</b></span> </div> </a> </article> </div> </section> <div class="post-navigation"> <a href="/tools/codex-astra-terra-orchestrator/" class="previous-post" data-analytics-event="article_click" data-analytics-target="/tools/codex-astra-terra-orchestrator/">  <small>← 上一篇</small> <strong>让 Codex 按需协作：Astra 统筹、Terra 执行的项目级多代理配置</strong>  </a> <a href="/tools/homebrew-clean-reinstall-and-weekly-upgrade/" class="next-post" data-analytics-event="article_click" data-analytics-target="/tools/homebrew-clean-reinstall-and-weekly-upgrade/">  <small>下一篇 →</small> <strong>Homebrew 彻底卸载重装与每周自动更新实战</strong>  </a> </div> </footer> </article> <div class="page-shell narrow-shell" data-pagefind-ignore> <section class="comments-section" aria-labelledby="comments-title" data-giscus-comments data-repo="lucaslz2020/lucasleelz.github.io" data-repo-id="MDEwOlJlcG9zaXRvcnkyNzcxNjkwNw==" data-category="Announcements" data-category-id="DIC_kwDOAabtK84DCw-x" data-discussion-path="/tools/macos-storage-cleanup-and-scheduled-task/" data-giscus-language="zh-CN"> <div class="comments-heading"> <p class="eyebrow"> <span></span>
+DISCUSSION
+</p> <h2 id="comments-title">讨论与反馈</h2> </div> <div class="giscus" aria-live="polite"></div> </section><script type="module">var e=()=>document.documentElement.dataset.theme===`dark`?`noborder_dark`:`noborder_light`,t=t=>{if(t.dataset.loaded===`true`)return;let n=t.querySelector(`.giscus`);if(!n)return;let r=document.createElement(`script`);r.src=`https://giscus.app/client.js`,r.async=!0,r.crossOrigin=`anonymous`,r.dataset.repo=t.dataset.repo??``,r.dataset.repoId=t.dataset.repoId??``,r.dataset.category=t.dataset.category??``,r.dataset.categoryId=t.dataset.categoryId??``,r.dataset.mapping=`specific`,r.dataset.term=t.dataset.discussionPath??window.location.pathname,r.dataset.strict=`1`,r.dataset.reactionsEnabled=`1`,r.dataset.emitMetadata=`0`,r.dataset.inputPosition=`top`,r.dataset.theme=e(),r.dataset.lang=t.dataset.giscusLanguage??`zh-CN`,r.dataset.loading=`lazy`,t.dataset.loaded=`true`,n.append(r)},n=document.querySelector(`[data-giscus-comments]`);if(n){if(`IntersectionObserver`in window){let e=new IntersectionObserver(r=>{r.some(e=>e.isIntersecting)&&(t(n),e.disconnect())},{rootMargin:`500px 0px`});e.observe(n)}else t(n)}window.addEventListener(`theme-change`,()=>{document.querySelector(`iframe.giscus-frame`)?.contentWindow?.postMessage({giscus:{setConfig:{theme:e()}}},`https://giscus.app`)});</script> </div>  </main> <footer class="site-footer"> <div class="footer-inner"> <div class="footer-brand"> <img class="brand-mark" src="/brand/avatar.svg" alt="" width="42" height="42" loading="lazy" decoding="async"> <div> <strong>lucaslz</strong> <p>关于软件工程、Web、Java 与持续学习的长期技术笔记。</p> </div> </div> <div class="footer-links"> <a href="/rss.xml">RSS</a> <a href="/archive/">归档</a> <a href="/tags/">标签</a> <a href="https://github.com/lucaslz2020" target="_blank" rel="noreferrer">GitHub</a> </div> </div> <div class="footer-bottom"> <span>© 2013 ~ 2026 lucaslz</span> <span>Built with Astro + React · Deployed on Cloudflare Pages</span> </div> </footer> <script type="module" src="/_astro/Analytics.astro_astro_type_script_index_0_lang.EOcdV3vz.js"></script> <aside class="pwa-notice" data-pwa-notice data-locale="zh-CN" data-mode="status" aria-label="应用状态" aria-live="polite" aria-atomic="true" hidden> <span class="pwa-notice-icon" data-pwa-icon aria-hidden="true">↧</span> <p> <strong data-pwa-title>离线阅读已就绪</strong> <small data-pwa-message>访问过的文章可以在断网时继续阅读。</small> </p> <div class="pwa-notice-actions"> <button type="button" data-pwa-action hidden> 立即安装 </button> <button type="button" data-pwa-dismiss>知道了</button> </div> </aside><script type="module" src="/_astro/Pwa.astro_astro_type_script_index_0_lang.DIF6eglM.js"></script> </body> </html>
